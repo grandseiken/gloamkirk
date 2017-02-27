@@ -32,7 +32,7 @@
           "command": "cmake",
           "arguments": [
             "--build", ".",
-            "--config", "Release",
+            "--config", "${BUILD_CONFIG}",
             "--target", "client"
           ]
         }

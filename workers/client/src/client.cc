@@ -1,5 +1,5 @@
 #include <improbable/worker.h>
-#include <schema/gloamkerk.h>
+#include <schema/gloamkirk.h>
 #include <cstdint>
 #include <iostream>
 #include <string>

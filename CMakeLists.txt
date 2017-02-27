@@ -1,5 +1,5 @@
-# Gloamkerk main build file.
-project(gloamkerk)
+# Main build file.
+project(gloamkirk)
 cmake_minimum_required(VERSION 3.0)
 
 # Useful directories.
@@ -8,6 +8,7 @@ set(PROJECT_BUILD "${CMAKE_SOURCE_DIR}/build")
 set(PROJECT_GENERATED "${PROJECT_BUILD}/generated")
 set(PROJECT_SDK "${PROJECT_BUILD}/worker_sdk")
 
+add_definitions(${CXX_EXTRA_DEFINITIONS})
 if(MSVC)
   add_definitions(/W4)
 else()

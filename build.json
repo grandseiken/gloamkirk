@@ -48,7 +48,9 @@
           "working_path": "build/cmake",
           "command": "cmake",
           "arguments": [
-            "-DCMAKE_BUILD_TYPE=Release",
+            "-G", "${BUILD_GENERATOR}",
+            "-DCMAKE_BUILD_TYPE=${BUILD_CONFIG}",
+	    "-DCXX_EXTRA_DEFINITIONS=${BUILD_DEFINITIONS}",
             "../.."
           ]
         }
