@@ -1,0 +1,72 @@
+{
+  "tasks": [
+    {
+      "name": "codegen",
+      "steps": [
+        {
+          "name": "codegen",
+          "arguments": [
+            "process_schema",
+            "generate",
+            "--input=schema",
+            "--input=build/dependencies/schema/WorkerSdkSchema",
+            "--output=build/generated",
+            "--cachePath=build/generated/cache",
+            "--language=cpp"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "build",
+      "steps": [
+        {
+          "name": "codegen",
+          "arguments": [
+            "invoke-task",
+            "codegen"
+          ]
+        },
+        {
+          "name": "dependencies",
+          "arguments": [
+            "worker_package",
+            "unpack"
+          ]
+        },
+        {
+          "name": "mkdir",
+          "command": "cmake",
+          "arguments": [
+            "-E",
+            "make_directory",
+            "build/cmake"
+          ]
+        },
+        {
+          "name": "cmake",
+          "working_path": "build/cmake",
+          "command": "cmake",
+          "arguments": [
+            "-DCMAKE_BUILD_TYPE=Release",
+            "../.."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "clean",
+      "steps": [
+        {
+          "name": "clean",
+          "command": "cmake",
+          "arguments": [
+            "-E",
+            "remove_directory",
+            "build"
+          ]
+        }
+      ]
+    }
+  ]
+}

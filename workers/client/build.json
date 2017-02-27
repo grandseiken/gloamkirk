@@ -4,13 +4,12 @@
       "name": "codegen",
       "steps": [
         {
-          "name": "codegen",
+          "name": "common",
+          "working_path": "../..",
           "arguments": [
-            "process_schema",
-            "generate",
-            "--output=../../build/generated",
-            "--cachePath=../../build/generated/cache",
-            "--language=cpp"
+            "exec",
+            "build.json",
+            "codegen"
           ]
         }
       ]
@@ -19,18 +18,22 @@
       "name": "build",
       "steps": [
         {
-          "name": "codegen",
+          "name": "common",
+          "working_path": "../..",
           "arguments": [
-            "invoke-task",
-            "codegen"
+            "exec",
+            "build.json",
+            "build"
           ]
         },
         {
-          "name": "dependencies",
-          "working_path": "../..",
+          "name": "build",
+          "working_path": "../../build/cmake",
+          "command": "cmake",
           "arguments": [
-            "worker_package",
-            "unpack"
+            "--build", ".",
+            "--config", "Release",
+            "--target", "client"
           ]
         }
       ]
@@ -39,7 +42,13 @@
       "name": "clean",
       "steps": [
         {
-          "name": "clean"
+          "name": "clean",
+          "working_path": "../..",
+          "arguments": [
+            "exec",
+            "build.json",
+            "clean"
+          ]
         }
       ]
     }
