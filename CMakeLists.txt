@@ -18,7 +18,7 @@ endif()
 # Find the worker SDK libraries.
 find_package(Threads)
 find_library(LIB_CORE_SDK CoreSdk "${PROJECT_SDK}/lib" DEFAULT_PATH)
-find_library(LIB_PROJECT_SDK WorkerSdk "${PROJECT_SDK}/lib" NO_DEFAULT_PATH)
+find_library(LIB_WORKER_SDK WorkerSdk "${PROJECT_SDK}/lib" NO_DEFAULT_PATH)
 find_library(LIB_PROTOBUF NAMES protobuf libprotobuf PATHS "${PROJECT_SDK}/lib" NO_DEFAULT_PATH)
 find_library(LIB_RAKNET RakNetLibStatic "${PROJECT_SDK}/lib" NO_DEFAULT_PATH)
 find_library(LIB_SSL ssl "${PROJECT_SDK}/lib" NO_DEFAULT_PATH)
@@ -31,7 +31,7 @@ find_library(LIB_GRPCXX NAMES grpc++ PATHS "${PROJECT_SDK}/lib" NO_DEFAULT_PATH)
 add_library(worker_sdk INTERFACE)
 target_include_directories(worker_sdk INTERFACE "${PROJECT_SDK}/include")
 target_link_libraries(worker_sdk INTERFACE
-  ${CMAKE_THREADS_LIBS_INIT} ${LIB_CORE_SDK} ${LIB_PROJECT_SDK} ${LIB_PROTOBUF}
+  ${LIB_WORKER_SDK} ${LIB_CORE_SDK} ${CMAKE_THREAD_LIBS_INIT} ${LIB_PROTOBUF}
   ${LIB_RAKNET} ${LIB_ZLIB} ${LIB_GRPCXX} ${LIB_GRPC} ${LIB_GPR} ${LIB_SSL} ${CMAKE_DL_LIBS})
 
 # Add the build for the schema.

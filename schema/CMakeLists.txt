@@ -8,10 +8,10 @@ else()
 endif()
 
 set(SCHEMA_SOURCE_FILES
-  "${PROJECT_GENERATED}/gloamkerk.cc"
-  "${PROJECT_GENERATED}/gloamkerk.h"
-  "${PROJECT_GENERATED}/gloamkerk.pb.cc"
-  "${PROJECT_GENERATED}/gloamkerk.pb.h"
+  "${PROJECT_GENERATED}/schema/gloamkerk.cc"
+  "${PROJECT_GENERATED}/schema/gloamkerk.h"
+  "${PROJECT_GENERATED}/schema/gloamkerk.pb.cc"
+  "${PROJECT_GENERATED}/schema/gloamkerk.pb.h"
   "${PROJECT_GENERATED}/improbable/standard_library.cc"
   "${PROJECT_GENERATED}/improbable/standard_library.h"
   "${PROJECT_GENERATED}/improbable/standard_library.pb.cc"
