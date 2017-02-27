@@ -1,0 +1,22 @@
+{
+  "targets": [
+    {
+      "path": "build/worker_sdk",
+      "type": "worker_sdk",
+      "packages": [
+        {
+          "name": "windows_x64",
+          "platform": "windows"
+        },
+        {
+          "name": "linux_x64",
+          "platform": "linux"
+        },
+        {
+          "name": "darwin_x64",
+          "platform": "darwin"
+        }
+      ]
+    }
+  ]
+}
