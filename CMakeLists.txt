@@ -35,7 +35,11 @@ target_link_libraries(worker_sdk INTERFACE
   ${LIB_WORKER_SDK} ${LIB_CORE_SDK} ${CMAKE_THREAD_LIBS_INIT} ${LIB_PROTOBUF}
   ${LIB_RAKNET} ${LIB_ZLIB} ${LIB_GRPCXX} ${LIB_GRPC} ${LIB_GPR} ${LIB_SSL} ${CMAKE_DL_LIBS})
 
+# Add the build for dependencies.
+add_subdirectory(dependencies)
+
 # Add the build for the schema.
 add_subdirectory(schema)
-# Add the builds for each worker.
+
+# Add the builds for each workers.
 add_subdirectory(workers/client)

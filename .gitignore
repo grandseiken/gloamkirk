@@ -1,4 +1,5 @@
 workers/gsim
 spatial.log
 build
+target
 *.swp

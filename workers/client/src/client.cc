@@ -1,3 +1,6 @@
+#include <GL/glew.h>
+#include <SFML/Window.hpp>
+#include <glm/common.hpp>
 #include <improbable/worker.h>
 #include <schema/gloamkirk.h>
 #include <cstdint>
