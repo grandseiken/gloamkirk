@@ -7,8 +7,8 @@
     },
     "dimensions": {
       "x_meters": 256,
-      "y_meters": 256
-    },
+      "z_meters": 256
+    }
   },
   "workers": [
     {
@@ -16,6 +16,6 @@
       "flags": [],
       "permissions": []
     }
-  ],
+  ]
 }
 

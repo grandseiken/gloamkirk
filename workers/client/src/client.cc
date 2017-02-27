@@ -18,10 +18,18 @@ int main(int, const char**) {
   params.Network.UseExternalIp = true;
   params.Network.ConnectionType = worker::NetworkConnectionType::kRaknet;
 
-  std::cout << "connecting" << std::endl;
+  std::cout << "connecting..." << std::endl;
   auto connection = worker::Connection::ConnectAsync(kLocalhost, kPort, params).Get();
+  if (connection.IsConnected()) {
+    std::cout << "connected!" << std::endl;
+  }
+
   bool connected = true;
   worker::Dispatcher dispatcher;
+  dispatcher.OnDisconnect([&connected](const worker::DisconnectOp& op) {
+    std::cerr << "[disconnected] " << op.Reason << std::endl;
+    connected = false;
+  });
 
   dispatcher.OnLogMessage([&connected](const worker::LogMessageOp& op) {
     switch (op.Level) {
@@ -45,9 +53,9 @@ int main(int, const char**) {
     }
   });
 
-  dispatcher.OnDisconnect([&connected](const worker::DisconnectOp& op) {
-    std::cerr << "[disconnected] " << op.Reason << std::endl;
-    connected = false;
+  dispatcher.OnMetrics([&connection](const worker::MetricsOp& op) {
+    auto metrics = op.Metrics;
+    connection.SendMetrics(metrics);
   });
 
   while (connected) {
