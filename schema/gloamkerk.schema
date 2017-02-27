@@ -1,0 +1,6 @@
+package gloam.schema;
+
+component Position {
+  id = 100;
+  Coordinates coords = 1;
+}

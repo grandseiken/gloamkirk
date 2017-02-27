@@ -1,0 +1,21 @@
+{
+  "template": "small",
+  "world": {
+    "chunk_edge_length_meters": 8,
+    "snapshots": {
+      "snapshot_write_period_seconds": 0
+    },
+    "dimensions": {
+      "x_meters": 256,
+      "y_meters": 256
+    },
+  },
+  "workers": [
+    {
+      "worker_type": "client",
+      "flags": [],
+      "permissions": []
+    }
+  ],
+}
+

@@ -1,0 +1,20 @@
+{
+  "build": {
+    "tasks_filename": "build.json"
+  },
+  "bridge": {
+    "worker_attribute_set": {
+      "attributes": [
+        "client"
+      ]
+    },
+    "entity_interest": {
+      "range_entity_interest": {
+        "radius": 64
+      }
+    },
+    "component_delivery": {
+      "default": "RELIABLE_ORDERED"
+    }
+  }
+}

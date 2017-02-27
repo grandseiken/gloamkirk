@@ -1,0 +1,39 @@
+{
+  "tasks": [
+    {
+      "name": "codegen",
+      "steps": [
+        {
+          "name": "codegen",
+          "arguments": [
+            "process_schema",
+            "generate",
+            "--output=../../build/generated",
+            "--cachePath=../../build/generated/cache",
+            "--language=cpp"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "build",
+      "steps": [
+        {
+          "name": "codegen",
+          "arguments": [
+            "invoke-task",
+            "codegen"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "clean",
+      "steps": [
+        {
+          "name": "clean"
+        }
+      ]
+    }
+  ]
+}
