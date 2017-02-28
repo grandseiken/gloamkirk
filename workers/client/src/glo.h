@@ -88,8 +88,8 @@ public:
 
     glSamplerParameteri(sampler_, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glSamplerParameteri(sampler_, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glSamplerParameteri(sampler_, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glSamplerParameteri(sampler_, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glSamplerParameteri(sampler_, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glSamplerParameteri(sampler_, GL_TEXTURE_WRAP_T, GL_REPEAT);
   }
 
   ActiveTexture bind() const {
@@ -102,6 +102,15 @@ public:
     auto internal_format = components == 3 ? GL_RGB8 : components == 1 ? GL_R32F : 0;
     auto format = components == 3 ? GL_RGB : components == 1 ? GL_RED : 0;
     glTexImage1D(target_, 0, internal_format, width, 0, format, GL_FLOAT, data);
+  }
+
+  void create_2d(const glm::ivec2& dimensions, GLuint components, const float* data) {
+    target_ = GL_TEXTURE_2D;
+    auto active = bind();
+    auto internal_format = components == 3 ? GL_RGB8 : components == 1 ? GL_R32F : 0;
+    auto format = components == 3 ? GL_RGB : components == 1 ? GL_RED : 0;
+    glTexImage2D(target_, 0, internal_format, dimensions.x, dimensions.y, 0, format, GL_FLOAT,
+                 data);
   }
 
   void create_rgba(const glm::ivec2& dimensions, GLint samples = 1) {

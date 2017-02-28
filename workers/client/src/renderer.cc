@@ -1,6 +1,7 @@
 #include "workers/client/src/renderer.h"
 #include "workers/client/src/shaders/fog.h"
-#include "workers/client/src/shaders/postprocess.h"
+#include "workers/client/src/shaders/post.h"
+#include "workers/client/src/shaders/upscale.h"
 #include <glm/gtc/type_ptr.hpp>
 #include <cmath>
 #include <vector>
@@ -16,15 +17,39 @@ std::vector<GLushort> quad_indices = {
     0, 2, 1, 1, 2, 3,
 };
 
+enum class a_dither_pattern {
+  ADD,
+  ADD_RGBSPLIT,
+};
+
+float a_dither_compute(a_dither_pattern pattern, std::int32_t x, std::int32_t y, std::int32_t c) {
+  switch (pattern) {
+  case a_dither_pattern::ADD:
+    return ((x + y * 237) * 119 & 255) / float(shaders::a_dither_res);
+  case a_dither_pattern::ADD_RGBSPLIT:
+    return (((x + c * 67) + y * 236) * 119 & 255) / float(shaders::a_dither_res);
+  default:
+    return .5f;
+  }
+}
+
 }  // anonymous
 
 Renderer::Renderer()
 : frame_{0}
+, target_upscale_{1}
 , max_texture_size_{0}
 , quad_data_{quad_vertices, quad_indices, GL_STATIC_DRAW}
 , fog_program_{"fog",
                {glo::Shader{"fog_vertex", GL_VERTEX_SHADER, shaders::fog_vertex},
-                glo::Shader{"fog_fragment", GL_FRAGMENT_SHADER, shaders::fog_fragment}}} {
+                glo::Shader{"fog_fragment", GL_FRAGMENT_SHADER, shaders::fog_fragment}}}
+, post_program_{"post",
+                {glo::Shader{"post_vertex", GL_VERTEX_SHADER, shaders::post_vertex},
+                 glo::Shader{"post_fragment", GL_FRAGMENT_SHADER, shaders::post_fragment}}}
+, upscale_program_{
+      "upscale",
+      {glo::Shader{"upscale_vertex", GL_VERTEX_SHADER, shaders::upscale_vertex},
+       glo::Shader{"upscale_fragment", GL_FRAGMENT_SHADER, shaders::upscale_fragment}}} {
   quad_data_.enable_attribute(0, 4, 0, 0);
 
   float simplex_gradient_lut[3 * shaders::simplex3_gradient_texture_size] = {};
@@ -68,6 +93,18 @@ Renderer::Renderer()
     simplex_permutation_lut[i] = static_cast<float>(f);
   }
 
+  constexpr auto pattern = a_dither_pattern::ADD_RGBSPLIT;
+  float a_dither_matrix[3 * shaders::a_dither_res * shaders::a_dither_res] = {};
+  std::size_t n = 0;
+  for (std::int32_t x = 0; x < shaders::a_dither_res; ++x) {
+    for (std::int32_t y = 0; y < shaders::a_dither_res; ++y) {
+      a_dither_matrix[n++] = a_dither_compute(pattern, x, y, 0);
+      a_dither_matrix[n++] = a_dither_compute(pattern, x, y, 1);
+      a_dither_matrix[n++] = a_dither_compute(pattern, x, y, 2);
+    }
+  }
+  a_dither_matrix_.create_2d({shaders::a_dither_res, shaders::a_dither_res}, 3, a_dither_matrix);
+
   glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max_texture_size_);
   simplex_gradient_lut_.create_1d(shaders::simplex3_gradient_texture_size, 3, simplex_gradient_lut);
   simplex_permutation_lut_.create_1d(shaders::simplex3_lut_permutation_texture_size, 1,
@@ -75,28 +112,58 @@ Renderer::Renderer()
 }
 
 void Renderer::resize(const glm::ivec2& dimensions) {
-  static const int target_width = 720;
-  auto target_scale = static_cast<int>(round(dimensions.x / static_cast<float>(target_width)));
+  if (dimensions == viewport_dimensions_) {
+    return;
+  }
+  viewport_dimensions_ = dimensions;
 
-  dimensions_ = dimensions;
-  framebuffer_dimensions_ =
-      dimensions / glm::ivec2{target_scale} + dimensions % glm::ivec2{target_scale};
+  static const int target_width = 720;
+  target_upscale_ = static_cast<int>(round(dimensions.x / static_cast<float>(target_width)));
+  framebuffer_dimensions_ = dimensions / glm::ivec2{target_upscale_};
+
+  framebuffer_.reset(new glo::Framebuffer{framebuffer_dimensions_, true, false});
+  postbuffer_.reset(new glo::Framebuffer{framebuffer_dimensions_, false, false});
 }
 
 void Renderer::render_frame() const {
-  glViewport(0, 0, dimensions_.x, dimensions_.y);
+  ++frame_;
+
   glDisable(GL_CULL_FACE);
   glCullFace(GL_BACK);
   glFrontFace(GL_CCW);
-
   glClearColor(0, 0, 0, 0);
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-  glm::vec2 dimensions = dimensions_;
-  auto program = fog_program_.use();
-  set_simplex3_uniforms(program);
-  glUniform1f(program.uniform("frame"), static_cast<float>(frame_++));
-  glUniform2fv(program.uniform("dimensions"), 1, glm::value_ptr(dimensions));
+  {
+    auto draw = framebuffer_->draw();
+    glViewport(0, 0, framebuffer_dimensions_.x, framebuffer_dimensions_.y);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+    auto program = fog_program_.use();
+    set_simplex3_uniforms(program);
+    glUniform1f(program.uniform("frame"), static_cast<float>(frame_));
+    quad_data_.draw();
+  }
+
+  {
+    auto draw = postbuffer_->draw();
+    glViewport(0, 0, framebuffer_dimensions_.x, framebuffer_dimensions_.y);
+
+    auto program = post_program_.use();
+    glUniform1f(program.uniform("frame"), static_cast<float>(frame_));
+    program.uniform_texture("dither_matrix", a_dither_matrix_);
+    program.uniform_texture("source_framebuffer", framebuffer_->texture());
+    quad_data_.draw();
+  }
+
+  glViewport(0, 0, viewport_dimensions_.x, viewport_dimensions_.y);
+  glClear(GL_COLOR_BUFFER_BIT);
+
+  auto dimensions = target_upscale_ * framebuffer_dimensions_;
+  auto border = (viewport_dimensions_ - dimensions) / 2;
+  glViewport(border.x, border.y, dimensions.x, dimensions.y);
+
+  auto program = upscale_program_.use();
+  program.uniform_texture("source_framebuffer", postbuffer_->texture());
   quad_data_.draw();
 }
 

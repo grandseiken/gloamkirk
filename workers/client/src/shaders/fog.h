@@ -18,7 +18,6 @@ void main()
 
 const std::string fog_fragment = simplex3 + R"""(
 uniform float frame;
-uniform vec2 dimensions;
 
 out vec4 output_colour;
 

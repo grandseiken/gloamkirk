@@ -8,8 +8,9 @@ set(CLIENT_SOURCE_FILES
   "src/renderer.cc"
   "src/renderer.h"
   "src/shaders/fog.h"
-  "src/shaders/postprocess.h"
-  "src/shaders/simplex.h")
+  "src/shaders/post.h"
+  "src/shaders/simplex.h"
+  "src/shaders/upscale.h")
 
 source_group(src "src/[^/]*")
 source_group(src\\shaders "src/shaders/[^/]*")
