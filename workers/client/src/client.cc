@@ -1,20 +1,41 @@
+#include "workers/client/src/renderer.h"
 #include <GL/glew.h>
-#include <SFML/Window.hpp>
+#include <SFML/Graphics.hpp>
 #include <glm/common.hpp>
 #include <improbable/worker.h>
 #include <schema/gloamkirk.h>
 #include <cstdint>
 #include <iostream>
+#include <memory>
 #include <string>
 
 namespace {
-static const std::string kProjectName = "alpha_zebra_pizza_956";
-static const std::string kWorkerType = "client";
-static const std::string kLocalhost = "127.0.0.1";
-static const std::uint16_t kPort = 7777;
+const std::string kTitle = "Gloamkirk";
+const std::string kProjectName = "alpha_zebra_pizza_956";
+const std::string kWorkerType = "client";
+const std::string kLocalhost = "127.0.0.1";
+const std::uint16_t kPort = 7777;
 }
 
-int main(int, const char**) {
+std::unique_ptr<sf::RenderWindow> create_window() {
+  sf::ContextSettings settings;
+  settings.depthBits = 0;
+  settings.stencilBits = 0;
+  settings.antialiasingLevel = 0;
+  settings.majorVersion = 3;
+  settings.minorVersion = 3;
+  settings.attributeFlags = sf::ContextSettings::Core;
+
+  std::unique_ptr<sf::RenderWindow> window(
+      new sf::RenderWindow{sf::VideoMode::getDesktopMode(), kTitle, sf::Style::None, settings});
+  window->setVerticalSyncEnabled(true);
+  window->setFramerateLimit(120);
+  window->setVisible(true);
+  window->display();
+  return window;
+}
+
+worker::Connection connect() {
   worker::ConnectionParameters params;
   params.WorkerId = kWorkerType;
   params.WorkerType = kWorkerType;
@@ -26,6 +47,16 @@ int main(int, const char**) {
   if (connection.IsConnected()) {
     std::cout << "connected!" << std::endl;
   }
+  return connection;
+}
+
+int main(int, const char**) {
+  auto window = create_window();
+  glo::Init();
+  gloam::Renderer renderer;
+  renderer.resize({window->getSize().x, window->getSize().y});
+
+  auto connection = connect();
 
   bool connected = true;
   worker::Dispatcher dispatcher;
@@ -61,7 +92,21 @@ int main(int, const char**) {
     connection.SendMetrics(metrics);
   });
 
-  while (connected) {
-    dispatcher.Process(connection.GetOpList(/* millis */ 16));
+  while (window->isOpen()) {
+    sf::Event event;
+    while (window->pollEvent(event)) {
+      if (event.type == sf::Event::Closed ||
+          (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)) {
+        window->close();
+      } else if (event.type == sf::Event::Resized) {
+        renderer.resize({window->getSize().x, window->getSize().y});
+      }
+    }
+
+    if (connected) {
+      dispatcher.Process(connection.GetOpList(/* millis */ 16));
+    }
+    renderer.render_frame();
+    window->display();
   }
 }
