@@ -18,5 +18,5 @@ set(SCHEMA_SOURCE_FILES
   "${PROJECT_GENERATED}/improbable/standard_library.pb.h")
 
 add_library(schema STATIC ${SCHEMA_SOURCE_FILES})
-target_include_directories(schema PUBLIC "${PROJECT_GENERATED}")
+target_include_directories(schema SYSTEM PUBLIC "${PROJECT_GENERATED}")
 target_link_libraries(schema PRIVATE worker_sdk)

@@ -11,6 +11,7 @@
 namespace glo {
 
 inline void Init() {
+  glewExperimental = GL_TRUE;
   auto glew_ok = glewInit();
   if (glew_ok != GLEW_OK) {
     std::cerr << "couldn't initialize GLEW: " << glewGetErrorString(glew_ok) << "\n";

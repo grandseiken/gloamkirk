@@ -16,6 +16,7 @@ private:
   void set_simplex3_uniforms(const glo::ActiveProgram& program) const;
 
   mutable std::uint64_t frame_;
+  glm::ivec2 framebuffer_dimensions_;
   glm::ivec2 dimensions_;
   GLint max_texture_size_;
 

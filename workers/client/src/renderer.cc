@@ -64,7 +64,7 @@ Renderer::Renderer()
   for (i = 0; i < shaders::simplex3_lut_permutation_texture_size; ++i) {
     auto x = (static_cast<std::uint64_t>(i) % lut_ring_size);
     auto out = (1 + x * (1 + 2 * x * lut_prime_factor)) % lut_ring_size;
-    double f = double(out) / shaders::simplex3_lut_permutation_texture_size;
+    double f = static_cast<double>(out) / shaders::simplex3_lut_permutation_texture_size;
     simplex_permutation_lut[i] = static_cast<float>(f);
   }
 
@@ -75,7 +75,12 @@ Renderer::Renderer()
 }
 
 void Renderer::resize(const glm::ivec2& dimensions) {
+  static const int target_width = 720;
+  auto target_scale = static_cast<int>(round(dimensions.x / static_cast<float>(target_width)));
+
   dimensions_ = dimensions;
+  framebuffer_dimensions_ =
+      dimensions / glm::ivec2{target_scale} + dimensions % glm::ivec2{target_scale};
 }
 
 void Renderer::render_frame() const {

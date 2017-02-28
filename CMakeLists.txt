@@ -30,7 +30,7 @@ find_library(LIB_GRPCXX NAMES grpc++ PATHS "${PROJECT_SDK}/lib" NO_DEFAULT_PATH)
 
 # The worker SDK dependency.
 add_library(worker_sdk INTERFACE)
-target_include_directories(worker_sdk INTERFACE "${PROJECT_SDK}/include")
+target_include_directories(worker_sdk SYSTEM INTERFACE "${PROJECT_SDK}/include")
 target_link_libraries(worker_sdk INTERFACE
   ${LIB_WORKER_SDK} ${LIB_CORE_SDK} ${CMAKE_THREAD_LIBS_INIT} ${LIB_PROTOBUF}
   ${LIB_RAKNET} ${LIB_ZLIB} ${LIB_GRPCXX} ${LIB_GRPC} ${LIB_GPR} ${LIB_SSL} ${CMAKE_DL_LIBS})
