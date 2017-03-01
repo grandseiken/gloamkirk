@@ -42,7 +42,7 @@
       "name": "clean",
       "steps": [
         {
-          "name": "clean",
+          "name": "common",
           "working_path": "../..",
           "arguments": [
             "exec",

@@ -1,7 +1,7 @@
 {
   "targets": [
     {
-      "path": "build/worker_sdk",
+      "path": "../build/dependencies/worker_sdk",
       "type": "worker_sdk",
       "packages": [
         {

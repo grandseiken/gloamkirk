@@ -8,11 +8,11 @@
           "arguments": [
             "process_schema",
             "generate",
+            "--language=cpp",
             "--input=schema",
             "--input=build/dependencies/schema/WorkerSdkSchema",
             "--output=build/generated",
-            "--cachePath=build/generated/cache",
-            "--language=cpp"
+            "--cachePath=build/generated/cache"
           ]
         }
       ]
@@ -29,6 +29,7 @@
         },
         {
           "name": "dependencies",
+          "working_path": "dependencies",
           "arguments": [
             "worker_package",
             "unpack"
@@ -50,7 +51,7 @@
           "arguments": [
             "-G", "${BUILD_GENERATOR}",
             "-DCMAKE_BUILD_TYPE=${BUILD_CONFIG}",
-	    "-DCXX_EXTRA_DEFINITIONS=${BUILD_DEFINITIONS}",
+            "-DCXX_EXTRA_DEFINITIONS=${BUILD_DEFINITIONS}",
             "../.."
           ]
         }

@@ -14,8 +14,8 @@ flags = [
   '-isystem', MakeAbsolute('dependencies/glew-cmake/include'),
   '-isystem', MakeAbsolute('dependencies/glm'),
   '-isystem', MakeAbsolute('dependencies/SFML/include'),
+  '-isystem', MakeAbsolute('build/dependencies/worker_sdk/include'),
   '-isystem', MakeAbsolute('build/generated'),
-  '-isystem', MakeAbsolute('build/worker_sdk/include'),
   # Project includes.
   '-I', MakeAbsolute('.'),
 ]
