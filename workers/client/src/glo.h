@@ -33,6 +33,30 @@ inline void Init() {
 
 struct Shader {
 public:
+  Shader(const Shader&) = delete;
+  Shader& operator=(const Shader&) = delete;
+  Shader(Shader&& other) {
+    *this = std::move(other);
+  }
+
+  Shader& operator=(Shader&& other) {
+    if (&other == this) {
+      return *this;
+    }
+    if (shader_) {
+      glDeleteShader(shader_);
+    }
+    shader_ = other.shader_;
+    other.shader_ = 0;
+    return *this;
+  }
+
+  ~Shader() {
+    if (shader_) {
+      glDeleteShader(shader_);
+    }
+  }
+
   Shader(const std::string& name, std::uint32_t shader_type, const std::string& source)
   : shader_{glCreateShader(shader_type)} {
     auto source_versioned = "#version 430\n" + source;
@@ -56,10 +80,6 @@ public:
     shader_ = 0;
   }
 
-  ~Shader() {
-    glDeleteShader(shader_);
-  }
-
 private:
   GLuint shader_ = 0;
   friend struct Program;
@@ -67,8 +87,28 @@ private:
 
 struct ActiveTexture {
 public:
+  ActiveTexture(const ActiveTexture&) = delete;
+  ActiveTexture& operator=(const ActiveTexture&) = delete;
+  ActiveTexture(ActiveTexture&& other) {
+    *this = std::move(other);
+  }
+
+  ActiveTexture& operator=(ActiveTexture&& other) {
+    if (&other == this) {
+      return *this;
+    }
+    if (target_) {
+      glBindTexture(target_, 0);
+    }
+    target_ = other.target_;
+    other.target_ = 0;
+    return *this;
+  }
+
   ~ActiveTexture() {
-    glBindTexture(target_, 0);
+    if (target_) {
+      glBindTexture(target_, 0);
+    }
   }
 
 private:
@@ -82,6 +122,36 @@ private:
 
 struct Texture {
 public:
+  Texture(const Texture&) = delete;
+  Texture& operator=(const Texture&) = delete;
+  Texture(Texture&& other) {
+    *this = std::move(other);
+  }
+
+  Texture& operator=(Texture&& other) {
+    if (&other == this) {
+      return *this;
+    }
+    if (target_) {
+      glDeleteSamplers(1, &sampler_);
+      glDeleteTextures(1, &texture_);
+    }
+    texture_ = other.texture_;
+    sampler_ = other.sampler_;
+    target_ = other.target_;
+    other.texture_ = 0;
+    other.sampler_ = 0;
+    other.target_ = 0;
+    return *this;
+  }
+
+  ~Texture() {
+    if (target_) {
+      glDeleteSamplers(1, &sampler_);
+      glDeleteTextures(1, &texture_);
+    }
+  }
+
   Texture() {
     glGenTextures(1, &texture_);
     glGenSamplers(1, &sampler_);
@@ -144,11 +214,6 @@ public:
     glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, target_, texture_, 0);
   }
 
-  ~Texture() {
-    glDeleteSamplers(1, &sampler_);
-    glDeleteTextures(1, &texture_);
-  }
-
 private:
   GLuint texture_ = 0;
   GLuint sampler_ = 0;
@@ -158,8 +223,30 @@ private:
 
 struct ActiveProgram {
 public:
+  ActiveProgram(const ActiveProgram&) = delete;
+  ActiveProgram& operator=(const ActiveProgram&) = delete;
+  ActiveProgram(ActiveProgram&& other) {
+    *this = std::move(other);
+  }
+
+  ActiveProgram& operator=(ActiveProgram&& other) {
+    if (&other == this) {
+      return *this;
+    }
+    if (program_) {
+      glUseProgram(0);
+    }
+    program_ = other.program_;
+    texture_index_ = other.texture_index_;
+    other.program_ = 0;
+    other.texture_index_ = 0;
+    return *this;
+  }
+
   ~ActiveProgram() {
-    glUseProgram(0);
+    if (program_) {
+      glUseProgram(0);
+    }
   }
 
   GLuint uniform(const std::string& name) const {
@@ -179,15 +266,56 @@ private:
     glUseProgram(program_);
   }
 
-  GLuint program_;
+  GLuint program_ = 0;
   mutable GLuint texture_index_ = 0;
   friend struct Program;
 };
 
 struct Program {
 public:
-  Program(const std::string& name, const std::vector<Shader>& shaders)
-  : program_{glCreateProgram()} {
+  Program(const Program&) = delete;
+  Program& operator=(const Program&) = delete;
+  Program(Program&& other) {
+    *this = std::move(other);
+  }
+
+  Program& operator=(Program&& other) {
+    if (&other == this) {
+      return *this;
+    }
+    if (program_) {
+      glDeleteProgram(program_);
+    }
+    program_ = other.program_;
+    other.program_ = 0;
+    return *this;
+  }
+
+  ~Program() {
+    if (program_) {
+      glDeleteProgram(program_);
+    }
+  }
+
+  Program(const std::string& name, Shader&& a, Shader&& b) {
+    std::vector<Shader> shaders;
+    shaders.emplace_back(std::move(a));
+    shaders.emplace_back(std::move(b));
+    compile(name, shaders);
+  }
+
+  Program(const std::string& name, const std::vector<Shader>& shaders) {
+    compile(name, shaders);
+  }
+
+  ActiveProgram use() const {
+    return {program_};
+  }
+
+private:
+  void compile(const std::string& name, const std::vector<Shader>& shaders) {
+    program_ = glCreateProgram();
+
     for (const auto& shader : shaders) {
       if (shader.shader_ == 0) {
         return;
@@ -218,30 +346,47 @@ public:
     return;
   }
 
-  ~Program() {
-    glDeleteProgram(program_);
-  }
-
-  ActiveProgram use() const {
-    return {program_};
-  }
-
-private:
   GLuint program_ = 0;
 };
 
 struct ActiveFramebuffer {
 public:
+  ActiveFramebuffer(const ActiveFramebuffer&) = delete;
+  ActiveFramebuffer& operator=(const ActiveFramebuffer&) = delete;
+  ActiveFramebuffer(ActiveFramebuffer&& other) {
+    *this = std::move(other);
+  }
+
+  ActiveFramebuffer& operator=(ActiveFramebuffer&& other) {
+    if (&other == this) {
+      return *this;
+    }
+    if (valid_) {
+      if (read_) {
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+      } else {
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+      }
+    }
+    valid_ = other.valid_;
+    read_ = other.read_;
+    other.valid_ = false;
+    other.read_ = false;
+    return *this;
+  }
+
   ~ActiveFramebuffer() {
-    if (read_) {
-      glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-    } else {
-      glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    if (valid_) {
+      if (read_) {
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+      } else {
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+      }
     }
   }
 
 private:
-  ActiveFramebuffer(GLuint fbo, bool read) : read_{read} {
+  ActiveFramebuffer(GLuint fbo, bool read) : valid_{true}, read_{read} {
     if (read_) {
       glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
     } else {
@@ -249,12 +394,41 @@ private:
     }
   }
 
-  bool read_;
+  bool valid_ = false;
+  bool read_ = false;
   friend struct Framebuffer;
 };
 
 struct Framebuffer {
 public:
+  Framebuffer(const Framebuffer&) = delete;
+  Framebuffer& operator=(const Framebuffer&) = delete;
+  Framebuffer(Framebuffer&& other) {
+    *this = std::move(other);
+  }
+
+  Framebuffer& operator=(Framebuffer&& other) {
+    if (&other == this) {
+      return *this;
+    }
+    if (framebuffer_) {
+      glDeleteFramebuffers(1, &framebuffer_);
+    }
+    multisampled_ = other.multisampled_;
+    framebuffer_ = other.framebuffer_;
+    rgba_texture_ = std::move(other.rgba_texture_);
+    depth_stencil_texture_ = std::move(other.depth_stencil_texture_);
+    other.multisampled_ = false;
+    other.framebuffer_ = 0;
+    return *this;
+  }
+
+  ~Framebuffer() {
+    if (framebuffer_) {
+      glDeleteFramebuffers(1, &framebuffer_);
+    }
+  }
+
   Framebuffer(const glm::ivec2& dimensions, bool depth_stencil, bool attempt_multisampling)
   : multisampled_{false} {
     GLint samples = 1;
@@ -280,10 +454,6 @@ public:
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
   }
 
-  ~Framebuffer() {
-    glDeleteFramebuffers(1, &framebuffer_);
-  }
-
   bool is_multisampled() const {
     return multisampled_;
   }
@@ -301,7 +471,7 @@ public:
   }
 
 private:
-  bool multisampled_;
+  bool multisampled_ = false;
   GLuint framebuffer_ = 0;
   Texture rgba_texture_;
   std::unique_ptr<Texture> depth_stencil_texture_;
@@ -309,6 +479,48 @@ private:
 
 struct VertexData {
 public:
+  VertexData(const VertexData&) = delete;
+  VertexData& operator=(const VertexData&) = delete;
+  VertexData(VertexData&& other) {
+    *this = std::move(other);
+  }
+
+  VertexData& operator=(VertexData&& other) {
+    if (&other == this) {
+      return *this;
+    }
+    if (vbo_) {
+      glDeleteBuffers(1, &vbo_);
+    }
+    if (ibo_) {
+      glDeleteBuffers(1, &ibo_);
+    }
+    if (vao_) {
+      glDeleteVertexArrays(1, &vao_);
+    }
+    size_ = other.size_;
+    vbo_ = other.vbo_;
+    ibo_ = other.ibo_;
+    vao_ = other.vao_;
+    other.size_ = 0;
+    other.vbo_ = 0;
+    other.ibo_ = 0;
+    other.vao_ = 0;
+    return *this;
+  }
+
+  ~VertexData() {
+    if (vbo_) {
+      glDeleteBuffers(1, &vbo_);
+    }
+    if (ibo_) {
+      glDeleteBuffers(1, &ibo_);
+    }
+    if (vao_) {
+      glDeleteVertexArrays(1, &vao_);
+    }
+  }
+
   VertexData(const std::vector<GLfloat>& data, const std::vector<GLushort>& indices, GLuint hint)
   : size_{static_cast<GLuint>(indices.size())} {
     glGenBuffers(1, &vbo_);
@@ -328,12 +540,6 @@ public:
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   }
 
-  ~VertexData() {
-    glDeleteBuffers(1, &vbo_);
-    glDeleteBuffers(1, &ibo_);
-    glDeleteVertexArrays(1, &vao_);
-  }
-
   void enable_attribute(GLuint location, GLuint count, GLuint stride, GLuint offset) const {
     glBindVertexArray(vao_);
     glEnableVertexAttribArray(location);
@@ -351,7 +557,7 @@ public:
   }
 
 private:
-  GLuint size_;
+  GLuint size_ = 0;
   GLuint vbo_ = 0;
   GLuint ibo_ = 0;
   GLuint vao_ = 0;

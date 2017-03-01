@@ -10,13 +10,18 @@ class Renderer {
 public:
   Renderer();
 
+  // Rendering flow.
   void resize(const glm::ivec2& dimensions);
-  void render_frame() const;
+  void begin_frame() const;
+  void end_frame() const;
 
-private:
+  // Utility functions for common rendering tasks.
+  void draw_quad() const;
   void set_simplex3_uniforms(const glo::ActiveProgram& program) const;
 
+private:
   mutable std::uint64_t frame_;
+  mutable std::unique_ptr<glo::ActiveFramebuffer> draw_;
 
   int target_upscale_;
   glm::ivec2 viewport_dimensions_;
@@ -26,7 +31,6 @@ private:
 
   GLint max_texture_size_;
   glo::VertexData quad_data_;
-  glo::Program fog_program_;
   glo::Program post_program_;
   glo::Program upscale_program_;
   glo::Texture simplex_gradient_lut_;

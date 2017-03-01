@@ -1,8 +1,9 @@
 #include "workers/client/src/renderer.h"
-#include "workers/client/src/shaders/fog.h"
 #include "workers/client/src/shaders/post.h"
+#include "workers/client/src/shaders/simplex.h"
 #include "workers/client/src/shaders/upscale.h"
 #include <glm/gtc/type_ptr.hpp>
+#include <algorithm>
 #include <cmath>
 #include <vector>
 
@@ -40,16 +41,12 @@ Renderer::Renderer()
 , target_upscale_{1}
 , max_texture_size_{0}
 , quad_data_{quad_vertices, quad_indices, GL_STATIC_DRAW}
-, fog_program_{"fog",
-               {glo::Shader{"fog_vertex", GL_VERTEX_SHADER, shaders::fog_vertex},
-                glo::Shader{"fog_fragment", GL_FRAGMENT_SHADER, shaders::fog_fragment}}}
 , post_program_{"post",
-                {glo::Shader{"post_vertex", GL_VERTEX_SHADER, shaders::post_vertex},
-                 glo::Shader{"post_fragment", GL_FRAGMENT_SHADER, shaders::post_fragment}}}
-, upscale_program_{
-      "upscale",
-      {glo::Shader{"upscale_vertex", GL_VERTEX_SHADER, shaders::upscale_vertex},
-       glo::Shader{"upscale_fragment", GL_FRAGMENT_SHADER, shaders::upscale_fragment}}} {
+                {"post_vertex", GL_VERTEX_SHADER, shaders::post_vertex},
+                {"post_fragment", GL_FRAGMENT_SHADER, shaders::post_fragment}}
+, upscale_program_{"upscale",
+                   {"upscale_vertex", GL_VERTEX_SHADER, shaders::upscale_vertex},
+                   {"upscale_fragment", GL_FRAGMENT_SHADER, shaders::upscale_fragment}} {
   quad_data_.enable_attribute(0, 4, 0, 0);
 
   float simplex_gradient_lut[3 * shaders::simplex3_gradient_texture_size] = {};
@@ -119,34 +116,29 @@ void Renderer::resize(const glm::ivec2& dimensions) {
 
   static const int target_width = 720;
   static const int min_height = 240;
-  target_upscale_ = std::max(
-      1, std::min(static_cast<int>(dimensions.y / static_cast<float>(min_height)),
-                  static_cast<int>(round(dimensions.x / static_cast<float>(target_width)))));
+  target_upscale_ =
+      std::max(1,
+               std::min(static_cast<int>(dimensions.y / static_cast<float>(min_height)),
+                        static_cast<int>(round(dimensions.x / static_cast<float>(target_width)))));
   framebuffer_dimensions_ = dimensions / glm::ivec2{target_upscale_};
 
   framebuffer_.reset(new glo::Framebuffer{framebuffer_dimensions_, true, false});
   postbuffer_.reset(new glo::Framebuffer{framebuffer_dimensions_, false, false});
 }
 
-void Renderer::render_frame() const {
+void Renderer::begin_frame() const {
   ++frame_;
+  draw_.reset(new glo::ActiveFramebuffer{framebuffer_->draw()});
+  glViewport(0, 0, framebuffer_dimensions_.x, framebuffer_dimensions_.y);
 
-  glDisable(GL_CULL_FACE);
-  glCullFace(GL_BACK);
-  glFrontFace(GL_CCW);
   glClearColor(0, 0, 0, 0);
+  glClearDepth(0);
+  glClearStencil(0);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+}
 
-  {
-    auto draw = framebuffer_->draw();
-    glViewport(0, 0, framebuffer_dimensions_.x, framebuffer_dimensions_.y);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-    auto program = fog_program_.use();
-    set_simplex3_uniforms(program);
-    glUniform1f(program.uniform("frame"), static_cast<float>(frame_));
-    quad_data_.draw();
-  }
-
+void Renderer::end_frame() const {
+  draw_.reset();
   {
     auto draw = postbuffer_->draw();
     glViewport(0, 0, framebuffer_dimensions_.x, framebuffer_dimensions_.y);
@@ -155,10 +147,11 @@ void Renderer::render_frame() const {
     glUniform1f(program.uniform("frame"), static_cast<float>(frame_));
     program.uniform_texture("dither_matrix", a_dither_matrix_);
     program.uniform_texture("source_framebuffer", framebuffer_->texture());
-    quad_data_.draw();
+    draw_quad();
   }
 
   glViewport(0, 0, viewport_dimensions_.x, viewport_dimensions_.y);
+  glClearColor(0, 0, 0, 0);
   glClear(GL_COLOR_BUFFER_BIT);
 
   auto dimensions = target_upscale_ * framebuffer_dimensions_;
@@ -167,6 +160,10 @@ void Renderer::render_frame() const {
 
   auto program = upscale_program_.use();
   program.uniform_texture("source_framebuffer", postbuffer_->texture());
+  draw_quad();
+}
+
+void Renderer::draw_quad() const {
   quad_data_.draw();
 }
 

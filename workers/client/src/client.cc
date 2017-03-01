@@ -1,4 +1,5 @@
 #include "workers/client/src/renderer.h"
+#include "workers/client/src/shaders//fog.h"
 #include <GL/glew.h>
 #include <SFML/Graphics.hpp>
 #include <glm/common.hpp>
@@ -92,6 +93,11 @@ int main(int, const char**) {
     connection.SendMetrics(metrics);
   });
 
+  glo::Program fog_program{"fog",
+                           {"fog_vertex", GL_VERTEX_SHADER, gloam::shaders::fog_vertex},
+                           {"fog_fragment", GL_FRAGMENT_SHADER, gloam::shaders::fog_fragment}};
+
+  std::uint64_t frame;
   while (window->isOpen()) {
     sf::Event event;
     while (window->pollEvent(event)) {
@@ -106,7 +112,15 @@ int main(int, const char**) {
     if (connected) {
       dispatcher.Process(connection.GetOpList(/* millis */ 16));
     }
-    renderer.render_frame();
+
+    renderer.begin_frame();
+    {
+      auto program = fog_program.use();
+      glUniform1f(program.uniform("frame"), static_cast<float>(++frame));
+      renderer.set_simplex3_uniforms(program);
+      renderer.draw_quad();
+    }
+    renderer.end_frame();
     window->display();
   }
 }

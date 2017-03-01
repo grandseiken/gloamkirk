@@ -24,7 +24,7 @@ out vec4 output_colour;
 void main()
 {
   vec3 seed = vec3(gl_FragCoord.xy, 0.) +
-      vec3(frame) / vec3(4., 16., 2.);
+      vec3(frame) / vec3(8., 32., 8.);
   float n =
       simplex3(seed / 512.) +
       simplex3(seed / 256.) / 2. +
@@ -35,7 +35,7 @@ void main()
       simplex3(seed / 8.) / 64. +
       simplex3(seed / 4.) / 128. +
       simplex3(seed / 2.) / 256.;
-  float v = clamp((n + 1.) / 2., 0., 1.);
+  float v = clamp((n / 2. + .5) / 2., 0., 1.);
   output_colour = vec4(v, v, v, 1.);
 }
 )""";
