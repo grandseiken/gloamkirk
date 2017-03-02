@@ -100,12 +100,18 @@ Renderer::Renderer()
       a_dither_matrix[n++] = a_dither_compute(pattern, x, y, 2);
     }
   }
-  a_dither_matrix_.create_2d({shaders::a_dither_res, shaders::a_dither_res}, 3, a_dither_matrix);
+  a_dither_matrix_.create_2d({shaders::a_dither_res, shaders::a_dither_res}, 3, GL_FLOAT,
+                             a_dither_matrix);
 
   glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max_texture_size_);
-  simplex_gradient_lut_.create_1d(shaders::simplex3_gradient_texture_size, 3, simplex_gradient_lut);
-  simplex_permutation_lut_.create_1d(shaders::simplex3_lut_permutation_texture_size, 1,
+  simplex_gradient_lut_.create_1d(shaders::simplex3_gradient_texture_size, 3, GL_FLOAT,
+                                  simplex_gradient_lut);
+  simplex_permutation_lut_.create_1d(shaders::simplex3_lut_permutation_texture_size, 1, GL_FLOAT,
                                      simplex_permutation_lut);
+}
+
+glm::vec2 Renderer::framebuffer_dimensions() const {
+  return framebuffer_dimensions_;
 }
 
 void Renderer::resize(const glm::ivec2& dimensions) {

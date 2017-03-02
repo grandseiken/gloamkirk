@@ -1,13 +1,15 @@
 #include "workers/client/src/renderer.h"
 #include "workers/client/src/shaders//fog.h"
-#include <GL/glew.h>
 #include <SFML/Graphics.hpp>
 #include <glm/common.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <improbable/worker.h>
 #include <schema/gloamkirk.h>
+#include <chrono>
 #include <cstdint>
 #include <iostream>
 #include <memory>
+#include <random>
 #include <string>
 
 namespace {
@@ -16,7 +18,6 @@ const std::string kProjectName = "alpha_zebra_pizza_956";
 const std::string kWorkerType = "client";
 const std::string kLocalhost = "127.0.0.1";
 const std::uint16_t kPort = 7777;
-}
 
 std::unique_ptr<sf::RenderWindow> create_window() {
   sf::ContextSettings settings;
@@ -50,6 +51,23 @@ worker::Connection connect() {
   }
   return connection;
 }
+
+struct TextureImage {
+  glo::Texture texture;
+  glm::vec2 dimensions;
+};
+
+TextureImage load_texture(const std::string& path) {
+  sf::Image image;
+  image.loadFromFile(path);
+
+  TextureImage result;
+  result.dimensions = {image.getSize().x, image.getSize().y};
+  result.texture.create_2d(result.dimensions, 4, GL_UNSIGNED_BYTE, image.getPixelsPtr());
+  return result;
+}
+
+}  // anonymous
 
 int main(int, const char**) {
   auto window = create_window();
@@ -93,11 +111,20 @@ int main(int, const char**) {
     connection.SendMetrics(metrics);
   });
 
+  auto title = load_texture("assets/title.png");
+  title.texture.set_linear();
+
   glo::Program fog_program{"fog",
                            {"fog_vertex", GL_VERTEX_SHADER, gloam::shaders::fog_vertex},
                            {"fog_fragment", GL_FRAGMENT_SHADER, gloam::shaders::fog_fragment}};
 
-  std::uint64_t frame;
+  auto now = std::chrono::system_clock::now().time_since_epoch();
+  std::mt19937 generator{static_cast<unsigned int>(
+      std::chrono::duration_cast<std::chrono::milliseconds>(now).count())};
+  std::uniform_int_distribution<std::int32_t> distribution(0, 1 << 16);
+  std::uint64_t frame = 0;
+  std::int32_t random_seed = distribution(generator);
+
   while (window->isOpen()) {
     sf::Event event;
     while (window->pollEvent(event)) {
@@ -117,6 +144,11 @@ int main(int, const char**) {
     {
       auto program = fog_program.use();
       glUniform1f(program.uniform("frame"), static_cast<float>(++frame));
+      glUniform1f(program.uniform("random_seed"), static_cast<float>(random_seed));
+      glUniform2fv(program.uniform("dimensions"), 1,
+                   glm::value_ptr(renderer.framebuffer_dimensions()));
+      glUniform2fv(program.uniform("title_dimensions"), 1, glm::value_ptr(title.dimensions));
+      program.uniform_texture("title_texture", title.texture);
       renderer.set_simplex3_uniforms(program);
       renderer.draw_quad();
     }

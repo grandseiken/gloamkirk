@@ -11,6 +11,7 @@ public:
   Renderer();
 
   // Rendering flow.
+  glm::vec2 framebuffer_dimensions() const;
   void resize(const glm::ivec2& dimensions);
   void begin_frame() const;
   void end_frame() const;

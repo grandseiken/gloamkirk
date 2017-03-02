@@ -162,25 +162,33 @@ public:
     glSamplerParameteri(sampler_, GL_TEXTURE_WRAP_T, GL_REPEAT);
   }
 
+  void set_linear() {
+    glSamplerParameteri(sampler_, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glSamplerParameteri(sampler_, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  }
+
   ActiveTexture bind() const {
     return {texture_, target_};
   }
 
-  void create_1d(GLsizei width, GLuint components, const float* data) {
+  void create_1d(GLsizei width, GLuint components, GLuint type, const void* data) {
     target_ = GL_TEXTURE_1D;
     auto active = bind();
-    auto internal_format = components == 3 ? GL_RGB8 : components == 1 ? GL_R32F : 0;
-    auto format = components == 3 ? GL_RGB : components == 1 ? GL_RED : 0;
-    glTexImage1D(target_, 0, internal_format, width, 0, format, GL_FLOAT, data);
+    auto internal_format =
+        components == 4 ? GL_RGBA8 : components == 3 ? GL_RGB8 : components == 1 ? GL_R32F : 0;
+    auto format =
+        components == 4 ? GL_RGBA : components == 3 ? GL_RGB : components == 1 ? GL_RED : 0;
+    glTexImage1D(target_, 0, internal_format, width, 0, format, type, data);
   }
 
-  void create_2d(const glm::ivec2& dimensions, GLuint components, const float* data) {
+  void create_2d(const glm::ivec2& dimensions, GLuint components, GLuint type, const void* data) {
     target_ = GL_TEXTURE_2D;
     auto active = bind();
-    auto internal_format = components == 3 ? GL_RGB8 : components == 1 ? GL_R32F : 0;
-    auto format = components == 3 ? GL_RGB : components == 1 ? GL_RED : 0;
-    glTexImage2D(target_, 0, internal_format, dimensions.x, dimensions.y, 0, format, GL_FLOAT,
-                 data);
+    auto internal_format =
+        components == 4 ? GL_RGBA8 : components == 3 ? GL_RGB8 : components == 1 ? GL_R32F : 0;
+    auto format =
+        components == 4 ? GL_RGBA : components == 3 ? GL_RGB : components == 1 ? GL_RED : 0;
+    glTexImage2D(target_, 0, internal_format, dimensions.x, dimensions.y, 0, format, type, data);
   }
 
   void create_rgba(const glm::ivec2& dimensions, GLint samples = 1) {
