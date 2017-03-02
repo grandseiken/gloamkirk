@@ -1,5 +1,5 @@
-#ifndef GLOAM_CLIENT_SRC_SHADERS_FOG_H
-#define GLOAM_CLIENT_SRC_SHADERS_FOG_H
+#ifndef GLOAM_CLIENT_SRC_SHADERS_TITLE_H
+#define GLOAM_CLIENT_SRC_SHADERS_TITLE_H
 #include "workers/client/src/shaders/simplex.h"
 #include <string>
 
@@ -7,7 +7,7 @@ namespace gloam {
 namespace shaders {
 namespace {
 
-const std::string fog_vertex = R"""(
+const std::string title_vertex = R"""(
 layout(location = 0) in vec4 position;
 
 void main()
@@ -16,7 +16,7 @@ void main()
 }
 )""";
 
-const std::string fog_fragment = simplex3 + R"""(
+const std::string title_fragment = simplex3 + R"""(
 uniform float frame;
 uniform float random_seed;
 uniform vec2 dimensions;
@@ -46,8 +46,9 @@ void main()
   vec2 max_texture_scale = (dimensions - vec2(60., 180.)) / title_dimensions;
   float texture_scale = min(max_texture_scale.x, max_texture_scale.y);
   vec2 scaled_dimensions = texture_scale * title_dimensions;
-  float border = (dimensions - scaled_dimensions).x / 2;
-  vec2 texture_coords = frag - vec2(border, dimensions.y - border - scaled_dimensions.y);
+  vec2 border = (dimensions - scaled_dimensions) / vec2(2., 6.);
+  border.y = min(border.y, border.x);
+  vec2 texture_coords = frag - vec2(border.x, dimensions.y - border.y - scaled_dimensions.y);
 
   vec3 value = vec3(clamp(fog_value, 0., 1.));
   if (all(greaterThanEqual(texture_coords, vec2(0., 0.))) &&

@@ -121,11 +121,10 @@ void Renderer::resize(const glm::ivec2& dimensions) {
   viewport_dimensions_ = dimensions;
 
   static const int target_width = 720;
-  static const int min_height = 240;
-  target_upscale_ =
-      std::max(1,
-               std::min(static_cast<int>(dimensions.y / static_cast<float>(min_height)),
-                        static_cast<int>(round(dimensions.x / static_cast<float>(target_width)))));
+  static const int min_height = 320;
+  target_upscale_ = std::max(
+      1, std::min(static_cast<int>(dimensions.y / static_cast<float>(min_height)),
+                  static_cast<int>(round(dimensions.x / static_cast<float>(target_width)))));
   framebuffer_dimensions_ = dimensions / glm::ivec2{target_upscale_};
 
   framebuffer_.reset(new glo::Framebuffer{framebuffer_dimensions_, true, false});

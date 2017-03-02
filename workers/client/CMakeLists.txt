@@ -7,9 +7,9 @@ set(CLIENT_SOURCE_FILES
   "src/glo.h"
   "src/renderer.cc"
   "src/renderer.h"
-  "src/shaders/fog.h"
   "src/shaders/post.h"
   "src/shaders/simplex.h"
+  "src/shaders/title.h"
   "src/shaders/upscale.h")
 
 source_group(src "src/[^/]*")

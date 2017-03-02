@@ -1,5 +1,5 @@
 #include "workers/client/src/renderer.h"
-#include "workers/client/src/shaders//fog.h"
+#include "workers/client/src/shaders/title.h"
 #include <SFML/Graphics.hpp>
 #include <glm/common.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -114,9 +114,10 @@ int main(int, const char**) {
   auto title = load_texture("assets/title.png");
   title.texture.set_linear();
 
-  glo::Program fog_program{"fog",
-                           {"fog_vertex", GL_VERTEX_SHADER, gloam::shaders::fog_vertex},
-                           {"fog_fragment", GL_FRAGMENT_SHADER, gloam::shaders::fog_fragment}};
+  glo::Program title_program{
+      "title",
+      {"title_vertex", GL_VERTEX_SHADER, gloam::shaders::title_vertex},
+      {"title_fragment", GL_FRAGMENT_SHADER, gloam::shaders::title_fragment}};
 
   auto now = std::chrono::system_clock::now().time_since_epoch();
   std::mt19937 generator{static_cast<unsigned int>(
@@ -142,7 +143,7 @@ int main(int, const char**) {
 
     renderer.begin_frame();
     {
-      auto program = fog_program.use();
+      auto program = title_program.use();
       glUniform1f(program.uniform("frame"), static_cast<float>(++frame));
       glUniform1f(program.uniform("random_seed"), static_cast<float>(random_seed));
       glUniform2fv(program.uniform("dimensions"), 1,
