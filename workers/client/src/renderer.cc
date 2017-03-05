@@ -1,6 +1,7 @@
 #include "workers/client/src/renderer.h"
 #include "workers/client/src/shaders/post.h"
 #include "workers/client/src/shaders/simplex.h"
+#include "workers/client/src/shaders/text.h"
 #include "workers/client/src/shaders/upscale.h"
 #include <glm/gtc/type_ptr.hpp>
 #include <algorithm>
@@ -10,7 +11,7 @@
 namespace gloam {
 namespace {
 
-std::vector<GLfloat> quad_vertices = {
+std::vector<float> quad_vertices = {
     -1, -1, 1, 1, -1, 1, 1, 1, 1, -1, 1, 1, 1, 1, 1, 1,
 };
 
@@ -36,17 +37,31 @@ float a_dither_compute(a_dither_pattern pattern, std::int32_t x, std::int32_t y,
 
 }  // anonymous
 
+TextureImage load_texture(const std::string& path) {
+  sf::Image image;
+  image.loadFromFile(path);
+
+  TextureImage result;
+  result.dimensions = {image.getSize().x, image.getSize().y};
+  result.texture.create_2d(result.dimensions, 4, GL_UNSIGNED_BYTE, image.getPixelsPtr());
+  return result;
+}
+
 Renderer::Renderer()
 : frame_{0}
 , target_upscale_{1}
 , max_texture_size_{0}
 , quad_data_{quad_vertices, quad_indices, GL_STATIC_DRAW}
+, text_program_{"text",
+                {"text_vertex", GL_VERTEX_SHADER, shaders::text_vertex},
+                {"text_fragment", GL_FRAGMENT_SHADER, shaders::text_fragment}}
 , post_program_{"post",
                 {"post_vertex", GL_VERTEX_SHADER, shaders::post_vertex},
                 {"post_fragment", GL_FRAGMENT_SHADER, shaders::post_fragment}}
 , upscale_program_{"upscale",
                    {"upscale_vertex", GL_VERTEX_SHADER, shaders::upscale_vertex},
-                   {"upscale_fragment", GL_FRAGMENT_SHADER, shaders::upscale_fragment}} {
+                   {"upscale_fragment", GL_FRAGMENT_SHADER, shaders::upscale_fragment}}
+, text_image_{load_texture("assets/text.png")} {
   quad_data_.enable_attribute(0, 4, 0, 0);
 
   float simplex_gradient_lut[3 * shaders::simplex3_gradient_texture_size] = {};
@@ -120,8 +135,8 @@ void Renderer::resize(const glm::ivec2& dimensions) {
   }
   viewport_dimensions_ = dimensions;
 
-  static const int target_width = 720;
-  static const int min_height = 320;
+  static const int target_width = native_resolution.x;
+  static const int min_height = (native_resolution.y * 2) / 3;
   target_upscale_ = std::max(
       1, std::min(static_cast<int>(dimensions.y / static_cast<float>(min_height)),
                   static_cast<int>(round(dimensions.x / static_cast<float>(target_width)))));
@@ -143,6 +158,7 @@ void Renderer::begin_frame() const {
 }
 
 void Renderer::end_frame() const {
+  set_default_render_states();
   draw_.reset();
   {
     auto draw = postbuffer_->draw();
@@ -168,8 +184,10 @@ void Renderer::end_frame() const {
   draw_quad();
 }
 
-void Renderer::draw_quad() const {
-  quad_data_.draw();
+void Renderer::set_default_render_states() const {
+  glDisable(GL_BLEND);
+  glDisable(GL_CULL_FACE);
+  glDisable(GL_DEPTH_TEST);
 }
 
 void Renderer::set_simplex3_uniforms(const glo::ActiveProgram& program) const {
@@ -178,6 +196,81 @@ void Renderer::set_simplex3_uniforms(const glo::ActiveProgram& program) const {
 
   program.uniform_texture("simplex3_gradient_lut", simplex_gradient_lut_);
   program.uniform_texture("simplex3_permutation_lut", simplex_permutation_lut_);
+}
+
+void Renderer::draw_quad() const {
+  quad_data_.draw();
+}
+
+std::uint32_t Renderer::text_width(const std::string& text) const {
+  std::uint32_t result = 0;
+  bool first = true;
+  for (std::uint8_t c : text) {
+    result += shaders::text_widths[c];
+    if (first) {
+      first = false;
+    } else {
+      result += 1;
+    }
+  }
+  return result;
+}
+
+void Renderer::draw_text(const std::string& text, const glm::ivec2& position,
+                         const glm::vec4& colour) {
+  std::vector<float> data;
+  std::vector<GLushort> indices;
+
+  GLushort index = 0;
+  std::uint32_t x = 0;
+  for (std::uint8_t c : text) {
+    auto char_width = shaders::text_widths[c];
+
+    data.push_back(static_cast<float>(x + position.x));
+    data.push_back(static_cast<float>(position.y + shaders::text_height));
+    data.push_back(static_cast<float>((c % 32) * shaders::text_size));
+    data.push_back(static_cast<float>((c / 32) * shaders::text_size + shaders::text_size));
+
+    data.push_back(static_cast<float>(x + position.x));
+    data.push_back(static_cast<float>(position.y));
+    data.push_back(static_cast<float>((c % 32) * shaders::text_size));
+    data.push_back(static_cast<float>((c / 32) * shaders::text_size + shaders::text_border));
+
+    data.push_back(static_cast<float>(x + position.x + char_width));
+    data.push_back(static_cast<float>(position.y + shaders::text_height));
+    data.push_back(static_cast<float>((c % 32) * shaders::text_size + char_width));
+    data.push_back(static_cast<float>((c / 32) * shaders::text_size + shaders::text_size));
+
+    data.push_back(static_cast<float>(x + position.x + char_width));
+    data.push_back(static_cast<float>(position.y));
+    data.push_back(static_cast<float>((c % 32) * shaders::text_size + char_width));
+    data.push_back(static_cast<float>((c / 32) * shaders::text_size + shaders::text_border));
+
+    indices.push_back(index + 0);
+    indices.push_back(index + 2);
+    indices.push_back(index + 1);
+    indices.push_back(index + 1);
+    indices.push_back(index + 2);
+    indices.push_back(index + 3);
+    x += char_width + 1;
+    index += 4;
+  }
+
+  set_default_render_states();
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+  glm::vec2 framebuffer_dimensions = framebuffer_dimensions_;
+  glo::VertexData vertex_data{data, indices, GL_DYNAMIC_DRAW};
+  auto program = text_program_.use();
+  program.uniform_texture("text_texture", text_image_.texture);
+  glUniform2fv(program.uniform("text_dimensions"), 1, glm::value_ptr(text_image_.dimensions));
+  glUniform2fv(program.uniform("framebuffer_dimensions"), 1,
+               glm::value_ptr(framebuffer_dimensions));
+  glUniform4fv(program.uniform("text_colour"), 1, glm::value_ptr(colour));
+  vertex_data.enable_attribute(0, 2, 4, 0);
+  vertex_data.enable_attribute(1, 2, 4, 2);
+  vertex_data.draw();
 }
 
 }  // ::gloam

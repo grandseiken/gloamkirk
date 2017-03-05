@@ -19,7 +19,7 @@ const std::string kWorkerType = "client";
 const std::string kLocalhost = "127.0.0.1";
 const std::uint16_t kPort = 7777;
 
-std::unique_ptr<sf::RenderWindow> create_window() {
+std::unique_ptr<sf::RenderWindow> create_window(bool fullscreen) {
   sf::ContextSettings settings;
   settings.depthBits = 0;
   settings.stencilBits = 0;
@@ -28,8 +28,12 @@ std::unique_ptr<sf::RenderWindow> create_window() {
   settings.minorVersion = 3;
   settings.attributeFlags = sf::ContextSettings::Core;
 
-  std::unique_ptr<sf::RenderWindow> window(
-      new sf::RenderWindow{sf::VideoMode::getDesktopMode(), kTitle, sf::Style::None, settings});
+  std::unique_ptr<sf::RenderWindow> window{
+      fullscreen
+          ? new sf::RenderWindow{sf::VideoMode::getDesktopMode(), kTitle, sf::Style::None, settings}
+          : new sf::RenderWindow{
+                sf::VideoMode(gloam::native_resolution.x, gloam::native_resolution.y), kTitle,
+                sf::Style::Default, settings}};
   window->setVerticalSyncEnabled(true);
   window->setFramerateLimit(120);
   window->setVisible(true);
@@ -52,25 +56,13 @@ worker::Connection connect() {
   return connection;
 }
 
-struct TextureImage {
-  glo::Texture texture;
-  glm::vec2 dimensions;
+enum class ExitType {
+  kExitApplication = 0,
+  kToggleFullscreen = 1,
 };
 
-TextureImage load_texture(const std::string& path) {
-  sf::Image image;
-  image.loadFromFile(path);
-
-  TextureImage result;
-  result.dimensions = {image.getSize().x, image.getSize().y};
-  result.texture.create_2d(result.dimensions, 4, GL_UNSIGNED_BYTE, image.getPixelsPtr());
-  return result;
-}
-
-}  // anonymous
-
-int main(int, const char**) {
-  auto window = create_window();
+ExitType run(bool fullscreen) {
+  auto window = create_window(fullscreen);
   glo::Init();
   gloam::Renderer renderer;
   renderer.resize({window->getSize().x, window->getSize().y});
@@ -111,9 +103,8 @@ int main(int, const char**) {
     connection.SendMetrics(metrics);
   });
 
-  auto title = load_texture("assets/title.png");
+  auto title = gloam::load_texture("assets/title.png");
   title.texture.set_linear();
-
   glo::Program title_program{
       "title",
       {"title_vertex", GL_VERTEX_SHADER, gloam::shaders::title_vertex},
@@ -132,6 +123,10 @@ int main(int, const char**) {
       if (event.type == sf::Event::Closed ||
           (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)) {
         window->close();
+        return ExitType::kExitApplication;
+      } else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Return) {
+        window->close();
+        return ExitType::kToggleFullscreen;
       } else if (event.type == sf::Event::Resized) {
         renderer.resize({window->getSize().x, window->getSize().y});
       }
@@ -142,18 +137,40 @@ int main(int, const char**) {
     }
 
     renderer.begin_frame();
+    renderer.set_default_render_states();
+    auto dimensions = renderer.framebuffer_dimensions();
     {
       auto program = title_program.use();
       glUniform1f(program.uniform("frame"), static_cast<float>(++frame));
       glUniform1f(program.uniform("random_seed"), static_cast<float>(random_seed));
-      glUniform2fv(program.uniform("dimensions"), 1,
-                   glm::value_ptr(renderer.framebuffer_dimensions()));
+      glUniform2fv(program.uniform("dimensions"), 1, glm::value_ptr(dimensions));
       glUniform2fv(program.uniform("title_dimensions"), 1, glm::value_ptr(title.dimensions));
       program.uniform_texture("title_texture", title.texture);
       renderer.set_simplex3_uniforms(program);
       renderer.draw_quad();
     }
+
+    static const std::string text = "Connect";
+    auto text_width = renderer.text_width(text);
+    renderer.draw_text(text, {dimensions.x / 2 - text_width / 2, dimensions.y - 80},
+                       {.75f, .75f, .75f, 1.f});
     renderer.end_frame();
     window->display();
   }
+  return ExitType::kExitApplication;
+}
+
+}  // anonymous
+
+int main(int, const char**) {
+  bool fullscreen = false;
+  while (true) {
+    auto exit_type = run(fullscreen);
+    if (exit_type == ExitType::kToggleFullscreen) {
+      fullscreen = !fullscreen;
+    } else if (exit_type == ExitType::kExitApplication) {
+      break;
+    }
+  }
+  return 0;
 }
