@@ -38,12 +38,22 @@ private:
 
   bool connection_local_;
   worker::ConnectionParameters connection_params_;
-  worker::LocatorParameters locator_params_;
+  worker::Locator locator_;
   // Workaround for broken future move-constructor.
-  struct FutureWrapper {
+  struct LocatorFutureWrapper {
+    worker::Future<worker::DeploymentList> future;
+  };
+  struct ConnectionFutureWrapper {
     worker::Future<worker::Connection> future;
   };
-  std::unique_ptr<FutureWrapper> connection_future_;
+  std::int32_t deployment_choice_ = 0;
+  std::unique_ptr<worker::DeploymentList> deployment_list_;
+  std::string queue_status_;
+  std::string new_queue_status_;
+  std::string queue_status_error_;
+
+  std::unique_ptr<LocatorFutureWrapper> locator_future_;
+  std::unique_ptr<ConnectionFutureWrapper> connection_future_;
 };
 
 }  // ::gloam

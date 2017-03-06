@@ -64,6 +64,7 @@ gloam::ModeAction run(bool fullscreen, bool first_run, bool local, const std::st
     return title_mode;
   };
   std::unique_ptr<gloam::Mode> mode{make_title(first_run)};
+  first_run = false;
 
   while (window->isOpen()) {
     gloam::ModeResult mode_result = {};

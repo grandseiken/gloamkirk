@@ -24,18 +24,6 @@ float text_alpha(std::uint64_t frame) {
   return std::min(1.f, std::max(0.f, (static_cast<float>(frame) - 256.f + 64.f) / 64.f));
 }
 
-worker::Future<worker::Connection> connect(bool local,
-                                           const worker::ConnectionParameters& connection_params,
-                                           const worker::LocatorParameters& locator_params) {
-  if (local) {
-    return worker::Connection::ConnectAsync(kLocalhost, kLocalPort, connection_params);
-  } else {
-    worker::Locator locator{kLocatorHost, locator_params};
-    return locator.ConnectAsync("test", connection_params,
-                                [](const worker::QueueStatus&) { return true; });
-  }
-}
-
 }  // anonymous
 
 TitleMode::TitleMode(bool first_run, bool fade_in, bool local,
@@ -47,7 +35,7 @@ TitleMode::TitleMode(bool first_run, bool fade_in, bool local,
                  {"title_fragment", GL_FRAGMENT_SHADER, shaders::title_fragment}}
 , connection_local_{local}
 , connection_params_{connection_params}
-, locator_params_{locator_params} {
+, locator_{kLocatorHost, locator_params} {
   title_.texture.set_linear();
   auto now = std::chrono::system_clock::now().time_since_epoch();
   std::mt19937 generator{static_cast<unsigned int>(
@@ -66,7 +54,30 @@ TitleMode::TitleMode(bool first_run, bool fade_in, bool local,
 }
 
 ModeResult TitleMode::event(const sf::Event& event) {
-  if (text_alpha(frame_) <= 0.f || connection_future_) {
+  if (deployment_list_) {
+    if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Up) {
+      deployment_choice_ = (deployment_choice_ + deployment_list_->Deployments.size() - 1) %
+          static_cast<std::int32_t>(deployment_list_->Deployments.size());
+    } else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Down) {
+      deployment_choice_ = (deployment_choice_ + 1) % deployment_list_->Deployments.size();
+    } else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Return) {
+      connection_future_.reset(new ConnectionFutureWrapper{locator_.ConnectAsync(
+          kLocatorHost, connection_params_, [&](const worker::QueueStatus& status) {
+            if (status.Error) {
+              finish_connect_frame_ = frame_;
+              queue_status_error_ = *status.Error;
+              return false;
+            }
+
+            new_queue_status_ = "Position in queue: " + std::to_string(status.PositionInQueue);
+            return false;
+          })});
+      connect_frame_ = frame_;
+    }
+    return {ModeAction::kNone, {}};
+  }
+
+  if (text_alpha(frame_) <= 0.f || connection_future_ || locator_future_) {
     return {ModeAction::kNone, {}};
   }
 
@@ -75,9 +86,12 @@ ModeResult TitleMode::event(const sf::Event& event) {
   } else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Down) {
     menu_item_ = (menu_item_ + 1) % kMenuItemCount;
   } else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Return) {
-    if (menu_item_ == kConnect) {
-      connection_future_.reset(
-          new FutureWrapper{connect(connection_local_, connection_params_, locator_params_)});
+    if (menu_item_ == kConnect && connection_local_) {
+      connection_future_.reset(new ConnectionFutureWrapper{
+          worker::Connection::ConnectAsync(kLocalhost, kLocalPort, connection_params_)});
+      connect_frame_ = frame_;
+    } else if (menu_item_ == kConnect && !connection_local_) {
+      locator_future_.reset(new LocatorFutureWrapper{locator_.GetDeploymentListAsync()});
       connect_frame_ = frame_;
     } else if (menu_item_ == kToggleFullscreen) {
       return {ModeAction::kToggleFullscreen, {}};
@@ -95,7 +109,30 @@ ModeResult TitleMode::update() {
   ++frame_;
   bool connection_poll = frame_ - connect_frame_ > 0 && (frame_ - connect_frame_) % 64 == 0;
   if (finish_connect_frame_ && frame_ - finish_connect_frame_ >= 32) {
-    return {{}, std::unique_ptr<Mode>{new ConnectMode{connection_future_->future.Get()}}};
+    if (!new_queue_status_.empty()) {
+      queue_status_ = new_queue_status_;
+      new_queue_status_.clear();
+    }
+
+    if (!queue_status_error_.empty()) {
+      return {{}, std::unique_ptr<Mode>{new ConnectMode{queue_status_error_}}};
+    } else if (connection_future_) {
+      return {{}, std::unique_ptr<Mode>{new ConnectMode{connection_future_->future.Get()}}};
+    } else if (deployment_list_) {
+      return {{}, std::unique_ptr<Mode>{new ConnectMode{*deployment_list_->Error}}};
+    }
+  } else if (locator_future_ && connection_poll && locator_future_->future.Wait({0})) {
+    deployment_list_.reset(new worker::DeploymentList{locator_future_->future.Get()});
+    locator_future_.reset();
+
+    if (deployment_list_->Error) {
+      finish_connect_frame_ = frame_;
+    } else if (deployment_list_->Deployments.empty()) {
+      finish_connect_frame_ = frame_;
+      deployment_list_->Error.emplace("No deployments found.");
+    } else {
+      fade_in_ = 32;
+    }
   } else if (!finish_connect_frame_ && connection_future_ && connection_poll &&
              connection_future_->future.Wait({0})) {
     finish_connect_frame_ = frame_;
@@ -113,12 +150,14 @@ void TitleMode::render(const Renderer& renderer) const {
 
   {
     auto alpha = title_alpha(frame_);
-    if (connection_future_) {
+    if (connection_future_ && deployment_list_) {
+      alpha = 0.f;
+    } else if (connection_future_ || locator_future_ || deployment_list_) {
       alpha *=
           std::max(0.f, std::min(1.f, 1.f - static_cast<float>(frame_ - connect_frame_) / 64.f));
     }
     auto fade = 1.f;
-    if (fade_in_) {
+    if (!deployment_list_ && fade_in_) {
       fade = std::max(0.f, std::min(1.f, 1.f - static_cast<float>(fade_in_) / 32.f));
     } else if (finish_connect_frame_) {
       fade = std::max(
@@ -140,24 +179,44 @@ void TitleMode::render(const Renderer& renderer) const {
 
   auto menu_height = dimensions.y -
       (dimensions.y - border.y - scaled_dimensions.y + kMenuItemCount * shaders::text_height) / 2;
-  auto draw_menu_item = [&](const std::string& text, std::int32_t item) {
+  auto draw_menu_item = [&](const std::string& text, std::int32_t item, std::int32_t choice,
+                            float height, float fade) {
     auto text_width = renderer.text_width(text);
-    renderer.draw_text(
-        text, {dimensions.x / 2 - text_width / 2, menu_height + item * shaders::text_height},
-        item == menu_item_ ? glm::vec4{.75f, .75f, .75f, text_alpha(frame_)}
-                           : glm::vec4{.75f, .75f, .75f, .25f * text_alpha(frame_)});
+    renderer.draw_text(text,
+                       {dimensions.x / 2 - text_width / 2, height + item * shaders::text_height},
+                       item == choice ? glm::vec4{.75f, .75f, .75f, fade}
+                                      : glm::vec4{.75f, .75f, .75f, .25f * fade});
   };
 
-  if (!connection_future_) {
-    draw_menu_item("CONNECT", kConnect);
-    draw_menu_item("TOGGLE FULLSCREEN", kToggleFullscreen);
-    draw_menu_item("EXIT", kExitApplication);
+  if (!connection_future_ && !locator_future_ && !deployment_list_) {
+    draw_menu_item("CONNECT", kConnect, menu_item_, menu_height, text_alpha(frame_));
+    draw_menu_item("TOGGLE FULLSCREEN", kToggleFullscreen, menu_item_, menu_height,
+                   text_alpha(frame_));
+    draw_menu_item("EXIT", kExitApplication, menu_item_, menu_height, text_alpha(frame_));
   }
 
-  if (connection_future_ && !finish_connect_frame_) {
+  if (!connection_future_ && deployment_list_ && !deployment_list_->Error) {
+    auto fade = std::max(0.f, std::min(1.f, 1.f - static_cast<float>(fade_in_) / 32.f));
+
+    std::string text = "Choose deployment:";
+    auto text_width = renderer.text_width(text);
+    renderer.draw_text(
+        text, {dimensions.x / 2 - text_width / 2, dimensions.y / 2 - 2 * shaders::text_height},
+        glm::vec4{.75f, .75f, .75f, .5f * fade});
+
+    std::int32_t i = 0;
+    for (const auto& deployment : deployment_list_->Deployments) {
+      text = deployment.DeploymentName + "... " + deployment.Description;
+      draw_menu_item(text, i, deployment_choice_, dimensions.y / 2, fade);
+      ++i;
+    }
+  }
+
+  if ((connection_future_ || locator_future_) && !finish_connect_frame_) {
     auto alpha = static_cast<float>((frame_ - connect_frame_) % 64) / 64.f;
 
-    auto text = "CONNECTING...";
+    auto text = !connection_future_ ? "SEARCHING..."
+                                    : queue_status_.empty() ? "CONNECTING..." : queue_status_;
     auto text_width = renderer.text_width(text);
     renderer.draw_text(text, {dimensions.x / 2 - text_width / 2, dimensions.y / 2},
                        glm::vec4{.75f, .75f, .75f, alpha});

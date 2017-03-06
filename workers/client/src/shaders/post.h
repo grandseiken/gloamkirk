@@ -93,7 +93,7 @@ void main()
   vec2 b_off = .11 * b_dir * frame;
 
   vec3 value = vec3(texture(source_framebuffer, vertex_position));
-  vec3 dither = matrix_lookup(gl_FragCoord.xy, r_off, g_off, b_off);
+  vec3 dither = matrix_lookup(gl_FragCoord.xy, r_off / 4., g_off / 4., b_off / 4.);
   output_colour = vec4(gamma_correct_dither(value, dither), 1.);
 }
 )""";

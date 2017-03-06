@@ -5,7 +5,11 @@
 
 namespace gloam {
 
-ConnectMode::ConnectMode(worker::Connection&& connection) : connection_{std::move(connection)} {
+ConnectMode::ConnectMode(const std::string& disconnect_reason)
+: connected_{false}, disconnect_reason_{disconnect_reason} {}
+
+ConnectMode::ConnectMode(worker::Connection&& connection)
+: connection_{new worker::Connection{std::move(connection)}} {
   dispatcher_.OnDisconnect([this](const worker::DisconnectOp& op) {
     std::cerr << "[disconnected] " << op.Reason << std::endl;
     connected_ = false;
@@ -36,7 +40,7 @@ ConnectMode::ConnectMode(worker::Connection&& connection) : connection_{std::mov
 
   dispatcher_.OnMetrics([this](const worker::MetricsOp& op) {
     auto metrics = op.Metrics;
-    connection_.SendMetrics(metrics);
+    connection_->SendMetrics(metrics);
   });
 }
 
@@ -49,7 +53,7 @@ ModeResult ConnectMode::event(const sf::Event& event) {
 
 ModeResult ConnectMode::update() {
   if (connected_) {
-    dispatcher_.Process(connection_.GetOpList(/* millis */ 4));
+    dispatcher_.Process(connection_->GetOpList(/* millis */ 4));
   } else if (disconnect_reason_.empty() || disconnect_ack_) {
     return {ModeAction::kExitToTitle, {}};
   }
