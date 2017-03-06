@@ -217,7 +217,7 @@ std::uint32_t Renderer::text_width(const std::string& text) const {
 }
 
 void Renderer::draw_text(const std::string& text, const glm::ivec2& position,
-                         const glm::vec4& colour) {
+                         const glm::vec4& colour) const {
   std::vector<float> data;
   std::vector<GLushort> indices;
 

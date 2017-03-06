@@ -5,8 +5,11 @@ cmake_minimum_required(VERSION 3.0)
 set(CLIENT_SOURCE_FILES
   "src/client.cc"
   "src/glo.h"
+  "src/mode.h"
   "src/renderer.cc"
   "src/renderer.h"
+  "src/title_mode.cc"
+  "src/title_mode.h"
   "src/shaders/post.h"
   "src/shaders/simplex.h"
   "src/shaders/text.h"

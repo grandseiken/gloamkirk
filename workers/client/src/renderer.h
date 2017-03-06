@@ -34,7 +34,8 @@ public:
   void draw_quad() const;
 
   std::uint32_t text_width(const std::string& text) const;
-  void draw_text(const std::string& text, const glm::ivec2& position, const glm::vec4& colour);
+  void draw_text(const std::string& text, const glm::ivec2& position,
+                 const glm::vec4& colour) const;
 
 private:
   mutable std::uint64_t frame_;

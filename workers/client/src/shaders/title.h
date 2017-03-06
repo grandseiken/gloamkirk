@@ -19,8 +19,10 @@ void main()
 const std::string title_fragment = simplex3 + R"""(
 uniform float frame;
 uniform float random_seed;
+uniform float title_alpha;
 uniform vec2 dimensions;
-uniform vec2 title_dimensions;
+uniform vec2 scaled_dimensions;
+uniform vec2 border;
 uniform sampler2D title_texture;
 
 out vec4 output_colour;
@@ -42,15 +44,9 @@ void main()
       simplex3(fog_seed / 4.) / 64. +
       simplex3(fog_seed / 2.) / 64.;
   float fog_value = (n + .5) / 4.;
-
-  vec2 max_texture_scale = (dimensions - vec2(60., 180.)) / title_dimensions;
-  float texture_scale = min(max_texture_scale.x, max_texture_scale.y);
-  vec2 scaled_dimensions = texture_scale * title_dimensions;
-  vec2 border = (dimensions - scaled_dimensions) / vec2(2., 6.);
-  border.y = min(border.y, border.x);
-  vec2 texture_coords = frag - vec2(border.x, dimensions.y - border.y - scaled_dimensions.y);
-
   vec3 value = vec3(clamp(fog_value, 0., 1.));
+
+  vec2 texture_coords = frag - vec2(border.x, dimensions.y - border.y - scaled_dimensions.y);
   if (all(greaterThanEqual(texture_coords, vec2(0., 0.))) &&
       all(lessThan(texture_coords, scaled_dimensions))) {
     vec2 sample_coords = texture_coords / scaled_dimensions;
@@ -59,8 +55,7 @@ void main()
     vec4 texture_value = texture(title_texture, sample_coords);
 
     float fog_mix = 1. - clamp((fog_value - .125) * 8., 0., 1.);
-    float frame_mix = clamp((frame - 64.) / 256., 0., 1.);
-    value = mix(value, texture_value.rgb, texture_value.a * fog_mix * frame_mix);
+    value = mix(value, texture_value.rgb, texture_value.a * fog_mix * title_alpha);
   }
   output_colour = vec4(value.rg, pow(value.b, .875), 1.);
 }
