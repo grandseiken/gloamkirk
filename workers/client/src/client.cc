@@ -1,9 +1,7 @@
 #include "workers/client/src/renderer.h"
 #include "workers/client/src/title_mode.h"
 #include <SFML/Graphics.hpp>
-#include <glm/common.hpp>
 #include <improbable/worker.h>
-#include <schema/gloamkirk.h>
 #include <cstdint>
 #include <iostream>
 #include <memory>
@@ -11,10 +9,8 @@
 
 namespace {
 const std::string kTitle = "Gloamkirk";
-const std::string kProjectName = "alpha_zebra_pizza_956";
 const std::string kWorkerType = "client";
-const std::string kLocalhost = "127.0.0.1";
-const std::uint16_t kPort = 7777;
+const std::string kProjectName = "alpha_zebra_pizza_956";
 
 std::unique_ptr<sf::RenderWindow> create_window(bool fullscreen) {
   sf::ContextSettings settings;
@@ -39,64 +35,33 @@ std::unique_ptr<sf::RenderWindow> create_window(bool fullscreen) {
   return window;
 }
 
-worker::Connection connect() {
-  worker::ConnectionParameters params;
+worker::ConnectionParameters connection_params(bool local) {
+  worker::ConnectionParameters params = {};
   params.WorkerId = kWorkerType;
   params.WorkerType = kWorkerType;
-  params.Network.UseExternalIp = true;
+  params.Network.UseExternalIp = !local;
   params.Network.ConnectionType = worker::NetworkConnectionType::kRaknet;
-
-  std::cout << "connecting..." << std::endl;
-  auto connection = worker::Connection::ConnectAsync(kLocalhost, kPort, params).Get();
-  if (connection.IsConnected()) {
-    std::cout << "connected!" << std::endl;
-  }
-  return connection;
+  return params;
 }
 
-gloam::ModeAction run(bool fullscreen, bool first_run) {
+worker::LocatorParameters locator_params(const std::string& login_token) {
+  worker::LocatorParameters params = {};
+  params.ProjectName = kProjectName;
+  params.CredentialsType = worker::LocatorCredentialsType::kLoginToken;
+  params.LoginToken.Token = login_token;
+  return params;
+}
+
+gloam::ModeAction run(bool fullscreen, bool first_run, bool local, const std::string& login_token) {
   auto window = create_window(fullscreen);
   glo::Init();
   gloam::Renderer renderer;
   renderer.resize({window->getSize().x, window->getSize().y});
 
-  auto connection = connect();
+  std::unique_ptr<gloam::Mode> mode{new gloam::TitleMode{first_run, local, connection_params(local),
+                                                         locator_params(login_token)}};
+  std::unique_ptr<gloam::Mode> new_mode;
 
-  bool connected = true;
-  worker::Dispatcher dispatcher;
-  dispatcher.OnDisconnect([&connected](const worker::DisconnectOp& op) {
-    std::cerr << "[disconnected] " << op.Reason << std::endl;
-    connected = false;
-  });
-
-  dispatcher.OnLogMessage([&connected](const worker::LogMessageOp& op) {
-    switch (op.Level) {
-    case worker::LogLevel::kDebug:
-      std::cout << "[debug] " << op.Message << std::endl;
-      break;
-    case worker::LogLevel::kInfo:
-      std::cout << "[info] " << op.Message << std::endl;
-      break;
-    case worker::LogLevel::kWarn:
-      std::cerr << "[warning] " << op.Message << std::endl;
-      break;
-    case worker::LogLevel::kError:
-      std::cerr << "[error] " << op.Message << std::endl;
-      break;
-    case worker::LogLevel::kFatal:
-      std::cerr << "[fatal] " << op.Message << std::endl;
-      connected = false;
-    default:
-      break;
-    }
-  });
-
-  dispatcher.OnMetrics([&connection](const worker::MetricsOp& op) {
-    auto metrics = op.Metrics;
-    connection.SendMetrics(metrics);
-  });
-
-  std::unique_ptr<gloam::Mode> mode{new gloam::TitleMode{first_run}};
   while (window->isOpen()) {
     sf::Event event;
     while (window->pollEvent(event)) {
@@ -113,27 +78,45 @@ gloam::ModeAction run(bool fullscreen, bool first_run) {
       }
     }
 
-    if (connected) {
-      dispatcher.Process(connection.GetOpList(/* millis */ 16));
-    }
-
     renderer.begin_frame();
     renderer.set_default_render_states();
-    mode->update();
+    new_mode = mode->update();
     mode->render(renderer);
     renderer.end_frame();
     window->display();
+
+    if (new_mode) {
+      mode.swap(new_mode);
+      new_mode.reset();
+    }
   }
   return gloam::ModeAction::kExitApplication;
 }
 
 }  // anonymous
 
-int main(int, const char**) {
+int main(int argc, const char** argv) {
+  bool local = false;
+  std::string login_token;
+  for (int i = 1; i < argc; ++i) {
+    std::string arg = argv[i];
+    if (arg == "--local" || arg == "-l") {
+      std::cout << "[warning] Connecting to local deployment." << std::endl;
+      local = true;
+    } else if (arg == "--login_token" || arg == "-t") {
+      login_token = argv[++i];
+    } else {
+      std::cerr << "unknown flag " << argv[i] << std::endl;
+    }
+  }
+  if (!local && login_token.empty()) {
+    std::cerr << "[warning] Connecting to cloud deployment, but no --login_token provided." << std::endl;
+  }
+
   bool fullscreen = false;
   bool first_run = true;
   while (true) {
-    auto mode_action = run(fullscreen, first_run);
+    auto mode_action = run(fullscreen, first_run, local, login_token);
     if (mode_action == gloam::ModeAction::kToggleFullscreen) {
       fullscreen = !fullscreen;
     } else if (mode_action == gloam::ModeAction::kExitApplication) {
