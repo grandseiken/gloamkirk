@@ -12,14 +12,21 @@ class Renderer;
 enum class ModeAction {
   kNone,
   kToggleFullscreen,
+  kExitToTitle,
   kExitApplication,
+};
+
+class Mode;
+struct ModeResult {
+  ModeAction action;
+  std::unique_ptr<Mode> new_mode;
 };
 
 class Mode {
 public:
   virtual ~Mode() = default;
-  virtual ModeAction event(const sf::Event& event) = 0;
-  virtual std::unique_ptr<Mode> update() = 0;
+  virtual ModeResult event(const sf::Event& event) = 0;
+  virtual ModeResult update() = 0;
   virtual void render(const Renderer& renderer) const = 0;
 };
 

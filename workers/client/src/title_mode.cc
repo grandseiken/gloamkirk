@@ -21,7 +21,7 @@ float title_alpha(std::uint64_t frame) {
 }
 
 float text_alpha(std::uint64_t frame) {
-  return std::min(1.f, std::max(0.f, (static_cast<float>(frame) - 256.f - 64.f) / 16.f));
+  return std::min(1.f, std::max(0.f, (static_cast<float>(frame) - 256.f + 64.f) / 64.f));
 }
 
 worker::Future<worker::Connection> connect(bool local,
@@ -38,7 +38,7 @@ worker::Future<worker::Connection> connect(bool local,
 
 }  // anonymous
 
-TitleMode::TitleMode(bool first_run, bool local,
+TitleMode::TitleMode(bool first_run, bool fade_in, bool local,
                      const worker::ConnectionParameters& connection_params,
                      const worker::LocatorParameters& locator_params)
 : title_{gloam::load_texture("assets/title.png")}
@@ -58,11 +58,16 @@ TitleMode::TitleMode(bool first_run, bool local,
   if (!first_run) {
     frame_ = 1024;
   }
+  if (fade_in) {
+    fade_in_ = 32;
+  } else {
+    menu_item_ = kToggleFullscreen;
+  }
 }
 
-ModeAction TitleMode::event(const sf::Event& event) {
-  if (title_alpha(frame_) < 1.f || connection_future_) {
-    return ModeAction::kNone;
+ModeResult TitleMode::event(const sf::Event& event) {
+  if (text_alpha(frame_) <= 0.f || connection_future_) {
+    return {ModeAction::kNone, {}};
   }
 
   if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Up) {
@@ -73,19 +78,27 @@ ModeAction TitleMode::event(const sf::Event& event) {
     if (menu_item_ == kConnect) {
       connection_future_.reset(
           new FutureWrapper{connect(connection_local_, connection_params_, locator_params_)});
+      connect_frame_ = frame_;
     } else if (menu_item_ == kToggleFullscreen) {
-      return ModeAction::kToggleFullscreen;
+      return {ModeAction::kToggleFullscreen, {}};
     } else if (menu_item_ == kExitApplication) {
-      return ModeAction::kExitApplication;
+      return {ModeAction::kExitApplication, {}};
     }
   }
-  return ModeAction::kNone;
+  return {ModeAction::kNone, {}};
 }
 
-std::unique_ptr<Mode> TitleMode::update() {
+ModeResult TitleMode::update() {
+  if (fade_in_) {
+    --fade_in_;
+  }
   ++frame_;
-  if (connection_future_ && connection_future_->future.Wait({0})) {
-    return std::unique_ptr<Mode>{new ConnectMode{connection_future_->future.Get()}};
+  bool connection_poll = frame_ - connect_frame_ > 0 && (frame_ - connect_frame_) % 64 == 0;
+  if (finish_connect_frame_ && frame_ - finish_connect_frame_ >= 32) {
+    return {{}, std::unique_ptr<Mode>{new ConnectMode{connection_future_->future.Get()}}};
+  } else if (!finish_connect_frame_ && connection_future_ && connection_poll &&
+             connection_future_->future.Wait({0})) {
+    finish_connect_frame_ = frame_;
   }
   return {};
 }
@@ -99,10 +112,24 @@ void TitleMode::render(const Renderer& renderer) const {
   border.y = std::min(border.y, border.x);
 
   {
+    auto alpha = title_alpha(frame_);
+    if (connection_future_) {
+      alpha *=
+          std::max(0.f, std::min(1.f, 1.f - static_cast<float>(frame_ - connect_frame_) / 64.f));
+    }
+    auto fade = 1.f;
+    if (fade_in_) {
+      fade = std::max(0.f, std::min(1.f, 1.f - static_cast<float>(fade_in_) / 32.f));
+    } else if (finish_connect_frame_) {
+      fade = std::max(
+          0.f, std::min(1.f, 1.f - static_cast<float>(frame_ - finish_connect_frame_) / 32.f));
+    }
+
     auto program = title_program_.use();
-    glUniform1f(program.uniform("frame"), frame_);
+    glUniform1f(program.uniform("fade"), fade);
+    glUniform1f(program.uniform("frame"), static_cast<float>(frame_));
     glUniform1f(program.uniform("random_seed"), static_cast<float>(random_seed_));
-    glUniform1f(program.uniform("title_alpha"), connection_future_ ? 0.f : title_alpha(frame_));
+    glUniform1f(program.uniform("title_alpha"), alpha);
     glUniform2fv(program.uniform("dimensions"), 1, glm::value_ptr(dimensions));
     glUniform2fv(program.uniform("scaled_dimensions"), 1, glm::value_ptr(scaled_dimensions));
     glUniform2fv(program.uniform("border"), 1, glm::value_ptr(border));
@@ -127,11 +154,13 @@ void TitleMode::render(const Renderer& renderer) const {
     draw_menu_item("EXIT", kExitApplication);
   }
 
-  if (connection_future_) {
+  if (connection_future_ && !finish_connect_frame_) {
+    auto alpha = static_cast<float>((frame_ - connect_frame_) % 64) / 64.f;
+
     auto text = "CONNECTING...";
     auto text_width = renderer.text_width(text);
     renderer.draw_text(text, {dimensions.x / 2 - text_width / 2, dimensions.y / 2},
-                       glm::vec4{.75f, .75f, .75f, .25f});
+                       glm::vec4{.75f, .75f, .75f, alpha});
   }
 }
 

@@ -11,10 +11,11 @@ namespace gloam {
 
 class TitleMode : public Mode {
 public:
-  TitleMode(bool first_run, bool local, const worker::ConnectionParameters& connection_params,
+  TitleMode(bool first_run, bool fade_in, bool local,
+            const worker::ConnectionParameters& connection_params,
             const worker::LocatorParameters& locator_params);
-  ModeAction event(const sf::Event& event) override;
-  std::unique_ptr<Mode> update() override;
+  ModeResult event(const sf::Event& event) override;
+  ModeResult update() override;
   void render(const Renderer& renderer) const override;
 
 private:
@@ -28,7 +29,10 @@ private:
   TextureImage title_;
   glo::Program title_program_;
 
+  std::uint64_t fade_in_ = 0;
   std::uint64_t frame_ = 0;
+  std::uint64_t connect_frame_ = 0;
+  std::uint64_t finish_connect_frame_ = 0;
   std::int32_t random_seed_ = 0;
   std::int32_t menu_item_ = MenuItem::kConnect;
 

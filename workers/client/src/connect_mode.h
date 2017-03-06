@@ -10,12 +10,14 @@ namespace gloam {
 class ConnectMode : public Mode {
 public:
   ConnectMode(worker::Connection&& connection);
-  ModeAction event(const sf::Event& event) override;
-  std::unique_ptr<Mode> update() override;
+  ModeResult event(const sf::Event& event) override;
+  ModeResult update() override;
   void render(const Renderer& renderer) const override;
 
 private:
   bool connected_ = true;
+  bool disconnect_ack_ = false;
+  std::string disconnect_reason_;
   worker::Connection connection_;
   worker::Dispatcher dispatcher_;
 };

@@ -58,11 +58,16 @@ gloam::ModeAction run(bool fullscreen, bool first_run, bool local, const std::st
   gloam::Renderer renderer;
   renderer.resize({window->getSize().x, window->getSize().y});
 
-  std::unique_ptr<gloam::Mode> mode{new gloam::TitleMode{first_run, local, connection_params(local),
-                                                         locator_params(login_token)}};
-  std::unique_ptr<gloam::Mode> new_mode;
+  auto make_title = [&](bool fade_in) {
+    auto title_mode =
+        new gloam::TitleMode{first_run, fade_in, local, connection_params(local), locator_params(login_token)};
+    return title_mode;
+  };
+  std::unique_ptr<gloam::Mode> mode{make_title(first_run)};
 
   while (window->isOpen()) {
+    gloam::ModeResult mode_result = {};
+
     sf::Event event;
     while (window->pollEvent(event)) {
       if (event.type == sf::Event::Closed) {
@@ -70,24 +75,29 @@ gloam::ModeAction run(bool fullscreen, bool first_run, bool local, const std::st
       } else if (event.type == sf::Event::Resized) {
         renderer.resize({window->getSize().x, window->getSize().y});
       } else {
-        auto mode_action = mode->event(event);
-        if (mode_action == gloam::ModeAction::kExitApplication ||
-            mode_action == gloam::ModeAction::kToggleFullscreen) {
-          return mode_action;
+        mode_result = mode->event(event);
+        if (mode_result.action != gloam::ModeAction::kNone || mode_result.new_mode) {
+          break;
         }
       }
     }
 
-    renderer.begin_frame();
-    renderer.set_default_render_states();
-    new_mode = mode->update();
-    mode->render(renderer);
-    renderer.end_frame();
-    window->display();
+    if (mode_result.action == gloam::ModeAction::kNone && !mode_result.new_mode) {
+      renderer.begin_frame();
+      renderer.set_default_render_states();
+      mode_result = mode->update();
+      mode->render(renderer);
+      renderer.end_frame();
+      window->display();
+    }
 
-    if (new_mode) {
-      mode.swap(new_mode);
-      new_mode.reset();
+    if (mode_result.action == gloam::ModeAction::kExitApplication ||
+        mode_result.action == gloam::ModeAction::kToggleFullscreen) {
+      return mode_result.action;
+    } else if (mode_result.action == gloam::ModeAction::kExitToTitle) {
+      mode.reset(make_title(true));
+    } else if (mode_result.new_mode) {
+      mode.swap(mode_result.new_mode);
     }
   }
   return gloam::ModeAction::kExitApplication;
@@ -106,11 +116,12 @@ int main(int argc, const char** argv) {
     } else if (arg == "--login_token" || arg == "-t") {
       login_token = argv[++i];
     } else {
-      std::cerr << "unknown flag " << argv[i] << std::endl;
+      std::cerr << "[warning] Unknown flag '" << argv[i] << "'." << std::endl;
     }
   }
   if (!local && login_token.empty()) {
-    std::cerr << "[warning] Connecting to cloud deployment, but no --login_token provided." << std::endl;
+    std::cerr << "[warning] Connecting to cloud deployment, but no --login_token provided."
+              << std::endl;
   }
 
   bool fullscreen = false;

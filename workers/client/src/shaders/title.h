@@ -17,6 +17,7 @@ void main()
 )""";
 
 const std::string title_fragment = simplex3 + R"""(
+uniform float fade;
 uniform float frame;
 uniform float random_seed;
 uniform float title_alpha;
@@ -58,6 +59,7 @@ void main()
     value = mix(value, texture_value.rgb, texture_value.a * fog_mix * title_alpha);
   }
   output_colour = vec4(value.rg, pow(value.b, .875), 1.);
+  output_colour *= fade;
 }
 )""";
 

@@ -1,4 +1,6 @@
 #include "workers/client/src/connect_mode.h"
+#include <glm/vec4.hpp>
+#include <schema/gloamkirk.h>
 #include <iostream>
 
 namespace gloam {
@@ -7,6 +9,7 @@ ConnectMode::ConnectMode(worker::Connection&& connection) : connection_{std::mov
   dispatcher_.OnDisconnect([this](const worker::DisconnectOp& op) {
     std::cerr << "[disconnected] " << op.Reason << std::endl;
     connected_ = false;
+    disconnect_reason_ = op.Reason;
   });
 
   dispatcher_.OnLogMessage([this](const worker::LogMessageOp& op) {
@@ -37,17 +40,30 @@ ConnectMode::ConnectMode(worker::Connection&& connection) : connection_{std::mov
   });
 }
 
-ModeAction ConnectMode::event(const sf::Event&) {
-  return ModeAction::kNone;
+ModeResult ConnectMode::event(const sf::Event& event) {
+  if (!connected_ && event.type == sf::Event::KeyPressed) {
+    disconnect_ack_ = true;
+  }
+  return {ModeAction::kNone, {}};
 }
 
-std::unique_ptr<Mode> ConnectMode::update() {
+ModeResult ConnectMode::update() {
   if (connected_) {
     dispatcher_.Process(connection_.GetOpList(/* millis */ 4));
+  } else if (disconnect_reason_.empty() || disconnect_ack_) {
+    return {ModeAction::kExitToTitle, {}};
   }
-  return {};
+  return {{}, {}};
 }
 
-void ConnectMode::render(const Renderer&) const {}
+void ConnectMode::render(const Renderer& renderer) const {
+  if (!connected_) {
+    auto dimensions = renderer.framebuffer_dimensions();
+    auto text_width = renderer.text_width(disconnect_reason_);
+    renderer.draw_text(disconnect_reason_, {dimensions.x / 2 - text_width / 2, dimensions.y / 2},
+                       glm::vec4{.75f, .75f, .75f, 1.f});
+    return;
+  }
+}
 
 }  // ::gloam
