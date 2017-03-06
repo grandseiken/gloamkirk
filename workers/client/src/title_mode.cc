@@ -54,6 +54,14 @@ TitleMode::TitleMode(bool first_run, bool fade_in, bool local,
 }
 
 ModeResult TitleMode::event(const sf::Event& event) {
+  if (connection_future_) {
+    if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape) {
+      // Doesn't seem to work.
+      connection_cancel_ = true;
+    }
+    return {ModeAction::kNone, {}};
+  }
+
   if (deployment_list_) {
     if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Up) {
       deployment_choice_ = (deployment_choice_ + deployment_list_->Deployments.size() - 1) %
@@ -62,7 +70,8 @@ ModeResult TitleMode::event(const sf::Event& event) {
       deployment_choice_ = (deployment_choice_ + 1) % deployment_list_->Deployments.size();
     } else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Return) {
       connection_future_.reset(new ConnectionFutureWrapper{locator_.ConnectAsync(
-          kLocatorHost, connection_params_, [&](const worker::QueueStatus& status) {
+          deployment_list_->Deployments[deployment_choice_].DeploymentName, connection_params_,
+          [&](const worker::QueueStatus& status) {
             if (status.Error) {
               finish_connect_frame_ = frame_;
               queue_status_error_ = *status.Error;
@@ -70,14 +79,14 @@ ModeResult TitleMode::event(const sf::Event& event) {
             }
 
             new_queue_status_ = "Position in queue: " + std::to_string(status.PositionInQueue);
-            return false;
+            return !connection_cancel_;
           })});
       connect_frame_ = frame_;
     }
     return {ModeAction::kNone, {}};
   }
 
-  if (text_alpha(frame_) <= 0.f || connection_future_ || locator_future_) {
+  if (text_alpha(frame_) <= 0.f || locator_future_) {
     return {ModeAction::kNone, {}};
   }
 

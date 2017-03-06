@@ -37,6 +37,7 @@ private:
   std::int32_t menu_item_ = MenuItem::kConnect;
 
   bool connection_local_;
+  bool connection_cancel_ = false;
   worker::ConnectionParameters connection_params_;
   worker::Locator locator_;
   // Workaround for broken future move-constructor.
