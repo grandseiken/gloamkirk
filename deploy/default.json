@@ -21,7 +21,12 @@
     },
     {
       "worker_type": "master",
-      "flags": [],
+      "flags": [
+        {
+          "name": "chunk_size",
+          "value": "8"
+        }
+      ],
       "permissions": [
         {
           "entity_creation": {

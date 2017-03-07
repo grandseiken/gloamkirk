@@ -1,5 +1,7 @@
 #include "workers/master/src/client_handler.h"
-#include <schema/gloamkirk.h>
+#include "workers/master/src/common_data.h"
+#include <schema/master.h>
+#include <schema/player.h>
 #include <algorithm>
 #include <chrono>
 #include <unordered_map>
@@ -7,10 +9,7 @@
 namespace gloam {
 namespace master {
 namespace {
-const std::string kClientAttribute = "client";
-const std::string kWorkerType = "master";
-const std::string kPlayerPrefab = "player";
-const improbable::WorkerRequirementSet kAllWorkers = {{{{{kClientAttribute}}}, {{{kWorkerType}}}}};
+const std::string kPlayerPrefab = "Player";
 
 using Client = ClientHandler::Client;
 
@@ -53,11 +52,13 @@ bool check_client(const Client& client) {
                    worker::Option<std::string>{kClientAttribute}) != client.attribute().end();
 }
 
-}  // ::anonymous
+}  // anonymous
+
+ClientHandler::ClientHandler(const schema::MasterData& master_data) : master_data_{master_data} {}
 
 void ClientHandler::init(managed::ManagedConnection& c) {
   c_.reset(new managed::ManagedConnection{c});
-  using ClientHeartbeat = schema::MasterSeed::Commands::ClientHeartbeat;
+  using ClientHeartbeat = schema::Master::Commands::ClientHeartbeat;
 
   c.dispatcher.OnCommandRequest<ClientHeartbeat>(
       [&](const worker::CommandRequestOp<ClientHeartbeat>& op) {
@@ -79,7 +80,6 @@ void ClientHandler::init(managed::ManagedConnection& c) {
       }
     }
     if (client.attribute().empty()) {
-      c.logger.warn("Received unknown reserve entity ID response.");
       return;
     }
 
@@ -101,7 +101,6 @@ void ClientHandler::init(managed::ManagedConnection& c) {
       }
     }
     if (client.attribute().empty()) {
-      c.logger.warn("Received unknown create entity response.");
       return;
     }
 
@@ -127,7 +126,6 @@ void ClientHandler::init(managed::ManagedConnection& c) {
       }
     }
     if (client.attribute().empty()) {
-      c.logger.warn("Received unknown delete entity response.");
       return;
     }
 
@@ -148,6 +146,9 @@ void ClientHandler::init(managed::ManagedConnection& c) {
 }
 
 void ClientHandler::update() {
+  if (!master_data_.world_spawned()) {
+    return;
+  }
   static const std::uint64_t kDeleteEntityTimeoutMillis = 1 << 15;
 
   auto create_player_entity = [&](const Client& client, worker::EntityId entity_id) {
@@ -170,12 +171,11 @@ void ClientHandler::update() {
     bool expired = now - info.timestamp_millis > kDeleteEntityTimeoutMillis;
 
     // If not expired, try to create an entity.
-    if (!expired && pair.second.entity_id < 0 && !pair.second.reserve_request_id.Id) {
-      pair.second.reserve_request_id = c_->connection.SendReserveEntityIdRequest({});
+    if (!expired && info.entity_id < 0 && !info.reserve_request_id.Id) {
+      info.reserve_request_id = c_->connection.SendReserveEntityIdRequest({});
     }
-    if (!expired && pair.second.entity_id >= 0 && !pair.second.entity_created &&
-        !pair.second.create_request_id.Id) {
-      pair.second.create_request_id = create_player_entity(pair.first, pair.second.entity_id);
+    if (!expired && info.entity_id >= 0 && !info.entity_created && !info.create_request_id.Id) {
+      info.create_request_id = create_player_entity(pair.first, info.entity_id);
     }
     // If expired, try to delete the entity.
     if (expired && info.entity_created && !info.delete_request_id.Id) {

@@ -1,0 +1,20 @@
+package gloam.schema;
+import "schema/common.schema";
+
+type ChunkInfo {
+  EntityId entity_id = 1;
+  int32 x = 2;
+  int32 y = 3;
+}
+
+// Component exclusive to the master entity with ID 0, authoritative on the master worker.
+component Master {
+  id = 831;
+
+  bool world_spawned = 1;
+  list<ChunkInfo> chunks = 2;
+
+  // Heartbeat sent by clients to the master.
+  command Unit client_heartbeat(Unit);
+}
+

@@ -1,0 +1,6 @@
+package gloam.schema;
+
+// Component exclusive to chunk entities.
+component Chunk {
+  id = 833;
+}

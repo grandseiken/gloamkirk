@@ -1,7 +1,8 @@
 #include "workers/client/src/connect_mode.h"
 #include "workers/client/src/logic/world.h"
 #include <glm/vec4.hpp>
-#include <schema/gloamkirk.h>
+#include <schema/master.h>
+#include <schema/player.h>
 #include <iostream>
 
 namespace gloam {
@@ -44,8 +45,8 @@ ConnectMode::ConnectMode(worker::Connection&& connection)
     connection_->SendMetrics(metrics);
   });
 
-  dispatcher_.OnCommandResponse<schema::MasterSeed::Commands::ClientHeartbeat>(
-      [&](const worker::CommandResponseOp<schema::MasterSeed::Commands::ClientHeartbeat>& op) {
+  dispatcher_.OnCommandResponse<schema::Master::Commands::ClientHeartbeat>(
+      [&](const worker::CommandResponseOp<schema::Master::Commands::ClientHeartbeat>& op) {
         if (op.StatusCode != worker::StatusCode::kSuccess) {
           std::cerr << "[warning] Heartbeat failed: " << op.Message << std::endl;
         }
@@ -79,7 +80,7 @@ ModeResult ConnectMode::update() {
 
     // Send heartbeat periodically to master.
     if (frame_++ % 512 == 0) {
-      connection_->SendCommandRequest<schema::MasterSeed::Commands::ClientHeartbeat>(
+      connection_->SendCommandRequest<schema::Master::Commands::ClientHeartbeat>(
           /* master entity */ 0, {}, {});
     }
     if (player_id_ >= 0 && frame_ % 64 == 0) {

@@ -1,17 +1,10 @@
 #ifndef GLOAM_WORKERS_MASTER_SRC_CLIENT_HANDLER_H
 #define GLOAM_WORKERS_MASTER_SRC_CLIENT_HANDLER_H
 #include "common/src/managed/managed.h"
+#include "workers/master/src/common_data.h"
 #include <improbable/standard_library.h>
 #include <improbable/worker.h>
 #include <unordered_map>
-
-namespace {
-template <typename T>
-inline void hash_combine(std::size_t& seed, const T& v) {
-  std::hash<T> hasher;
-  seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-}
-}  // anonymous
 
 namespace std {
 template <>
@@ -34,6 +27,7 @@ namespace master {
 class ClientHandler : public gloam::managed::WorkerLogic {
 public:
   using Client = improbable::WorkerAttributeSet;
+  ClientHandler(const schema::MasterData& master_data);
 
   void init(managed::ManagedConnection& c) override;
   void update() override;
@@ -55,6 +49,7 @@ private:
 
   void update_client(const Client& client);
 
+  const schema::MasterData& master_data_;
   std::unique_ptr<managed::ManagedConnection> c_;
   std::unordered_map<Client, ClientInfo> clients_;
 };

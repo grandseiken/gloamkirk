@@ -2,6 +2,7 @@
 #include "workers/client/src/title_mode.h"
 #include <SFML/Graphics.hpp>
 #include <improbable/worker.h>
+#include <chrono>
 #include <cstdint>
 #include <iostream>
 #include <memory>
@@ -36,8 +37,12 @@ std::unique_ptr<sf::RenderWindow> create_window(bool fullscreen) {
 }
 
 worker::ConnectionParameters connection_params(bool local) {
+  auto time_millis = std::chrono::duration_cast<std::chrono::milliseconds>(
+                         std::chrono::system_clock::now().time_since_epoch())
+                         .count();
+
   worker::ConnectionParameters params = {};
-  params.WorkerId = kWorkerType;
+  params.WorkerId = kWorkerType + "-" + std::to_string(time_millis);
   params.WorkerType = kWorkerType;
   params.Network.UseExternalIp = !local;
   params.Network.ConnectionType = worker::NetworkConnectionType::kRaknet;

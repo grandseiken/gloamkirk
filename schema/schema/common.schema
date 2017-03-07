@@ -1,0 +1,9 @@
+package gloam.schema;
+
+type Unit {}
+
+// Position component for all entities.
+component Position {
+  id = 830;
+  EntityPosition coords = 1;
+}

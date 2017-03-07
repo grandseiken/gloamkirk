@@ -99,13 +99,17 @@ int connect(const std::string& worker_type, const std::vector<WorkerLogic*>& log
   std::chrono::steady_clock clock;
   auto next_update = clock.now();
 
-  for (const auto& worker_logic : logic) {
-    worker_logic->init(managed_connection);
+  if (connection.IsConnected()) {
+    for (const auto& worker_logic : logic) {
+      worker_logic->init(managed_connection);
+    }
   }
   while (connected) {
     dispatcher.Process(connection.GetOpList(/* millis */ 0));
-    for (const auto& worker_logic : logic) {
-      worker_logic->update();
+    if (connected) {
+      for (const auto& worker_logic : logic) {
+        worker_logic->update();
+      }
     }
 
     next_update += std::chrono::duration<std::uint64_t, std::ratio<1, kFramesPerSecond>>{1};
