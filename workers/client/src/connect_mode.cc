@@ -42,6 +42,10 @@ ConnectMode::ConnectMode(worker::Connection&& connection)
     auto metrics = op.Metrics;
     connection_->SendMetrics(metrics);
   });
+
+  if (connection_->IsConnected()) {
+    connection_->SendLogMessage(worker::LogLevel::kInfo, "client", "Connected.");
+  }
 }
 
 ModeResult ConnectMode::event(const sf::Event& event) {

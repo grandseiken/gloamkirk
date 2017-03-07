@@ -215,7 +215,10 @@ void TitleMode::render(const Renderer& renderer) const {
 
     std::int32_t i = 0;
     for (const auto& deployment : deployment_list_->Deployments) {
-      text = deployment.DeploymentName + "... " + deployment.Description;
+      text = deployment.DeploymentName;
+      if (!deployment.Description.empty()) {
+        text += " - " + deployment.Description;
+      }
       draw_menu_item(text, i, deployment_choice_, dimensions.y / 2, fade);
       ++i;
     }

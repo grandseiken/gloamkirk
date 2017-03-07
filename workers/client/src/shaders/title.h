@@ -44,7 +44,7 @@ void main()
       simplex3(fog_seed / 8.) / 64. +
       simplex3(fog_seed / 4.) / 64. +
       simplex3(fog_seed / 2.) / 64.;
-  float fog_value = (n + .5) / 4.;
+  float fog_value = n / 6. + 1. / 6.;
   vec3 value = vec3(clamp(fog_value, 0., 1.));
 
   vec2 texture_coords = frag - vec2(border.x, dimensions.y - border.y - scaled_dimensions.y);
