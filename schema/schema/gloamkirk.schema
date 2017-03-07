@@ -1,7 +1,18 @@
 package gloam.schema;
 
+type Unit {}
+
+// Component exclusive to the master entity with ID 0, authoritative on the master worker.
 component MasterSeed {
   id = 830;
+
+  // Heartbeat sent by clients to the master.
+  command Unit client_heartbeat(Unit);
+}
+
+// Component exclusive to player entities, authoritative on the client worker.
+component Player {
+  id = 832;
 }
 
 component Position {

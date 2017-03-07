@@ -1,7 +1,11 @@
 # Master build file.
 project(master)
 
-set(MASTER_SOURCE_FILES "src/master.cc")
+set(MASTER_SOURCE_FILES
+  "src/client_handler.cc"
+  "src/client_handler.h"
+  "src/master.cc")
+
 source_group(src "src/[^/]*")
 
 add_executable(master ${MASTER_SOURCE_FILES})

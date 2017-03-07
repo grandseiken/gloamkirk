@@ -56,7 +56,8 @@ private:
 
 }  // anonymous
 
-int connect(const std::string& worker_type, ManagedWorker& worker, int argc, char** argv) {
+int connect(const std::string& worker_type, const std::vector<WorkerLogic*>& logic, int argc,
+            char** argv) {
   if (argc != 4) {
     std::cerr << "[error] Usage: " << argv[0] << " worker_id hostname port" << std::endl;
     return 1;
@@ -98,10 +99,14 @@ int connect(const std::string& worker_type, ManagedWorker& worker, int argc, cha
   std::chrono::steady_clock clock;
   auto next_update = clock.now();
 
-  worker.init(managed_connection);
+  for (const auto& worker_logic : logic) {
+    worker_logic->init(managed_connection);
+  }
   while (connected) {
     dispatcher.Process(connection.GetOpList(/* millis */ 0));
-    worker.update(managed_connection);
+    for (const auto& worker_logic : logic) {
+      worker_logic->update();
+    }
 
     next_update += std::chrono::duration<std::uint64_t, std::ratio<1, kFramesPerSecond>>{1};
     std::this_thread::sleep_until(next_update);

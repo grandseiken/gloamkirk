@@ -1,6 +1,7 @@
 #ifndef GLOAM_COMMON_SRC_MANAGED_MANAGED_H
 #define GLOAM_COMMON_SRC_MANAGED_MANAGED_H
 #include <string>
+#include <vector>
 
 namespace worker {
 class Connection;
@@ -12,6 +13,7 @@ namespace managed {
 
 class ManagedLogger {
 public:
+  virtual ~ManagedLogger() = default;
   virtual void info(const std::string& message) const = 0;
   virtual void warn(const std::string& message) const = 0;
   virtual void error(const std::string& message) const = 0;
@@ -24,14 +26,16 @@ struct ManagedConnection {
   worker::Dispatcher& dispatcher;
 };
 
-class ManagedWorker {
+class WorkerLogic {
 public:
+  virtual ~WorkerLogic() = default;
   virtual void init(ManagedConnection& connection) = 0;
-  virtual void update(ManagedConnection& connection) = 0;
+  virtual void update() = 0;
 };
 
 // Parse standard command-line and connect.
-int connect(const std::string& worker_type, ManagedWorker& worker, int argc, char** argv);
+int connect(const std::string& worker_type, const std::vector<WorkerLogic*>& logic, int argc,
+            char** argv);
 
 }  // ::managed
 }  // ::gloam

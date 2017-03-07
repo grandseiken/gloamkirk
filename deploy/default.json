@@ -13,8 +13,25 @@
   "workers": [
     {
       "worker_type": "client",
+      "load_balancing": {
+        "singleton_worker": {}
+      },
       "flags": [],
       "permissions": []
+    },
+    {
+      "worker_type": "master",
+      "flags": [],
+      "permissions": [
+        {
+          "entity_creation": {
+            "allow": true
+          },
+          "entity_deletion": {
+            "allow": true
+          }
+        }
+      ]
     }
   ]
 }

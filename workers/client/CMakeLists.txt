@@ -5,6 +5,8 @@ set(CLIENT_SOURCE_FILES
   "src/client.cc"
   "src/connect_mode.cc"
   "src/connect_mode.h"
+  "src/logic/world.cc"
+  "src/logic/world.h"
   "src/glo.h"
   "src/mode.h"
   "src/renderer.cc"
