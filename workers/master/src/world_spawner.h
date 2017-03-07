@@ -1,9 +1,10 @@
 #ifndef GLOAM_WORKERS_MASTER_SRC_WORLD_SPAWNER_H
 #define GLOAM_WORKERS_MASTER_SRC_WORLD_SPAWNER_H
+#include "common/src/common/definitions.h"
 #include "common/src/managed/managed.h"
-#include "workers/master/src/common_data.h"
 #include <glm/vec2.hpp>
 #include <improbable/worker.h>
+#include <schema/master.h>
 #include <unordered_map>
 
 namespace std {
@@ -11,8 +12,8 @@ template <>
 struct hash<glm::ivec2> {
   std::size_t operator()(const glm::ivec2& v) const {
     std::size_t seed = 0;
-    hash_combine(seed, v.x);
-    hash_combine(seed, v.y);
+    gloam::common::hash_combine(seed, v.x);
+    gloam::common::hash_combine(seed, v.y);
     return seed;
   }
 };

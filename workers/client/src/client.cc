@@ -9,9 +9,9 @@
 #include <string>
 
 namespace {
+const std::string kProjectName = "alpha_zebra_pizza_956";
 const std::string kTitle = "Gloamkirk";
 const std::string kWorkerType = "client";
-const std::string kProjectName = "alpha_zebra_pizza_956";
 
 std::unique_ptr<sf::RenderWindow> create_window(bool fullscreen) {
   sf::ContextSettings settings;

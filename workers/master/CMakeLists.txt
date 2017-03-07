@@ -4,9 +4,9 @@ project(master)
 set(MASTER_SOURCE_FILES
   "src/client_handler.cc"
   "src/client_handler.h"
-  "src/common_data.cc"
-  "src/common_data.h"
   "src/master.cc"
+  "src/master_data.cc"
+  "src/master_data.h"
   "src/world_spawner.cc"
   "src/world_spawner.h")
 

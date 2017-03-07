@@ -1,6 +1,6 @@
 #include "common/src/managed/managed.h"
 #include "workers/master/src/client_handler.h"
-#include "workers/master/src/common_data.h"
+#include "workers/master/src/master_data.h"
 #include "workers/master/src/world_spawner.h"
 
 namespace {

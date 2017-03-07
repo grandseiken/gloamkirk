@@ -28,17 +28,14 @@ public:
   : connection_{connection}, connected_{connected}, logger_name_{logger_name} {}
 
   void info(const std::string& message) const override {
-    std::cout << "[info] " << message << std::endl;
     connection_.SendLogMessage(worker::LogLevel::kInfo, logger_name_, message);
   }
 
   void warn(const std::string& message) const override {
-    std::cerr << "[warn] " << message << std::endl;
     connection_.SendLogMessage(worker::LogLevel::kWarn, logger_name_, message);
   }
 
   void error(const std::string& message) const override {
-    std::cerr << "[error] " << message << std::endl;
     connection_.SendLogMessage(worker::LogLevel::kError, logger_name_, message);
   }
 

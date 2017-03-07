@@ -1,4 +1,4 @@
-#include "workers/master/src/common_data.h"
+#include "workers/master/src/master_data.h"
 #include <improbable/worker.h>
 
 namespace gloam {

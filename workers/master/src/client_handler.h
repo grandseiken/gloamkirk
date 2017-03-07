@@ -1,9 +1,10 @@
 #ifndef GLOAM_WORKERS_MASTER_SRC_CLIENT_HANDLER_H
 #define GLOAM_WORKERS_MASTER_SRC_CLIENT_HANDLER_H
+#include "common/src/common/definitions.h"
 #include "common/src/managed/managed.h"
-#include "workers/master/src/common_data.h"
 #include <improbable/standard_library.h>
 #include <improbable/worker.h>
+#include <schema/master.h>
 #include <unordered_map>
 
 namespace std {
@@ -13,7 +14,7 @@ struct hash<improbable::WorkerAttributeSet> {
     std::size_t seed = 0;
     for (const auto& attribute : attribute_set.attribute()) {
       if (attribute.name()) {
-        hash_combine(seed, *attribute.name());
+        gloam::common::hash_combine(seed, *attribute.name());
       }
     }
     return seed;

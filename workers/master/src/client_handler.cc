@@ -1,5 +1,5 @@
 #include "workers/master/src/client_handler.h"
-#include "workers/master/src/common_data.h"
+#include "workers/master/src/master_data.h"
 #include <schema/master.h>
 #include <schema/player.h>
 #include <algorithm>
@@ -9,8 +9,6 @@
 namespace gloam {
 namespace master {
 namespace {
-const std::string kPlayerPrefab = "Player";
-
 using Client = ClientHandler::Client;
 
 Client to_client(const worker::List<std::string>& caller_attributes) {
@@ -49,7 +47,7 @@ improbable::WorkerRequirementSet client_acl(const Client& client) {
 
 bool check_client(const Client& client) {
   return std::find(client.attribute().begin(), client.attribute().end(),
-                   worker::Option<std::string>{kClientAttribute}) != client.attribute().end();
+                   worker::Option<std::string>{common::kClientAtom}) != client.attribute().end();
 }
 
 }  // anonymous
@@ -154,13 +152,13 @@ void ClientHandler::update() {
   auto create_player_entity = [&](const Client& client, worker::EntityId entity_id) {
     worker::Map<worker::ComponentId, improbable::WorkerRequirementSet> acl_map = {
         {schema::Player::ComponentId, client_acl(client)}};
-    improbable::EntityAclData entity_acl{{kAllWorkers}, {acl_map}};
+    improbable::EntityAclData entity_acl{common::kAllWorkersSet, {acl_map}};
 
     worker::Entity entity;
     entity.Add<schema::Player>({});
     entity.Add<schema::Position>({{0., 0., 0.}});
     entity.Add<improbable::EntityAcl>(entity_acl);
-    return c_->connection.SendCreateEntityRequest(entity, {"Player"}, {entity_id}, {});
+    return c_->connection.SendCreateEntityRequest(entity, {common::kPlayerPrefab}, {entity_id}, {});
   };
 
   std::vector<Client> expired_clients;

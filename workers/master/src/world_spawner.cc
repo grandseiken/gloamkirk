@@ -96,13 +96,13 @@ void WorldSpawner::update() {
   }
 
   auto create_chunk_entity = [&](const glm::ivec2& coords, worker::EntityId entity_id) {
-    improbable::EntityAclData entity_acl{{kAllWorkers}, {}};
+    improbable::EntityAclData entity_acl{common::kAllWorkersSet, {}};
 
     worker::Entity entity;
     entity.Add<schema::Chunk>({});
     entity.Add<schema::Position>({{coords.x * chunk_size_, 0., coords.y * chunk_size_}});
     entity.Add<improbable::EntityAcl>(entity_acl);
-    return c_->connection.SendCreateEntityRequest(entity, {"Chunk"}, {entity_id}, {});
+    return c_->connection.SendCreateEntityRequest(entity, {common::kChunkPrefab}, {entity_id}, {});
   };
 
   worker::List<schema::ChunkInfo> chunks_spawned;
