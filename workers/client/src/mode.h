@@ -1,5 +1,5 @@
-#ifndef GLOAM_CLIENT_SRC_MODE_H
-#define GLOAM_CLIENT_SRC_MODE_H
+#ifndef GLOAM_WORKERS_CLIENT_SRC_MODE_H
+#define GLOAM_WORKERS_CLIENT_SRC_MODE_H
 #include <memory>
 
 namespace sf {

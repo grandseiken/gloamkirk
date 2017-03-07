@@ -1,5 +1,5 @@
-#ifndef GLOAM_CLIENT_SRC_TITLE_MODE_H
-#define GLOAM_CLIENT_SRC_TITLE_MODE_H
+#ifndef GLOAM_WORKERS_CLIENT_SRC_TITLE_MODE_H
+#define GLOAM_WORKERS_CLIENT_SRC_TITLE_MODE_H
 #include "workers/client/src/glo.h"
 #include "workers/client/src/mode.h"
 #include "workers/client/src/renderer.h"

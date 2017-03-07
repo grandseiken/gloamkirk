@@ -1,5 +1,5 @@
-#ifndef GLOAM_CLIENT_SRC_GLO_H
-#define GLOAM_CLIENT_SRC_GLO_H
+#ifndef GLOAM_WORKERS_CLIENT_SRC_GLO_H
+#define GLOAM_WORKERS_CLIENT_SRC_GLO_H
 #include <GL/glew.h>
 #include <glm/vec2.hpp>
 #include <cstdint>

@@ -1,5 +1,5 @@
-#ifndef GLOAM_CLIENT_SRC_SHADERS_TITLE_H
-#define GLOAM_CLIENT_SRC_SHADERS_TITLE_H
+#ifndef GLOAM_WORKERS_CLIENT_SRC_SHADERS_TITLE_H
+#define GLOAM_WORKERS_CLIENT_SRC_SHADERS_TITLE_H
 #include "workers/client/src/shaders/simplex.h"
 #include <string>
 

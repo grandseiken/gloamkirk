@@ -1,0 +1,40 @@
+{
+  "build": {
+    "tasks_filename": "build.json"
+  },
+  "bridge": {
+    "worker_attribute_set": {
+      "attributes": [
+        "master"
+      ]
+    },
+    "entity_interest": {
+      "range_entity_interest": {
+        "radius": 8
+      }
+    },
+    "component_delivery": {
+      "default": "RELIABLE_ORDERED"
+    }
+  },
+  "managed": {
+    "linux": {
+      "artifact_name": "master@Linux.zip",
+      "command": "master",
+      "arguments": [
+        "${IMPROBABLE_WORKER_ID}",
+        "${IMPROBABLE_RECEPTIONIST_IP}",
+        "${IMPROBABLE_RECEPTIONIST_PORT}"
+      ]
+    },
+    "windows": {
+      "artifact_name": "master@Windows.zip",
+      "command": "master",
+      "arguments": [
+        "${IMPROBABLE_WORKER_ID}",
+        "${IMPROBABLE_RECEPTIONIST_IP}",
+        "${IMPROBABLE_RECEPTIONIST_PORT}"
+      ]
+    }
+  }
+}

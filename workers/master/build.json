@@ -1,0 +1,56 @@
+{
+  "tasks": [
+    {
+      "name": "codegen",
+      "steps": [
+        {
+          "name": "common",
+          "working_path": "../..",
+          "arguments": [
+            "exec",
+            "build.json",
+            "codegen"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "build",
+      "steps": [
+        {
+          "name": "common",
+          "working_path": "../..",
+          "arguments": [
+            "exec",
+            "build.json",
+            "build"
+          ]
+        },
+        {
+          "name": "build",
+          "working_path": "../../build/cmake",
+          "command": "cmake",
+          "arguments": [
+            "--build", ".",
+            "--config", "${BUILD_CONFIG}",
+            "--target", "master_zip"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "clean",
+      "steps": [
+        {
+          "name": "common",
+          "working_path": "../..",
+          "arguments": [
+            "exec",
+            "build.json",
+            "clean"
+          ]
+        }
+      ]
+    }
+  ]
+}

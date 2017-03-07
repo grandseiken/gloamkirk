@@ -1,5 +1,5 @@
-#ifndef GLOAM_CLIENT_SRC_RENDER_H
-#define GLOAM_CLIENT_SRC_RENDER_H
+#ifndef GLOAM_WORKERS_CLIENT_SRC_RENDER_H
+#define GLOAM_WORKERS_CLIENT_SRC_RENDER_H
 #include "workers/client/src/glo.h"
 #include <SFML/Graphics.hpp>
 #include <glm/vec2.hpp>

@@ -1,16 +1,26 @@
+#include <improbable/standard_library.h>
 #include <improbable/worker.h>
 #include <schema/gloamkirk.h>
 #include <iostream>
+#include <string>
 
 namespace {
 
+const improbable::WorkerAttribute kMasterAttribute = {{"master"}};
+const improbable::WorkerRequirementSet kMasterOnly = {{{{kMasterAttribute}}}};
+
 std::unordered_map<worker::EntityId, worker::SnapshotEntity> generate() {
   std::unordered_map<worker::EntityId, worker::SnapshotEntity> snapshot;
+
+  worker::Map<worker::ComponentId, improbable::WorkerRequirementSet> acl_map = {
+      {gloam::schema::MasterSeed::ComponentId, kMasterOnly}};
+  improbable::EntityAclData entity_acl{{kMasterOnly}, {{acl_map}}};
 
   auto& master_seed_entity = snapshot[0];
   master_seed_entity.Prefab = "MasterSeedEntity";
   master_seed_entity.Add<gloam::schema::Position>({{0., 0., 0.}});
   master_seed_entity.Add<gloam::schema::MasterSeed>({});
+  master_seed_entity.Add<improbable::EntityAcl>(entity_acl);
 
   return snapshot;
 }

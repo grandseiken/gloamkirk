@@ -1,5 +1,5 @@
-#ifndef GLOAM_CLIENT_SRC_SHADERS_SIMPLEX_H
-#define GLOAM_CLIENT_SRC_SHADERS_SIMPLEX_H
+#ifndef GLOAM_WORKERS_CLIENT_SRC_SHADERS_SIMPLEX_H
+#define GLOAM_WORKERS_CLIENT_SRC_SHADERS_SIMPLEX_H
 #include <string>
 
 // Adapted from: https://github.com/ashima/webgl-noise

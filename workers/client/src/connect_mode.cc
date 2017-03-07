@@ -53,7 +53,7 @@ ModeResult ConnectMode::event(const sf::Event& event) {
 
 ModeResult ConnectMode::update() {
   if (connected_) {
-    dispatcher_.Process(connection_->GetOpList(/* millis */ 4));
+    dispatcher_.Process(connection_->GetOpList(/* millis */ 0));
   } else if (disconnect_reason_.empty() || disconnect_ack_) {
     return {ModeAction::kExitToTitle, {}};
   }
