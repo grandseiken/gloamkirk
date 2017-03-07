@@ -10,7 +10,7 @@
     },
     "entity_interest": {
       "range_entity_interest": {
-        "radius": 8
+        "radius": 2
       }
     },
     "component_delivery": {
@@ -29,7 +29,7 @@
     },
     "windows": {
       "artifact_name": "master@Windows.zip",
-      "command": "master",
+      "command": "master.exe",
       "arguments": [
         "${IMPROBABLE_WORKER_ID}",
         "${IMPROBABLE_RECEPTIONIST_IP}",

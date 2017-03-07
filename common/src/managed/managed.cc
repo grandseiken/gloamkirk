@@ -96,9 +96,7 @@ int connect(const std::string& worker_type, const std::vector<WorkerLogic*>& log
     connection.SendMetrics(metrics);
   });
 
-  std::chrono::steady_clock clock;
-  auto next_update = clock.now();
-
+  auto next_update = std::chrono::steady_clock::now();
   if (connection.IsConnected()) {
     for (const auto& worker_logic : logic) {
       worker_logic->init(managed_connection);
