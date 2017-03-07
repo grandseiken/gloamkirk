@@ -1,6 +1,10 @@
 package gloam.schema;
 
+component MasterSeed {
+  id = 830;
+}
+
 component Position {
-  id = 100;
+  id = 831;
   EntityPosition coords = 1;
 }

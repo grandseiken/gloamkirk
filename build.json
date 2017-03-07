@@ -54,6 +54,16 @@
             "-DCXX_EXTRA_DEFINITIONS=${BUILD_DEFINITIONS}",
             "../.."
           ]
+        },
+        {
+          "name": "snapshot",
+          "working_path": "build/cmake",
+          "command": "cmake",
+          "arguments": [
+            "--build", ".",
+            "--config", "${BUILD_CONFIG}",
+            "--target", "snapshot"
+          ]
         }
       ]
     },

@@ -41,6 +41,7 @@ worker::ConnectionParameters connection_params(bool local) {
   params.WorkerType = kWorkerType;
   params.Network.UseExternalIp = !local;
   params.Network.ConnectionType = worker::NetworkConnectionType::kRaknet;
+  params.Network.RakNet.HeartbeatTimeoutMillis = 16000;
   return params;
 }
 
@@ -59,8 +60,8 @@ gloam::ModeAction run(bool fullscreen, bool first_run, bool local, const std::st
   renderer.resize({window->getSize().x, window->getSize().y});
 
   auto make_title = [&](bool fade_in) {
-    auto title_mode =
-        new gloam::TitleMode{first_run, fade_in, local, connection_params(local), locator_params(login_token)};
+    auto title_mode = new gloam::TitleMode{first_run, fade_in, local, connection_params(local),
+                                           locator_params(login_token)};
     return title_mode;
   };
   std::unique_ptr<gloam::Mode> mode{make_title(first_run)};

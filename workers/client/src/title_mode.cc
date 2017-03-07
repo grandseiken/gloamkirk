@@ -224,8 +224,8 @@ void TitleMode::render(const Renderer& renderer) const {
   if ((connection_future_ || locator_future_) && !finish_connect_frame_) {
     auto alpha = static_cast<float>((frame_ - connect_frame_) % 64) / 64.f;
 
-    auto text = !connection_future_ ? "SEARCHING..."
-                                    : queue_status_.empty() ? "CONNECTING..." : queue_status_;
+    auto text = !connection_future_ ? "SEARCHING..." : queue_status_.empty() ? "CONNECTING..."
+                                                                             : queue_status_;
     auto text_width = renderer.text_width(text);
     renderer.draw_text(text, {dimensions.x / 2 - text_width / 2, dimensions.y / 2},
                        glm::vec4{.75f, .75f, .75f, alpha});

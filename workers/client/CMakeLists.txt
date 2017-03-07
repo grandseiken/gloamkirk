@@ -1,6 +1,5 @@
 # Client build file.
 project(client)
-cmake_minimum_required(VERSION 3.0)
 
 set(CLIENT_SOURCE_FILES
   "src/client.cc"
