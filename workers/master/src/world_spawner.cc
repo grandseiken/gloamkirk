@@ -9,7 +9,7 @@ namespace master {
 namespace {
 const std::string kChunkSizeFlag = "chunk_size";
 const std::int32_t kChunkSizeDefault = 8;
-const std::int32_t kWorldSize = 1;
+const std::int32_t kWorldSize = 4;
 
 std::string coords_string(const glm::ivec2& coords) {
   return "(" + std::to_string(coords.x) + ", " + std::to_string(coords.y) + ")";
@@ -24,7 +24,7 @@ void WorldSpawner::init(managed::ManagedConnection& c) {
 
   auto flag_option = c.connection.GetWorkerFlag(kChunkSizeFlag);
   if (flag_option) {
-    chunk_size_ = static_cast<double>(std::stoi(*flag_option));
+    chunk_size_ = static_cast<std::int32_t>(std::stoi(*flag_option));
   } else {
     chunk_size_ = kChunkSizeDefault;
   }
@@ -32,9 +32,12 @@ void WorldSpawner::init(managed::ManagedConnection& c) {
   c.dispatcher.OnAuthorityChange<schema::Master>([&](const worker::AuthorityChangeOp& op) {
     if (op.HasAuthority && !master_data_.world_spawned()) {
       // Plan for chunk spawning.
-      for (std::int32_t x = -kWorldSize; x <= kWorldSize; ++x) {
-        for (std::int32_t y = -kWorldSize; y <= kWorldSize; ++y) {
+      for (std::int32_t x = 0; x < kWorldSize; ++x) {
+        for (std::int32_t y = 0; y < kWorldSize; ++y) {
           chunks_[{x, y}];
+          chunks_[{-x - 1, y}];
+          chunks_[{x, -y - 1}];
+          chunks_[{-x - 1, -y - 1}];
         }
       }
     }
@@ -98,9 +101,16 @@ void WorldSpawner::update() {
   auto create_chunk_entity = [&](const glm::ivec2& coords, worker::EntityId entity_id) {
     improbable::EntityAclData entity_acl{common::kAllWorkersSet, {}};
 
+    schema::ChunkData chunk_data{chunk_size_, coords.x, coords.y, {}};
+    for (std::int32_t i = 0; i < chunk_size_ * chunk_size_; ++i) {
+      chunk_data.tiles().emplace_back(/* height */ rand() % 4);
+    }
+
+    auto chunk_size = static_cast<double>(chunk_size_);
     worker::Entity entity;
-    entity.Add<schema::Chunk>({});
-    entity.Add<schema::Position>({{coords.x * chunk_size_, 0., coords.y * chunk_size_}});
+    entity.Add<schema::Position>(
+        {{chunk_size / 2 + coords.x * chunk_size, 0., chunk_size / 2 + coords.y * chunk_size}});
+    entity.Add<schema::Chunk>(chunk_data);
     entity.Add<improbable::EntityAcl>(entity_acl);
     return c_->connection.SendCreateEntityRequest(entity, {common::kChunkPrefab}, {entity_id}, {});
   };

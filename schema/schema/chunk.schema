@@ -1,6 +1,20 @@
 package gloam.schema;
 
+type Tile {
+  int32 height = 1;
+}
+
 // Component exclusive to chunk entities.
 component Chunk {
   id = 833;
+
+  // The size of the chunk. All chunks should have the same size.
+  int32 chunk_size = 1;
+
+  // The coordinates of this chunk.
+  int32 chunk_x = 2;
+  int32 chunk_y = 3;
+
+  // Data for each tile in the chunk, arranged by row and then column.
+  list<Tile> tiles = 4;
 }

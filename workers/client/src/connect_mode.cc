@@ -58,6 +58,9 @@ ConnectMode::ConnectMode(worker::Connection&& connection)
     } else if (op.EntityId == player_id_) {
       player_id_ = -1;
     }
+    if (world_) {
+      world_->set_player_id(player_id_);
+    }
   });
 
   if (!connection_->IsConnected()) {
@@ -105,6 +108,8 @@ void ConnectMode::render(const Renderer& renderer) const {
     auto text_width = renderer.text_width(text);
     renderer.draw_text(text, {dimensions.x / 2 - text_width / 2, dimensions.y / 2},
                        glm::vec4{.75f, .75f, .75f, fade});
+  } else {
+    world_->render(renderer);
   }
 }
 

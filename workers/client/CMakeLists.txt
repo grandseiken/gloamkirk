@@ -17,10 +17,12 @@ set(CLIENT_SOURCE_FILES
   "src/shaders/simplex.h"
   "src/shaders/text.h"
   "src/shaders/title.h"
-  "src/shaders/upscale.h")
+  "src/shaders/upscale.h"
+  "src/shaders/world.h")
 
 source_group(src "src/[^/]*")
 source_group(src\\shaders "src/shaders/[^/]*")
+source_group(src\\logic "src/logic/[^/]*")
 
 add_executable(client ${CLIENT_SOURCE_FILES})
 target_include_directories(client PRIVATE "${PROJECT_ROOT}")
