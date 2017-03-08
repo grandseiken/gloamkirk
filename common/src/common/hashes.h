@@ -1,8 +1,19 @@
 #ifndef GLOAM_COMMON_SRC_COMMON_HASHES_H
 #define GLOAM_COMMON_SRC_COMMON_HASHES_H
-#include "common/src/common/definitions.h"
 #include <glm/vec2.hpp>
 #include <improbable/standard_library.h>
+
+namespace gloam {
+namespace common {
+
+template <typename T>
+void hash_combine(std::size_t& seed, const T& v) {
+  std::hash<T> hasher;
+  seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
+
+}  // ::common
+}  // ::gloam
 
 namespace std {
 

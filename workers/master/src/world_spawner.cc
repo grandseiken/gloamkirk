@@ -1,4 +1,5 @@
 #include "workers/master/src/world_spawner.h"
+#include "common/src/common/definitions.h"
 #include <improbable/worker.h>
 #include <schema/chunk.h>
 #include <schema/common.h>

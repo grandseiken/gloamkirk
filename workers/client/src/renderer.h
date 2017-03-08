@@ -3,6 +3,7 @@
 #include "workers/client/src/glo.h"
 #include <SFML/Graphics.hpp>
 #include <glm/vec2.hpp>
+#include <glm/vec4.hpp>
 #include <memory>
 
 namespace gloam {
@@ -32,6 +33,7 @@ public:
   void set_simplex3_uniforms(const glo::ActiveProgram& program) const;
 
   void draw_quad() const;
+  void draw_quad_colour(const glm::vec4& colour) const;
 
   std::uint32_t text_width(const std::string& text) const;
   void draw_text(const std::string& text, const glm::ivec2& position,
@@ -51,7 +53,8 @@ private:
   glo::VertexData quad_data_;
   glo::Program text_program_;
   glo::Program post_program_;
-  glo::Program upscale_program_;
+  glo::Program quad_colour_program_;
+  glo::Program quad_texture_program_;
   glo::Texture simplex_gradient_lut_;
   glo::Texture simplex_permutation_lut_;
   glo::Texture a_dither_matrix_;

@@ -1,12 +1,13 @@
 #ifndef GLOAM_WORKERS_CLIENT_SRC_CONNECT_MODE_H
 #define GLOAM_WORKERS_CLIENT_SRC_CONNECT_MODE_H
-#include "workers/client/src/glo.h"
 #include "workers/client/src/mode.h"
-#include "workers/client/src/renderer.h"
 #include <improbable/worker.h>
 #include <cstdint>
+#include <memory>
+#include <string>
 
 namespace gloam {
+class Renderer;
 namespace logic {
 class World;
 }  // ::logic
@@ -31,7 +32,6 @@ private:
   std::unique_ptr<logic::World> world_;
   worker::EntityId player_id_ = -1;
 
-  glo::Program fade_program_;
   std::uint64_t frame_ = 0;
   std::uint64_t enter_frame_ = 0;
 };

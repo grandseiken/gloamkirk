@@ -1,5 +1,5 @@
 #include "workers/master/src/client_handler.h"
-#include "workers/master/src/master_data.h"
+#include "common/src/common/definitions.h"
 #include <schema/master.h>
 #include <schema/player.h>
 #include <algorithm>

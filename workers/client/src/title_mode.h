@@ -30,10 +30,8 @@ private:
   glo::Program title_program_;
 
   std::uint64_t fade_in_ = 0;
-  std::uint64_t frame_ = 0;
   std::uint64_t connect_frame_ = 0;
   std::uint64_t finish_connect_frame_ = 0;
-  std::int32_t random_seed_ = 0;
   std::int32_t menu_item_ = MenuItem::kConnect;
 
   bool connection_local_;

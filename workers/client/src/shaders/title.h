@@ -23,7 +23,7 @@ void main()
 {
   vec2 frag = gl_FragCoord.xy;
   vec3 fog_seed = vec3(random_seed, 0., 0.) +
-      vec3(frag.xy, 0.) + vec3(frame) / vec3(8., 32., 8.);
+      vec3(frag.xy - dimensions.xy / 2., 0.) + vec3(frame) / vec3(8., 32., 8.);
   float n =
       simplex3(fog_seed / 1024.) / 2. +
       simplex3(fog_seed / 512.) / 1. +

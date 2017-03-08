@@ -25,6 +25,8 @@ float text_alpha(std::uint64_t frame) {
   return std::min(1.f, std::max(0.f, (static_cast<float>(frame) - 256.f + 64.f) / 64.f));
 }
 
+std::int32_t random_seed_ = 0;
+std::uint64_t frame_ = 0;
 }  // anonymous
 
 TitleMode::TitleMode(bool first_run, bool fade_in, bool local,
@@ -32,21 +34,23 @@ TitleMode::TitleMode(bool first_run, bool fade_in, bool local,
                      const worker::LocatorParameters& locator_params)
 : title_{gloam::load_texture("assets/title.png")}
 , title_program_{"title",
-                 {"title_vertex", GL_VERTEX_SHADER, shaders::quad_vertex},
+                 {"quad_vertex", GL_VERTEX_SHADER, shaders::quad_vertex},
                  {"title_fragment", GL_FRAGMENT_SHADER, shaders::title_fragment}}
 , connection_local_{local}
 , connection_params_{connection_params}
 , locator_{kLocatorHost, locator_params} {
   title_.texture.set_linear();
-  auto now = std::chrono::system_clock::now().time_since_epoch();
-  std::mt19937 generator{static_cast<unsigned int>(
-      std::chrono::duration_cast<std::chrono::milliseconds>(now).count())};
-  std::uniform_int_distribution<std::int32_t> distribution(0, 1 << 16);
-  random_seed_ = distribution(generator);
 
-  if (!first_run) {
-    frame_ = 1024;
+  if (first_run) {
+    auto now = std::chrono::system_clock::now().time_since_epoch();
+    std::mt19937 generator{static_cast<unsigned int>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(now).count())};
+    std::uniform_int_distribution<std::int32_t> distribution(0, 1 << 16);
+
+    random_seed_ = distribution(generator);
+    frame_ = 0;
   }
+
   if (fade_in) {
     fade_in_ = 32;
   } else {

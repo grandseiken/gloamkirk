@@ -58,9 +58,13 @@ Renderer::Renderer()
 , post_program_{"post",
                 {"post_vertex", GL_VERTEX_SHADER, shaders::quad_vertex},
                 {"post_fragment", GL_FRAGMENT_SHADER, shaders::post_fragment}}
-, upscale_program_{"upscale",
-                   {"upscale_vertex", GL_VERTEX_SHADER, shaders::quad_vertex},
-                   {"upscale_fragment", GL_FRAGMENT_SHADER, shaders::quad_texture_fragment}}
+, quad_colour_program_{"quad_colour",
+                       {"quad_verter", GL_VERTEX_SHADER, shaders::quad_vertex},
+                       {"quad_colour_fragment", GL_FRAGMENT_SHADER, shaders::quad_colour_fragment}}
+, quad_texture_program_{"quad_texture",
+                        {"quad_vertex", GL_VERTEX_SHADER, shaders::quad_vertex},
+                        {"quad_texture_fragment", GL_FRAGMENT_SHADER,
+                         shaders::quad_texture_fragment}}
 , text_image_{load_texture("assets/text.png")} {
   quad_data_.enable_attribute(0, 4, 0, 0);
 
@@ -137,10 +141,9 @@ void Renderer::resize(const glm::ivec2& dimensions) {
 
   static const int target_width = native_resolution.x;
   static const int min_height = (native_resolution.y * 2) / 3;
-  target_upscale_ =
-      std::max(1,
-               std::min(static_cast<int>(dimensions.y / static_cast<float>(min_height)),
-                        static_cast<int>(round(dimensions.x / static_cast<float>(target_width)))));
+  target_upscale_ = std::max(
+      1, std::min(static_cast<int>(dimensions.y / static_cast<float>(min_height)),
+                  static_cast<int>(round(dimensions.x / static_cast<float>(target_width)))));
   framebuffer_dimensions_ = dimensions / glm::ivec2{target_upscale_};
 
   framebuffer_.reset(new glo::Framebuffer{framebuffer_dimensions_, true, false});
@@ -183,7 +186,7 @@ void Renderer::end_frame() const {
   glViewport(border.x, border.y, upscale.x, upscale.y);
   glm::vec2 upscale_dimensions = upscale;
 
-  auto program = upscale_program_.use();
+  auto program = quad_texture_program_.use();
   glUniform2fv(program.uniform("dimensions"), 1, glm::value_ptr(upscale_dimensions));
   program.uniform_texture("source_texture", postbuffer_->texture());
   draw_quad();
@@ -205,6 +208,16 @@ void Renderer::set_simplex3_uniforms(const glo::ActiveProgram& program) const {
 
 void Renderer::draw_quad() const {
   quad_data_.draw();
+}
+
+void Renderer::draw_quad_colour(const glm::vec4& colour) const {
+  set_default_render_states();
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+  auto program = quad_colour_program_.use();
+  glUniform4fv(program.uniform("colour"), 1, glm::value_ptr(colour));
+  draw_quad();
 }
 
 std::uint32_t Renderer::text_width(const std::string& text) const {
