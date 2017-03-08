@@ -155,7 +155,7 @@ ModeResult TitleMode::update() {
 }
 
 void TitleMode::render(const Renderer& renderer) const {
-  auto dimensions = renderer.framebuffer_dimensions();
+  glm::vec2 dimensions = renderer.framebuffer_dimensions();
   auto max_texture_scale = (dimensions - glm::vec2{60.f, 180.f}) / title_.dimensions;
   float texture_scale = std::min(max_texture_scale.x, max_texture_scale.y);
   auto scaled_dimensions = texture_scale * title_.dimensions;

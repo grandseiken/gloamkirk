@@ -20,6 +20,8 @@ public:
 
 private:
   glo::Program world_program_;
+  glo::Program light_program_;
+  mutable std::unique_ptr<glo::Framebuffer> gbuffer_;
 };
 
 }  // ::world

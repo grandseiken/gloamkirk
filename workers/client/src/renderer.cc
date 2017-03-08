@@ -129,8 +129,8 @@ Renderer::Renderer()
                                      simplex_permutation_lut);
 }
 
-glm::vec2 Renderer::framebuffer_dimensions() const {
-  return framebuffer_dimensions_;
+glm::ivec2 Renderer::framebuffer_dimensions() const {
+  return framebuffer_->dimensions();
 }
 
 void Renderer::resize(const glm::ivec2& dimensions) {
@@ -145,33 +145,32 @@ void Renderer::resize(const glm::ivec2& dimensions) {
       std::max(1,
                std::min(static_cast<int>(dimensions.y / static_cast<float>(min_height)),
                         static_cast<int>(round(dimensions.x / static_cast<float>(target_width)))));
-  framebuffer_dimensions_ = dimensions / glm::ivec2{target_upscale_};
+  auto framebuffer_dimensions = dimensions / glm::ivec2{target_upscale_};
 
-  framebuffer_.reset(new glo::Framebuffer{framebuffer_dimensions_});
-  framebuffer_->add_colour_buffer();
+  framebuffer_.reset(new glo::Framebuffer{framebuffer_dimensions});
+  framebuffer_->add_colour_buffer(false);
   framebuffer_->add_depth_stencil_buffer();
-  postbuffer_.reset(new glo::Framebuffer{framebuffer_dimensions_});
-  postbuffer_->add_colour_buffer();
+  framebuffer_->check_complete();
+  postbuffer_.reset(new glo::Framebuffer{framebuffer_dimensions});
+  postbuffer_->add_colour_buffer(false);
+  postbuffer_->check_complete();
 }
 
 void Renderer::begin_frame() const {
   ++frame_;
+  set_default_render_states();
   draw_.reset(new glo::ActiveFramebuffer{framebuffer_->draw()});
-  glViewport(0, 0, framebuffer_dimensions_.x, framebuffer_dimensions_.y);
-
-  glClearColor(0, 0, 0, 0);
-  glClearDepth(1);
-  glClearStencil(0);
+  glViewport(0, 0, framebuffer_dimensions().x, framebuffer_dimensions().y);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 }
 
 void Renderer::end_frame() const {
-  glm::vec2 dimensions = framebuffer_dimensions_;
+  glm::vec2 dimensions = framebuffer_dimensions();
   set_default_render_states();
   draw_.reset();
   {
     auto draw = postbuffer_->draw();
-    glViewport(0, 0, framebuffer_dimensions_.x, framebuffer_dimensions_.y);
+    glViewport(0, 0, framebuffer_dimensions().x, framebuffer_dimensions().y);
 
     auto program = post_program_.use();
     glUniform1f(program.uniform("frame"), static_cast<float>(frame_));
@@ -182,10 +181,9 @@ void Renderer::end_frame() const {
   }
 
   glViewport(0, 0, viewport_dimensions_.x, viewport_dimensions_.y);
-  glClearColor(0, 0, 0, 0);
   glClear(GL_COLOR_BUFFER_BIT);
 
-  auto upscale = target_upscale_ * framebuffer_dimensions_;
+  auto upscale = target_upscale_ * framebuffer_dimensions();
   auto border = (viewport_dimensions_ - upscale) / 2;
   glViewport(border.x, border.y, upscale.x, upscale.y);
   glm::vec2 upscale_dimensions = upscale;
@@ -197,6 +195,9 @@ void Renderer::end_frame() const {
 }
 
 void Renderer::set_default_render_states() const {
+  glClearColor(0, 0, 0, 0);
+  glClearDepth(1);
+  glClearStencil(0);
   glDisable(GL_BLEND);
   glDisable(GL_CULL_FACE);
   glDisable(GL_DEPTH_TEST);
@@ -282,13 +283,12 @@ void Renderer::draw_text(const std::string& text, const glm::ivec2& position,
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-  glm::vec2 framebuffer_dimensions = framebuffer_dimensions_;
+  glm::vec2 dimensions = framebuffer_dimensions();
   glo::VertexData vertex_data{data, indices, GL_DYNAMIC_DRAW};
   auto program = text_program_.use();
   program.uniform_texture("text_texture", text_image_.texture);
   glUniform2fv(program.uniform("text_dimensions"), 1, glm::value_ptr(text_image_.dimensions));
-  glUniform2fv(program.uniform("framebuffer_dimensions"), 1,
-               glm::value_ptr(framebuffer_dimensions));
+  glUniform2fv(program.uniform("framebuffer_dimensions"), 1, glm::value_ptr(dimensions));
   glUniform4fv(program.uniform("text_colour"), 1, glm::value_ptr(colour));
   vertex_data.enable_attribute(0, 2, 4, 0);
   vertex_data.enable_attribute(1, 2, 4, 2);

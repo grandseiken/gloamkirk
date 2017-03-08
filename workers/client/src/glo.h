@@ -15,12 +15,12 @@ inline void Init() {
   glewExperimental = GL_TRUE;
   auto glew_ok = glewInit();
   if (glew_ok != GLEW_OK) {
-    std::cerr << "couldn't initialize GLEW: " << glewGetErrorString(glew_ok) << "\n";
+    std::cerr << "[warning] couldn't initialize GLEW: " << glewGetErrorString(glew_ok) << std::endl;
   }
 
-#define GLEW_CHECK(value)                               \
-  if (!value) {                                         \
-    std::cerr << "warning: " #value " not supported\n"; \
+#define GLEW_CHECK(value)                                            \
+  if (!value) {                                                      \
+    std::cerr << "[warning] " #value " not supported." << std::endl; \
   }
   GLEW_CHECK(GLEW_VERSION_3_3);
   GLEW_CHECK(GLEW_ARB_shading_language_100);
@@ -84,10 +84,10 @@ public:
   ActiveTexture& operator=(ActiveTexture&& other) = default;
 
 private:
-  ActiveTexture(GLuint texture, GLuint target) : resource_{new Resource{texture, target}} {}
+  ActiveTexture(GLuint texture, GLenum target) : resource_{new Resource{texture, target}} {}
 
   struct Resource {
-    Resource(GLuint texture, GLuint target) : target{target} {
+    Resource(GLuint texture, GLenum target) : target{target} {
       stack[target].push_back(texture);
       glBindTexture(target, texture);
     }
@@ -97,8 +97,8 @@ private:
       glBindTexture(target, stack[target].empty() ? 0 : stack[target].back());
     }
 
-    GLuint target;
-    static std::unordered_map<GLuint, std::vector<GLuint>> stack;
+    GLenum target;
+    static std::unordered_map<GLenum, std::vector<GLuint>> stack;
   };
 
   std::unique_ptr<Resource> resource_;
@@ -128,7 +128,7 @@ public:
     return {resource_->texture, resource_->target};
   }
 
-  void create_1d(GLsizei width, GLuint components, GLuint type, const void* data) {
+  void create_1d(GLsizei width, GLuint components, GLenum type, const void* data) {
     resource_->target = GL_TEXTURE_1D;
     auto active = bind();
     auto internal_format =
@@ -138,7 +138,7 @@ public:
     glTexImage1D(resource_->target, 0, internal_format, width, 0, format, type, data);
   }
 
-  void create_2d(const glm::ivec2& dimensions, GLuint components, GLuint type, const void* data) {
+  void create_2d(const glm::ivec2& dimensions, GLuint components, GLenum type, const void* data) {
     resource_->target = GL_TEXTURE_2D;
     auto active = bind();
     auto internal_format =
@@ -147,6 +147,13 @@ public:
         components == 4 ? GL_RGBA : components == 3 ? GL_RGB : components == 1 ? GL_RED : 0;
     glTexImage2D(resource_->target, 0, internal_format, dimensions.x, dimensions.y, 0, format, type,
                  data);
+  }
+
+  void create_high_precision_rgb(const glm::ivec2& dimensions) {
+    resource_->target = GL_TEXTURE_2D;
+    auto active = bind();
+    glTexImage2D(resource_->target, 0, GL_RGB16F, dimensions.x, dimensions.y, 0, GL_RGB, GL_FLOAT,
+                 nullptr);
   }
 
   void create_rgba(const glm::ivec2& dimensions) {
@@ -163,7 +170,7 @@ public:
                  GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, nullptr);
   }
 
-  void attach_to_framebuffer(GLuint attachment) const {
+  void attach_to_framebuffer(GLenum attachment) const {
     glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, resource_->target, resource_->texture, 0);
   }
 
@@ -179,7 +186,7 @@ private:
       glDeleteTextures(1, &texture);
     }
 
-    GLuint target;
+    GLenum target;
     GLuint texture;
     GLuint sampler;
   };
@@ -222,7 +229,7 @@ private:
     }
 
     GLuint program;
-    mutable GLuint texture_index = 0;
+    mutable GLenum texture_index = 0;
     static std::vector<GLuint> stack;
   };
 
@@ -305,10 +312,10 @@ public:
   ActiveFramebuffer& operator=(ActiveFramebuffer&& other) = default;
 
 private:
-  ActiveFramebuffer(GLuint fbo, GLuint target) : resource_{new Resource{fbo, target}} {}
+  ActiveFramebuffer(GLuint fbo, GLenum target) : resource_{new Resource{fbo, target}} {}
 
   struct Resource {
-    Resource(GLuint fbo, GLuint target) : fbo{fbo}, target{target} {
+    Resource(GLuint fbo, GLenum target) : fbo{fbo}, target{target} {
       glBindFramebuffer(target, fbo);
       stack[target].push_back(fbo);
     }
@@ -318,9 +325,9 @@ private:
       glBindFramebuffer(target, stack[target].empty() ? 0 : stack[target].back());
     }
 
-    GLuint target;
+    GLenum target;
     GLuint fbo;
-    static std::unordered_map<GLuint, std::vector<GLuint>> stack;
+    static std::unordered_map<GLenum, std::vector<GLuint>> stack;
   };
 
   std::unique_ptr<Resource> resource_;
@@ -334,15 +341,24 @@ public:
   Framebuffer& operator=(const Framebuffer&) = delete;
   Framebuffer& operator=(Framebuffer&& other) = default;
 
-  Framebuffer(const glm::ivec2& dimensions)
-  : resource_{new Resource{dimensions}} {}
+  Framebuffer(const glm::ivec2& dimensions) : resource_{new Resource{dimensions}} {}
 
-  void add_colour_buffer() {
+  void add_colour_buffer(bool high_precision) {
     ActiveFramebuffer bind{resource_->framebuffer, GL_FRAMEBUFFER};
     resource_->colour_textures.emplace_back();
-    resource_->colour_textures.back().create_rgba(resource_->dimensions);
+    if (high_precision) {
+      resource_->colour_textures.back().create_high_precision_rgb(resource_->dimensions);
+    } else {
+      resource_->colour_textures.back().create_rgba(resource_->dimensions);
+    }
     resource_->colour_textures.back().attach_to_framebuffer(GL_COLOR_ATTACHMENT0 +
                                                             resource_->colour_attachment++);
+    std::vector<GLenum> draw_buffers;
+    for (GLenum i = 0; i < resource_->colour_textures.size(); ++i) {
+      draw_buffers.push_back(GL_COLOR_ATTACHMENT0 + i);
+    }
+    glNamedFramebufferDrawBuffers(resource_->framebuffer, static_cast<GLsizei>(draw_buffers.size()),
+                                  draw_buffers.data());
   }
 
   void add_depth_stencil_buffer() {
@@ -354,8 +370,12 @@ public:
 
   void check_complete() const {
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-      std::cerr << "intermediate framebuffer is not complete" << std::endl;
+      std::cerr << "[warning] Framebuffer is not complete." << std::endl;
     }
+  }
+
+  const glm::ivec2& dimensions() const {
+    return resource_->dimensions;
   }
 
   ActiveFramebuffer draw() const {
@@ -401,7 +421,7 @@ public:
   VertexData& operator=(const VertexData&) = delete;
   VertexData& operator=(VertexData&& other) = default;
 
-  VertexData(const std::vector<GLfloat>& data, const std::vector<GLushort>& indices, GLuint hint)
+  VertexData(const std::vector<GLfloat>& data, const std::vector<GLushort>& indices, GLenum hint)
   : resource_{new Resource} {
     resource_->size = static_cast<GLuint>(indices.size());
 

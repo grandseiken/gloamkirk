@@ -23,7 +23,7 @@ public:
   Renderer();
 
   // Rendering flow.
-  glm::vec2 framebuffer_dimensions() const;
+  glm::ivec2 framebuffer_dimensions() const;
   void resize(const glm::ivec2& dimensions);
   void begin_frame() const;
   void end_frame() const;
@@ -45,7 +45,6 @@ private:
 
   int target_upscale_;
   glm::ivec2 viewport_dimensions_;
-  glm::ivec2 framebuffer_dimensions_;
   std::unique_ptr<glo::Framebuffer> framebuffer_;
   std::unique_ptr<glo::Framebuffer> postbuffer_;
 

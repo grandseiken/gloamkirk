@@ -13,6 +13,7 @@ set(CLIENT_SOURCE_FILES
   "src/title_mode.cc"
   "src/title_mode.h"
   "src/shaders/common.h"
+  "src/shaders/light.h"
   "src/shaders/post.h"
   "src/shaders/simplex.h"
   "src/shaders/text.h"

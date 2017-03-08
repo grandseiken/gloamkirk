@@ -1,5 +1,6 @@
 #include "workers/client/src/world/world_renderer.h"
 #include "workers/client/src/renderer.h"
+#include "workers/client/src/shaders/light.h"
 #include "workers/client/src/shaders/world.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -11,29 +12,8 @@ namespace world {
 namespace {
 // Tile size in pixels.
 const std::int32_t kTileSize = 32;
-}  // anonymous
 
-WorldRenderer::WorldRenderer()
-: world_program_{"world",
-                 {"world_vertex", GL_VERTEX_SHADER, shaders::world_vertex},
-                 {"world_fragment", GL_FRAGMENT_SHADER, shaders::world_fragment}} {}
-
-void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
-                           const std::unordered_map<glm::ivec2, schema::Tile>& tile_map) const {
-  static float a = 0;
-  a += 1 / 128.f;
-
-  auto dimensions = renderer.framebuffer_dimensions();
-  // Not sure what exact values we need for z-planes to be correct, this should do for now.
-  auto camera_distance =
-      std::max(static_cast<float>(kTileSize), 2 * renderer.framebuffer_dimensions().y);
-
-  auto ortho = glm::ortho(dimensions.x / 2, -dimensions.x / 2, -dimensions.y / 2, dimensions.y / 2,
-                          1 / camera_distance, 2 * camera_distance);
-  auto look_at = glm::lookAt(camera + camera_distance * glm::vec3{cos(a), 1.f, sin(a)}, camera,
-                             glm::vec3{0.f, 1.f, 0.f});
-  auto camera_matrix = ortho * look_at;
-
+glo::VertexData generate_vertex_data(const std::unordered_map<glm::ivec2, schema::Tile>& tile_map) {
   std::vector<float> data;
   std::vector<GLushort> indices;
   GLushort index = 0;
@@ -123,11 +103,51 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
     }
   }
 
-  glm::vec4 light_position = {camera + glm::vec3{0.f, 64.f, 0.f}, 1.f};
-  glo::VertexData vertex_data{data, indices, GL_DYNAMIC_DRAW};
-  vertex_data.enable_attribute(0, 4, 9, 0);
-  vertex_data.enable_attribute(1, 4, 9, 4);
-  vertex_data.enable_attribute(2, 1, 9, 8);
+  glo::VertexData result{data, indices, GL_DYNAMIC_DRAW};
+  result.enable_attribute(0, 4, 9, 0);
+  result.enable_attribute(1, 4, 9, 4);
+  result.enable_attribute(2, 1, 9, 8);
+  return result;
+}
+
+}  // anonymous
+
+WorldRenderer::WorldRenderer()
+: world_program_{"world",
+                 {"world_vertex", GL_VERTEX_SHADER, shaders::world_vertex},
+                 {"world_fragment", GL_FRAGMENT_SHADER, shaders::world_fragment}}
+, light_program_{"light",
+                 {"light_vertex", GL_VERTEX_SHADER, shaders::quad_vertex},
+                 {"light_fragment", GL_FRAGMENT_SHADER, shaders::light_fragment}} {}
+
+void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
+                           const std::unordered_map<glm::ivec2, schema::Tile>& tile_map) const {
+  if (!gbuffer_ || gbuffer_->dimensions() != renderer.framebuffer_dimensions()) {
+    gbuffer_.reset(new glo::Framebuffer{renderer.framebuffer_dimensions()});
+    // World position buffer.
+    gbuffer_->add_colour_buffer(/* high-precision RGB */ true);
+    // Normal buffer.
+    gbuffer_->add_colour_buffer(/* high-precision RGB */ true);
+    // Colour buffer.
+    gbuffer_->add_colour_buffer(/* RGBA */ false);
+    // Depth buffer.
+    gbuffer_->add_depth_stencil_buffer();
+    gbuffer_->check_complete();
+  }
+
+  static float a = 0;
+  a += 1 / 128.f;
+
+  // Not sure what exact values we need for z-planes to be correct, this should do for now.
+  auto camera_distance =
+      static_cast<float>(std::max(kTileSize, 2 * renderer.framebuffer_dimensions().y));
+  glm::vec2 dimensions = renderer.framebuffer_dimensions();
+
+  auto ortho = glm::ortho(dimensions.x / 2, -dimensions.x / 2, -dimensions.y / 2, dimensions.y / 2,
+                          1 / camera_distance, 2 * camera_distance);
+  auto look_at = glm::lookAt(camera + camera_distance * glm::vec3{cos(a), 1.f, sin(a)}, camera,
+                             glm::vec3{0.f, 1.f, 0.f});
+  auto camera_matrix = ortho * look_at;
 
   renderer.set_default_render_states();
   glEnable(GL_DEPTH_TEST);
@@ -136,12 +156,29 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
   glFrontFace(GL_CCW);
   glCullFace(GL_BACK);
 
-  auto program = world_program_.use();
-  glUniformMatrix4fv(program.uniform("camera_matrix"), 1, false, glm::value_ptr(camera_matrix));
-  glUniform4fv(program.uniform("light_world"), 1, glm::value_ptr(light_position));
+  {
+    auto draw = gbuffer_->draw();
+    glViewport(0, 0, renderer.framebuffer_dimensions().x, renderer.framebuffer_dimensions().y);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    auto program = world_program_.use();
+    glUniformMatrix4fv(program.uniform("camera_matrix"), 1, false, glm::value_ptr(camera_matrix));
+    renderer.set_simplex3_uniforms(program);
+    generate_vertex_data(tile_map).draw();
+  }
+
+  auto light_position = camera + glm::vec3{0.f, 64.f, 0.f};
+  renderer.set_default_render_states();
+
+  // Should be converted to draw the lights as individuals quads in a single draw call.
+  auto program = light_program_.use();
+  program.uniform_texture("gbuffer_world", gbuffer_->colour_textures()[0]);
+  program.uniform_texture("gbuffer_normal", gbuffer_->colour_textures()[1]);
+  program.uniform_texture("gbuffer_colour", gbuffer_->colour_textures()[2]);
+  glUniform2fv(program.uniform("dimensions"), 1, glm::value_ptr(dimensions));
+  glUniform3fv(program.uniform("light_world"), 1, glm::value_ptr(light_position));
   glUniform1f(program.uniform("light_intensity"), 8.f);
-  renderer.set_simplex3_uniforms(program);
-  vertex_data.draw();
+  renderer.draw_quad();
 }
 
 }  // ::world

@@ -1,6 +1,5 @@
 #ifndef GLOAM_WORKERS_CLIENT_SRC_SHADERS_WORLD_H
 #define GLOAM_WORKERS_CLIENT_SRC_SHADERS_WORLD_H
-#include "workers/client/src/shaders/common.h"
 #include "workers/client/src/shaders/simplex.h"
 #include <string>
 
@@ -28,43 +27,23 @@ void main()
 }
 )""";
 
-const std::string world_fragment = gamma + simplex3 + R"""(
-uniform vec4 colour;
-uniform vec4 light_world;
-uniform float light_intensity;
-out vec4 output_colour;
-
+const std::string world_fragment = simplex3 + R"""(
 flat in vec4 vertex_normal;
 smooth in vec4 vertex_world;
 smooth in float vertex_material;
 
-const float ambient_undirected = 1. / 64.;
-const float ambient_intensity = 1. / 16.;
-const vec4 ambient_direction = vec4(-1., -4., 2., 1.);
-
-float square_distance(vec4 a, vec4 b)
-{
-  vec4 d = (b - a) / 32.;
-  return dot(d, d);
-}
-
-float angle_factor(vec4 direction, vec4 normal)
-{
-  return clamp(dot(normalize(vec3(-direction)), vec3(normal)), 0., 1.);
-}
+layout(location = 0) out vec3 gbuffer_world;
+layout(location = 1) out vec3 gbuffer_normal;
+layout(location = 2) out vec4 gbuffer_colour;
 
 void main()
 {
-  vec3 vertex_colour = vertex_material < 0.5 ?
+  vec3 colour = vertex_material < 0.5 ?
       vec3(.0625, .5, .25) : vec3(.375, .375, .5);
 
-  float light = ambient_undirected +
-      ambient_intensity * angle_factor(ambient_direction, vertex_normal) +
-      light_intensity * angle_factor(vertex_world - light_world, vertex_normal) /
-      square_distance(light_world, vertex_world);
-
-  vec3 final_colour = vertex_colour * clamp(light, 0., 1.);
-  output_colour = vec4(gamma_inverse(final_colour), 1.);
+  gbuffer_world = vec3(vertex_world);
+  gbuffer_normal = vec3(vertex_normal);
+  gbuffer_colour = vec4(colour, 0.);
 }
 )""";
 
