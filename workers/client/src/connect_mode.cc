@@ -1,7 +1,7 @@
 #include "workers/client/src/connect_mode.h"
-#include "workers/client/src/logic/world.h"
 #include "workers/client/src/renderer.h"
 #include "workers/client/src/shaders/common.h"
+#include "workers/client/src/world/world.h"
 #include <glm/vec4.hpp>
 #include <schema/master.h>
 #include <schema/player.h>
@@ -69,7 +69,7 @@ ConnectMode::ConnectMode(worker::Connection&& connection)
     return;
   }
   connection_->SendLogMessage(worker::LogLevel::kInfo, "client", "Connected.");
-  world_.reset(new logic::World{*connection_, dispatcher_});
+  world_.reset(new world::World{*connection_, dispatcher_});
 }
 
 ModeResult ConnectMode::event(const sf::Event& event) {

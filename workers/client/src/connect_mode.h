@@ -8,9 +8,9 @@
 
 namespace gloam {
 class Renderer;
-namespace logic {
+namespace world {
 class World;
-}  // ::logic
+}  // ::world
 
 class ConnectMode : public Mode {
 public:
@@ -29,7 +29,7 @@ private:
   worker::Dispatcher dispatcher_;
 
   bool logged_in_ = false;
-  std::unique_ptr<logic::World> world_;
+  std::unique_ptr<world::World> world_;
   worker::EntityId player_id_ = -1;
 
   std::uint64_t frame_ = 0;
