@@ -86,7 +86,8 @@ void World::render(const Renderer& renderer) const {
 
   auto dimensions = renderer.framebuffer_dimensions();
   // Not sure what exact values we need for z-planes to be correct, this should do for now.
-  auto camera_distance = std::max<float>(kTileSize, 2 * renderer.framebuffer_dimensions().y);
+  auto camera_distance =
+      std::max(static_cast<float>(kTileSize), 2 * renderer.framebuffer_dimensions().y);
 
   auto ortho = glm::ortho(dimensions.x / 2, -dimensions.x / 2, -dimensions.y / 2, dimensions.y / 2,
                           1 / camera_distance, 2 * camera_distance);
@@ -136,13 +137,13 @@ void World::render(const Renderer& renderer) const {
     data.push_back(0);
     add_quad();
 
-    auto it = tile_map_.find(coord - glm::ivec2{0, 1});
-    if (it != tile_map_.end() && it->second.height() != pair.second.height()) {
+    auto jt = tile_map_.find(coord - glm::ivec2{0, 1});
+    if (jt != tile_map_.end() && jt->second.height() != pair.second.height()) {
       auto y = coord.y * kTileSize;
-      auto next_height = static_cast<float>(it->second.height() * kTileSize);
+      auto next_height = static_cast<float>(jt->second.height() * kTileSize);
       min = glm::vec2{coord.x * kTileSize, next_height};
       max = glm::vec2{(1 + coord.x) * kTileSize, height};
-      glm::vec4 side_normal = {0., 0., it->second.height() > pair.second.height() ? 1. : -1., 1.};
+      glm::vec4 side_normal = {0., 0., jt->second.height() > pair.second.height() ? 1. : -1., 1.};
 
       add_vec4({min.x, min.y, y, 1.f});
       add_vec4(side_normal);
@@ -159,13 +160,13 @@ void World::render(const Renderer& renderer) const {
       add_quad();
     }
 
-    it = tile_map_.find(coord - glm::ivec2{1, 0});
-    if (it != tile_map_.end()) {
+    jt = tile_map_.find(coord - glm::ivec2{1, 0});
+    if (jt != tile_map_.end()) {
       auto x = coord.x * kTileSize;
-      auto next_height = static_cast<float>(it->second.height() * kTileSize);
+      auto next_height = static_cast<float>(jt->second.height() * kTileSize);
       min = glm::vec2{coord.y * kTileSize, next_height};
       max = glm::vec2{(1 + coord.y) * kTileSize, height};
-      glm::vec4 side_normal = {it->second.height() > pair.second.height() ? 1. : -1., 0., 0., 1.};
+      glm::vec4 side_normal = {jt->second.height() > pair.second.height() ? 1. : -1., 0., 0., 1.};
 
       add_vec4({x, min.y, min.x, 1.f});
       add_vec4(side_normal);
