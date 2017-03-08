@@ -105,7 +105,10 @@ void WorldSpawner::update() {
     schema::ChunkData chunk_data{chunk_size_, coords.x, coords.y, {}};
     for (std::int32_t y = 0; y < chunk_size_; ++y) {
       for (std::int32_t x = 0; x < chunk_size_; ++x) {
-        chunk_data.tiles().emplace_back(x == chunk_size_ / 2 && y == chunk_size_ / 2 ? 2 : 0);
+        chunk_data.tiles().emplace_back((x == chunk_size_ / 2 || 1 + x == chunk_size_ / 2) &&
+                                                (y == chunk_size_ / 2 || 1 + y == chunk_size_ / 2)
+                                            ? 2
+                                            : 0);
       }
     }
 
