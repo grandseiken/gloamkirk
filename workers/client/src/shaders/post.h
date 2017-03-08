@@ -1,5 +1,6 @@
 #ifndef GLOAM_WORKERS_CLIENT_SRC_SHADERS_POST_H
 #define GLOAM_WORKERS_CLIENT_SRC_SHADERS_POST_H
+#include "workers/client/src/shaders/common.h"
 #include <string>
 
 namespace gloam {
@@ -11,7 +12,7 @@ namespace {
 #define POST_CONSTANTS const int a_dither_res = 256;
 POST_CONSTANTS
 
-const std::string post_fragment = POST_STRINGIFY(POST_CONSTANTS) R"""(
+const std::string post_fragment = gamma + POST_STRINGIFY(POST_CONSTANTS) R"""(
 uniform sampler2D source_framebuffer;
 uniform sampler2D dither_matrix;
 uniform vec2 dimensions;
@@ -27,7 +28,6 @@ const float dither_mix = 1.;
 // How many quantization levels per colour.
 const int colours_per_channel = 12;
 const float quantize_div = 1. / (colours_per_channel - 1);
-const float gamma_value = 2.2;
 
 // Make sure no direction aligns exactly with an axis.
 const float base_dir = .2;
@@ -58,20 +58,13 @@ vec3 linear_dither(vec3 value, vec3 dither)
       mix(vec3(.5 * quantize_div), dither * quantize_div, dither_mix));
 }
 
-vec3 gamma_write(vec3 v)
-{
-  return vec3(pow(v.r, gamma_value),
-              pow(v.g, gamma_value),
-              pow(v.b, gamma_value));
-}
-
 vec3 gamma_correct_dither(vec3 value, vec3 dither)
 {
   vec3 a = floor_div(value);
   vec3 b = a + quantize_div;
   vec3 correct_ratio = 1 -
-      ((gamma_write(b) - gamma_write(value)) /
-       (gamma_write(b) - gamma_write(a)));
+      ((gamma_apply(b) - gamma_apply(value)) /
+       (gamma_apply(b) - gamma_apply(a)));
   return floor_div(a + (correct_ratio + dither) * quantize_div);
 }
 

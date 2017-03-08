@@ -6,6 +6,25 @@ namespace gloam {
 namespace shaders {
 namespace {
 
+const std::string gamma = R"""(
+const float gamma_value = 2.2;
+const float inverse_value = 1. / gamma_value;
+
+vec3 gamma_apply(vec3 v)
+{
+  return vec3(pow(v.r, gamma_value),
+              pow(v.g, gamma_value),
+              pow(v.b, gamma_value));
+}
+
+vec3 gamma_inverse(vec3 v)
+{
+  return vec3(pow(v.r, inverse_value),
+              pow(v.g, inverse_value),
+              pow(v.b, inverse_value));
+}
+)""";
+
 const std::string quad_vertex = R"""(
 layout(location = 0) in vec4 position;
 
