@@ -12,7 +12,7 @@ set(PROJECT_ASSEMBLY "${PROJECT_BUILD}/assembly")
 
 add_definitions(${CXX_EXTRA_DEFINITIONS})
 if(MSVC)
-  add_definitions(/W4)
+  add_definitions(/W4 /wd4201)
 else()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
   add_definitions(-Wall -Wextra -Werror -pedantic)
