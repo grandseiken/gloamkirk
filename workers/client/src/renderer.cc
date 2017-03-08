@@ -156,7 +156,7 @@ void Renderer::begin_frame() const {
   glViewport(0, 0, framebuffer_dimensions_.x, framebuffer_dimensions_.y);
 
   glClearColor(0, 0, 0, 0);
-  glClearDepth(0);
+  glClearDepth(1);
   glClearStencil(0);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 }

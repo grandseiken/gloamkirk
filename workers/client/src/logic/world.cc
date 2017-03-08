@@ -12,8 +12,9 @@ namespace {
 const std::int32_t kTileSize = 32;
 
 glm::ivec2 tile_coords(const schema::ChunkData& data, std::size_t tile_index) {
+  auto index = static_cast<std::int32_t>(tile_index);
   auto size = data.chunk_size();
-  return {tile_index % size + size * data.chunk_x(), tile_index / size + size * data.chunk_y()};
+  return {size * data.chunk_x() + index % size, size * data.chunk_y() + index / size};
 }
 
 }  // anonymous
@@ -83,40 +84,23 @@ void World::render(const Renderer& renderer) const {
   auto ortho = glm::ortho(-dimensions.x / 2, dimensions.x / 2, -dimensions.y / 2, dimensions.y / 2,
                           1.f / 1024, 256.f);
   auto look_at =
-      glm::lookAt(position + 16.f * glm::vec3{0.f, 1.f, -1.f}, position, glm::vec3{0.f, 1.f, 0.f});
+      glm::lookAt(position + 8.f * glm::vec3{0.f, 1.f, -2.f}, position, glm::vec3{0.f, 1.f, 0.f});
   auto camera_matrix = ortho * look_at;
 
+  static const glm::vec4 top_colour = {.0625, .5, .25, 1.};
+  static const glm::vec4 side_colour = {.375, .375, .5, 1.};
   std::vector<float> data;
   std::vector<GLushort> indices;
-
   GLushort index = 0;
-  for (const auto& pair : tile_map_) {
-    auto coord = pair.first;
-    auto min = glm::vec2{coord * kTileSize};
-    coord += glm::ivec2{1, 1};
-    auto max = glm::vec2{coord * kTileSize};
-    auto height = static_cast<float>(pair.second.height() * kTileSize);
 
-    data.push_back(min.x);
-    data.push_back(min.y);
-    data.push_back(height);
-    data.push_back(1.f);
+  auto add_vec4 = [&](const glm::vec4& v) {
+    data.push_back(v.x);
+    data.push_back(v.y);
+    data.push_back(v.z);
+    data.push_back(v.w);
+  };
 
-    data.push_back(min.x);
-    data.push_back(max.y);
-    data.push_back(height);
-    data.push_back(1.f);
-
-    data.push_back(max.x);
-    data.push_back(min.y);
-    data.push_back(height);
-    data.push_back(1.f);
-
-    data.push_back(max.x);
-    data.push_back(max.y);
-    data.push_back(height);
-    data.push_back(1.f);
-
+  auto add_quad = [&] {
     indices.push_back(index + 0);
     indices.push_back(index + 2);
     indices.push_back(index + 1);
@@ -124,12 +108,52 @@ void World::render(const Renderer& renderer) const {
     indices.push_back(index + 2);
     indices.push_back(index + 3);
     index += 4;
+  };
+
+  for (const auto& pair : tile_map_) {
+    const auto& coord = pair.first;
+    auto min = glm::vec2{coord * kTileSize};
+    auto max = glm::vec2{(coord + glm::ivec2{1, 1}) * kTileSize};
+    auto height = static_cast<float>(pair.second.height() * kTileSize);
+
+    add_vec4({min.x, height, min.y, 1.f});
+    add_vec4(top_colour);
+    add_vec4({min.x, height, max.y, 1.f});
+    add_vec4(top_colour);
+    add_vec4({max.x, height, min.y, 1.f});
+    add_vec4(top_colour);
+    add_vec4({max.x, height, max.y, 1.f});
+    add_vec4(top_colour);
+    add_quad();
+
+    auto it = tile_map_.find(coord - glm::ivec2{0, 1});
+    if (it == tile_map_.end()) {
+      continue;
+    }
+    auto y = coord.y * kTileSize;
+    auto next_height = static_cast<float>(it->second.height() * kTileSize);
+    min = glm::vec2{coord.x * kTileSize, next_height};
+    max = glm::vec2{(1 + coord.x) * kTileSize, height};
+
+    add_vec4({min.x, min.y, y, 1.f});
+    add_vec4(side_colour);
+    add_vec4({min.x, max.y, y, 1.f});
+    add_vec4(side_colour);
+    add_vec4({max.x, min.y, y, 1.f});
+    add_vec4(side_colour);
+    add_vec4({max.x, max.y, y, 1.f});
+    add_vec4(side_colour);
+    add_quad();
   }
 
   glo::VertexData vertex_data{data, indices, GL_DYNAMIC_DRAW};
-  vertex_data.enable_attribute(0, 4, 0, 0);
+  vertex_data.enable_attribute(0, 4, 8, 0);
+  vertex_data.enable_attribute(1, 4, 8, 4);
 
   renderer.set_default_render_states();
+  glEnable(GL_DEPTH_TEST);
+  glDepthFunc(GL_LEQUAL);
+
   auto program = world_program_.use();
   glUniformMatrix4fv(program.uniform("camera_matrix"), 1, false, glm::value_ptr(camera_matrix));
   renderer.set_simplex3_uniforms(program);

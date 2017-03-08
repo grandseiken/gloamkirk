@@ -103,8 +103,10 @@ void WorldSpawner::update() {
     improbable::EntityAclData entity_acl{common::kAllWorkersSet, {}};
 
     schema::ChunkData chunk_data{chunk_size_, coords.x, coords.y, {}};
-    for (std::int32_t i = 0; i < chunk_size_ * chunk_size_; ++i) {
-      chunk_data.tiles().emplace_back(/* height */ rand() % 4);
+    for (std::int32_t y = 0; y < chunk_size_; ++y) {
+      for (std::int32_t x = 0; x < chunk_size_; ++x) {
+        chunk_data.tiles().emplace_back(x == chunk_size_ / 2 && y == chunk_size_ / 2 ? 2 : 0);
+      }
     }
 
     auto chunk_size = static_cast<double>(chunk_size_);
