@@ -1,5 +1,7 @@
 #include "workers/client/src/connect_mode.h"
 #include "workers/client/src/logic/world.h"
+#include "workers/client/src/shaders/common.h"
+#include <glm/gtc/type_ptr.hpp>
 #include <glm/vec4.hpp>
 #include <schema/master.h>
 #include <schema/player.h>
@@ -8,10 +10,17 @@
 namespace gloam {
 
 ConnectMode::ConnectMode(const std::string& disconnect_reason)
-: connected_{false}, disconnect_reason_{disconnect_reason} {}
+: connected_{false}
+, disconnect_reason_{disconnect_reason}
+, fade_program_{"fade",
+                {"fade_vertex", GL_VERTEX_SHADER, shaders::quad_vertex},
+                {"fade_fragment", GL_FRAGMENT_SHADER, shaders::quad_colour_fragment}} {}
 
 ConnectMode::ConnectMode(worker::Connection&& connection)
-: connection_{new worker::Connection{std::move(connection)}} {
+: connection_{new worker::Connection{std::move(connection)}}
+, fade_program_{"fade",
+                {"fade_vertex", GL_VERTEX_SHADER, shaders::quad_vertex},
+                {"fade_fragment", GL_FRAGMENT_SHADER, shaders::quad_colour_fragment}} {
   dispatcher_.OnDisconnect([this](const worker::DisconnectOp& op) {
     std::cerr << "[disconnected] " << op.Reason << std::endl;
     connected_ = false;
@@ -86,8 +95,9 @@ ModeResult ConnectMode::update() {
       connection_->SendCommandRequest<schema::Master::Commands::ClientHeartbeat>(
           /* master entity */ 0, {}, {});
     }
-    if (player_id_ >= 0 && frame_ % 64 == 0) {
+    if (player_id_ >= 0 && frame_ % 64 == 0 && !logged_in_) {
       logged_in_ = true;
+      enter_frame_ = frame_;
     }
   } else if (disconnect_reason_.empty() || disconnect_ack_) {
     return {ModeAction::kExitToTitle, {}};
@@ -110,6 +120,17 @@ void ConnectMode::render(const Renderer& renderer) const {
                        glm::vec4{.75f, .75f, .75f, fade});
   } else {
     world_->render(renderer);
+
+    renderer.set_default_render_states();
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    auto program = fade_program_.use();
+    auto fade =
+        std::max(0.f, std::min(1.f, 1.f - static_cast<float>(frame_ - enter_frame_) / 128.f));
+    glm::vec4 colour = {0.f, 0.f, 0.f, fade};
+    glUniform4fv(program.uniform("colour"), 1, glm::value_ptr(colour));
+    renderer.draw_quad();
   }
 }
 

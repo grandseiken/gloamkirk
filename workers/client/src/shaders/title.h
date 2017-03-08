@@ -7,15 +7,6 @@ namespace gloam {
 namespace shaders {
 namespace {
 
-const std::string title_vertex = R"""(
-layout(location = 0) in vec4 position;
-
-void main()
-{
-  gl_Position = position;
-}
-)""";
-
 const std::string title_fragment = simplex3 + R"""(
 uniform float fade;
 uniform float frame;

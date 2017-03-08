@@ -13,11 +13,11 @@ set(CLIENT_SOURCE_FILES
   "src/renderer.h"
   "src/title_mode.cc"
   "src/title_mode.h"
+  "src/shaders/common.h"
   "src/shaders/post.h"
   "src/shaders/simplex.h"
   "src/shaders/text.h"
   "src/shaders/title.h"
-  "src/shaders/upscale.h"
   "src/shaders/world.h")
 
 source_group(src "src/[^/]*")

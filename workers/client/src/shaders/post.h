@@ -6,17 +6,6 @@ namespace gloam {
 namespace shaders {
 namespace {
 
-const std::string post_vertex = R"""(
-layout(location = 0) in vec4 position;
-smooth out vec2 vertex_position;
-
-void main()
-{
-  vertex_position = (1. + position.xy) / 2.;
-  gl_Position = position;
-}
-)""";
-
 #define POST_STRINGIF0(x) #x
 #define POST_STRINGIFY(x) POST_STRINGIF0(x)
 #define POST_CONSTANTS const int a_dither_res = 256;
@@ -25,9 +14,9 @@ POST_CONSTANTS
 const std::string post_fragment = POST_STRINGIFY(POST_CONSTANTS) R"""(
 uniform sampler2D source_framebuffer;
 uniform sampler2D dither_matrix;
+uniform vec2 dimensions;
 uniform float frame;
 
-smooth in vec2 vertex_position;
 out vec4 output_colour;
 
 // Whether dithering moves around (based on directions above), and
@@ -92,7 +81,7 @@ void main()
   vec2 g_off = .07 * g_dir * frame;
   vec2 b_off = .11 * b_dir * frame;
 
-  vec3 value = vec3(texture(source_framebuffer, vertex_position));
+  vec3 value = vec3(texture(source_framebuffer, gl_FragCoord.xy / dimensions));
   vec3 dither = matrix_lookup(gl_FragCoord.xy, r_off / 4., g_off / 4., b_off / 4.);
   output_colour = vec4(gamma_correct_dither(value, dither), 1.);
 }

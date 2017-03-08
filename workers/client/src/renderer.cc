@@ -1,8 +1,8 @@
 #include "workers/client/src/renderer.h"
+#include "workers/client/src/shaders/common.h"
 #include "workers/client/src/shaders/post.h"
 #include "workers/client/src/shaders/simplex.h"
 #include "workers/client/src/shaders/text.h"
-#include "workers/client/src/shaders/upscale.h"
 #include <glm/gtc/type_ptr.hpp>
 #include <algorithm>
 #include <cmath>
@@ -56,11 +56,11 @@ Renderer::Renderer()
                 {"text_vertex", GL_VERTEX_SHADER, shaders::text_vertex},
                 {"text_fragment", GL_FRAGMENT_SHADER, shaders::text_fragment}}
 , post_program_{"post",
-                {"post_vertex", GL_VERTEX_SHADER, shaders::post_vertex},
+                {"post_vertex", GL_VERTEX_SHADER, shaders::quad_vertex},
                 {"post_fragment", GL_FRAGMENT_SHADER, shaders::post_fragment}}
 , upscale_program_{"upscale",
-                   {"upscale_vertex", GL_VERTEX_SHADER, shaders::upscale_vertex},
-                   {"upscale_fragment", GL_FRAGMENT_SHADER, shaders::upscale_fragment}}
+                   {"upscale_vertex", GL_VERTEX_SHADER, shaders::quad_vertex},
+                   {"upscale_fragment", GL_FRAGMENT_SHADER, shaders::quad_texture_fragment}}
 , text_image_{load_texture("assets/text.png")} {
   quad_data_.enable_attribute(0, 4, 0, 0);
 
@@ -137,9 +137,10 @@ void Renderer::resize(const glm::ivec2& dimensions) {
 
   static const int target_width = native_resolution.x;
   static const int min_height = (native_resolution.y * 2) / 3;
-  target_upscale_ = std::max(
-      1, std::min(static_cast<int>(dimensions.y / static_cast<float>(min_height)),
-                  static_cast<int>(round(dimensions.x / static_cast<float>(target_width)))));
+  target_upscale_ =
+      std::max(1,
+               std::min(static_cast<int>(dimensions.y / static_cast<float>(min_height)),
+                        static_cast<int>(round(dimensions.x / static_cast<float>(target_width)))));
   framebuffer_dimensions_ = dimensions / glm::ivec2{target_upscale_};
 
   framebuffer_.reset(new glo::Framebuffer{framebuffer_dimensions_, true, false});
@@ -158,6 +159,7 @@ void Renderer::begin_frame() const {
 }
 
 void Renderer::end_frame() const {
+  glm::vec2 dimensions = framebuffer_dimensions_;
   set_default_render_states();
   draw_.reset();
   {
@@ -166,6 +168,7 @@ void Renderer::end_frame() const {
 
     auto program = post_program_.use();
     glUniform1f(program.uniform("frame"), static_cast<float>(frame_));
+    glUniform2fv(program.uniform("dimensions"), 1, glm::value_ptr(dimensions));
     program.uniform_texture("dither_matrix", a_dither_matrix_);
     program.uniform_texture("source_framebuffer", framebuffer_->texture());
     draw_quad();
@@ -175,12 +178,14 @@ void Renderer::end_frame() const {
   glClearColor(0, 0, 0, 0);
   glClear(GL_COLOR_BUFFER_BIT);
 
-  auto dimensions = target_upscale_ * framebuffer_dimensions_;
-  auto border = (viewport_dimensions_ - dimensions) / 2;
-  glViewport(border.x, border.y, dimensions.x, dimensions.y);
+  auto upscale = target_upscale_ * framebuffer_dimensions_;
+  auto border = (viewport_dimensions_ - upscale) / 2;
+  glViewport(border.x, border.y, upscale.x, upscale.y);
+  glm::vec2 upscale_dimensions = upscale;
 
   auto program = upscale_program_.use();
-  program.uniform_texture("source_framebuffer", postbuffer_->texture());
+  glUniform2fv(program.uniform("dimensions"), 1, glm::value_ptr(upscale_dimensions));
+  program.uniform_texture("source_texture", postbuffer_->texture());
   draw_quad();
 }
 

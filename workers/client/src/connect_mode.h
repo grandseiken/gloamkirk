@@ -30,7 +30,10 @@ private:
   bool logged_in_ = false;
   std::unique_ptr<logic::World> world_;
   worker::EntityId player_id_ = -1;
+
+  glo::Program fade_program_;
   std::uint64_t frame_ = 0;
+  std::uint64_t enter_frame_ = 0;
 };
 
 }  // ::gloam

@@ -1,5 +1,6 @@
 #include "workers/client/src/title_mode.h"
 #include "workers/client/src/connect_mode.h"
+#include "workers/client/src/shaders/common.h"
 #include "workers/client/src/shaders/text.h"
 #include "workers/client/src/shaders/title.h"
 #include <SFML/Window.hpp>
@@ -31,7 +32,7 @@ TitleMode::TitleMode(bool first_run, bool fade_in, bool local,
                      const worker::LocatorParameters& locator_params)
 : title_{gloam::load_texture("assets/title.png")}
 , title_program_{"title",
-                 {"title_vertex", GL_VERTEX_SHADER, shaders::title_vertex},
+                 {"title_vertex", GL_VERTEX_SHADER, shaders::quad_vertex},
                  {"title_fragment", GL_FRAGMENT_SHADER, shaders::title_fragment}}
 , connection_local_{local}
 , connection_params_{connection_params}
