@@ -141,13 +141,17 @@ void Renderer::resize(const glm::ivec2& dimensions) {
 
   static const int target_width = native_resolution.x;
   static const int min_height = (native_resolution.y * 2) / 3;
-  target_upscale_ = std::max(
-      1, std::min(static_cast<int>(dimensions.y / static_cast<float>(min_height)),
-                  static_cast<int>(round(dimensions.x / static_cast<float>(target_width)))));
+  target_upscale_ =
+      std::max(1,
+               std::min(static_cast<int>(dimensions.y / static_cast<float>(min_height)),
+                        static_cast<int>(round(dimensions.x / static_cast<float>(target_width)))));
   framebuffer_dimensions_ = dimensions / glm::ivec2{target_upscale_};
 
-  framebuffer_.reset(new glo::Framebuffer{framebuffer_dimensions_, true, false});
-  postbuffer_.reset(new glo::Framebuffer{framebuffer_dimensions_, false, false});
+  framebuffer_.reset(new glo::Framebuffer{framebuffer_dimensions_});
+  framebuffer_->add_colour_buffer();
+  framebuffer_->add_depth_stencil_buffer();
+  postbuffer_.reset(new glo::Framebuffer{framebuffer_dimensions_});
+  postbuffer_->add_colour_buffer();
 }
 
 void Renderer::begin_frame() const {
@@ -173,7 +177,7 @@ void Renderer::end_frame() const {
     glUniform1f(program.uniform("frame"), static_cast<float>(frame_));
     glUniform2fv(program.uniform("dimensions"), 1, glm::value_ptr(dimensions));
     program.uniform_texture("dither_matrix", a_dither_matrix_);
-    program.uniform_texture("source_framebuffer", framebuffer_->texture());
+    program.uniform_texture("source_framebuffer", framebuffer_->colour_textures()[0]);
     draw_quad();
   }
 
@@ -188,7 +192,7 @@ void Renderer::end_frame() const {
 
   auto program = quad_texture_program_.use();
   glUniform2fv(program.uniform("dimensions"), 1, glm::value_ptr(upscale_dimensions));
-  program.uniform_texture("source_texture", postbuffer_->texture());
+  program.uniform_texture("source_texture", postbuffer_->colour_textures()[0]);
   draw_quad();
 }
 

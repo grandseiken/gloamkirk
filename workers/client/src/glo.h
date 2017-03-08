@@ -149,32 +149,18 @@ public:
                  data);
   }
 
-  void create_rgba(const glm::ivec2& dimensions, GLint samples = 1) {
-    if (samples > 1) {
-      resource_->target = GL_TEXTURE_2D_MULTISAMPLE;
-      auto active = bind();
-      glTexImage2DMultisample(resource_->target, samples, GL_RGBA8, dimensions.x, dimensions.y,
-                              false);
-    } else {
-      resource_->target = GL_TEXTURE_2D;
-      auto active = bind();
-      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, dimensions.x, dimensions.y, 0, GL_RGBA,
-                   GL_UNSIGNED_INT_8_8_8_8_REV, nullptr);
-    }
+  void create_rgba(const glm::ivec2& dimensions) {
+    resource_->target = GL_TEXTURE_2D;
+    auto active = bind();
+    glTexImage2D(resource_->target, 0, GL_RGBA8, dimensions.x, dimensions.y, 0, GL_RGBA,
+                 GL_UNSIGNED_INT_8_8_8_8_REV, nullptr);
   }
 
-  void create_depth_stencil(const glm::ivec2& dimensions, GLint samples = 1) {
-    if (samples > 1) {
-      resource_->target = GL_TEXTURE_2D_MULTISAMPLE;
-      auto active = bind();
-      glTexImage2DMultisample(resource_->target, samples, GL_DEPTH24_STENCIL8, dimensions.x,
-                              dimensions.y, false);
-    } else {
-      resource_->target = GL_TEXTURE_2D;
-      auto active = bind();
-      glTexImage2D(resource_->target, 0, GL_DEPTH24_STENCIL8, dimensions.x, dimensions.y, 0,
-                   GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, nullptr);
-    }
+  void create_depth_stencil(const glm::ivec2& dimensions) {
+    resource_->target = GL_TEXTURE_2D;
+    auto active = bind();
+    glTexImage2D(resource_->target, 0, GL_DEPTH24_STENCIL8, dimensions.x, dimensions.y, 0,
+                 GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, nullptr);
   }
 
   void attach_to_framebuffer(GLuint attachment) const {
@@ -348,30 +334,28 @@ public:
   Framebuffer& operator=(const Framebuffer&) = delete;
   Framebuffer& operator=(Framebuffer&& other) = default;
 
-  Framebuffer(const glm::ivec2& dimensions, bool depth_stencil, bool attempt_multisampling)
-  : resource_{new Resource} {
-    GLint samples = 1;
-    if (attempt_multisampling) {
-      glGetIntegerv(GL_MAX_SAMPLES, &samples);
-    }
-    resource_->multisampled = samples > 1;
+  Framebuffer(const glm::ivec2& dimensions)
+  : resource_{new Resource{dimensions}} {}
 
+  void add_colour_buffer() {
     ActiveFramebuffer bind{resource_->framebuffer, GL_FRAMEBUFFER};
-    resource_->rgba_texture.create_rgba(dimensions, samples);
-    resource_->rgba_texture.attach_to_framebuffer(GL_COLOR_ATTACHMENT0);
-    if (depth_stencil) {
-      resource_->depth_stencil_texture.reset(new Texture);
-      resource_->depth_stencil_texture->create_depth_stencil(dimensions, samples);
-      resource_->depth_stencil_texture->attach_to_framebuffer(GL_DEPTH_STENCIL_ATTACHMENT);
-    }
-
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-      std::cerr << "intermediate framebuffer is not complete\n";
-    }
+    resource_->colour_textures.emplace_back();
+    resource_->colour_textures.back().create_rgba(resource_->dimensions);
+    resource_->colour_textures.back().attach_to_framebuffer(GL_COLOR_ATTACHMENT0 +
+                                                            resource_->colour_attachment++);
   }
 
-  bool is_multisampled() const {
-    return resource_->multisampled;
+  void add_depth_stencil_buffer() {
+    ActiveFramebuffer bind{resource_->framebuffer, GL_FRAMEBUFFER};
+    resource_->depth_stencil_texture.reset(new Texture);
+    resource_->depth_stencil_texture->create_depth_stencil(resource_->dimensions);
+    resource_->depth_stencil_texture->attach_to_framebuffer(GL_DEPTH_STENCIL_ATTACHMENT);
+  }
+
+  void check_complete() const {
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+      std::cerr << "intermediate framebuffer is not complete" << std::endl;
+    }
   }
 
   ActiveFramebuffer draw() const {
@@ -382,13 +366,17 @@ public:
     return {resource_->framebuffer, GL_READ_FRAMEBUFFER};
   }
 
-  const Texture& texture() const {
-    return resource_->rgba_texture;
+  const std::vector<Texture>& colour_textures() const {
+    return resource_->colour_textures;
+  }
+
+  const std::unique_ptr<Texture>& depth_stencil_texture() const {
+    return resource_->depth_stencil_texture;
   }
 
 private:
   struct Resource {
-    Resource() {
+    Resource(const glm::ivec2& dimensions) : dimensions{dimensions} {
       glGenFramebuffers(1, &framebuffer);
     }
 
@@ -397,8 +385,9 @@ private:
     }
 
     GLuint framebuffer = 0;
-    bool multisampled = false;
-    Texture rgba_texture;
+    glm::ivec2 dimensions;
+    std::uint32_t colour_attachment = 0;
+    std::vector<Texture> colour_textures;
     std::unique_ptr<Texture> depth_stencil_texture;
   };
 
