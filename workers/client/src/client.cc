@@ -1,3 +1,4 @@
+#include "workers/client/src/input.h"
 #include "workers/client/src/renderer.h"
 #include "workers/client/src/title_mode.h"
 #include <SFML/Graphics.hpp>
@@ -61,6 +62,7 @@ worker::LocatorParameters locator_params(const std::string& login_token) {
 gloam::ModeAction run(bool fullscreen, bool first_run, bool local, const std::string& login_token) {
   auto window = create_window(fullscreen);
   glo::Init();
+  gloam::Input input{window->getSystemHandle()};
   gloam::Renderer renderer;
   renderer.resize({window->getSize().x, window->getSize().y});
 

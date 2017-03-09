@@ -7,3 +7,6 @@
 [submodule "dependencies/glm"]
 	path = dependencies/glm
 	url = https://github.com/g-truc/glm
+[submodule "dependencies/OIS"]
+	path = dependencies/OIS
+	url = https://github.com/wgois/OIS

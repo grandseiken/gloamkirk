@@ -28,6 +28,9 @@ target_include_directories(sfml SYSTEM INTERFACE SFML/include)
 target_compile_definitions(sfml INTERFACE SFML_STATIC)
 target_link_libraries(sfml INTERFACE sfml-audio sfml-graphics sfml-window sfml-system)
 
+# OIS.
+include(OIS.cmake)
+
 # Find all the worker SDK libraries.
 set(WORKER_SDK_DIR "${PROJECT_DEPENDENCIES}/worker_sdk")
 find_package(Threads)

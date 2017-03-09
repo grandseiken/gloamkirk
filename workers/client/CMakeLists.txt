@@ -5,6 +5,8 @@ set(CLIENT_SOURCE_FILES
   "src/client.cc"
   "src/connect_mode.cc"
   "src/connect_mode.h"
+  "src/input.cc"
+  "src/input.h"
   "src/glo.cc"
   "src/glo.h"
   "src/mode.h"
@@ -30,4 +32,4 @@ source_group(src\\world "src/world/[^/]*")
 
 add_executable(client ${CLIENT_SOURCE_FILES})
 target_include_directories(client PRIVATE "${PROJECT_ROOT}")
-target_link_libraries(client worker_sdk schema glew glm sfml)
+target_link_libraries(client worker_sdk schema glew glm sfml ois)
