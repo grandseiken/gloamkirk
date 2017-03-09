@@ -61,6 +61,11 @@ void main() {
   vec3 normal = texture(world_buffer_normal, texture_coords).xyz;
   float material = texture(world_buffer_material, texture_coords).r;
 
+  // Perpendicular unit vectors in the plane.
+  vec3 plane_u = normalize(normal.x == normal.y ?
+      vec3(-normal.z, 0, normal.x) : vec3(-normal.y, normal.x, 0));
+  vec3 plane_v = cross(normal, plane_u);
+
   vec3 colour = vec3(0.);
   if (material < 0.5) {
     float value =
@@ -76,21 +81,38 @@ void main() {
     vec3 grass_colour = vec3(3. / 16., 3. / 4., 1. / 2.);
     vec3 stone_colour = vec3(1. / 4., 1. / 2., 1. / 2.);
 
-    float stone_value =
-        simplex3(world / 64.) / 2. +
-        simplex3(world / 32.) / 1. +
-        simplex3(world / 16.) / 2. +
-        simplex3(world / 8.) / 4.;
+    vec4 stone_value =
+        simplex3_gradient(world / 64.) / 2. +
+        simplex3_gradient(world / 32.) / 1. +
+        simplex3_gradient(world / 16.) / 2. +
+        simplex3_gradient(world / 8.) / 4.;
 
+    float mix_value = clamp(.5 + (value * 8.), 0., 1.);
     stone_colour *=
-        (stone_value >= -1. / 8. && stone_value <= 1. / 8.) ||
-        (.5 + value * 8.) > 1. / 16. ? .75 : 1.;
+        (stone_value.w >= -1. / 8. && stone_value.w <= 1. / 8.)
+        || mix_value > 0. ? .75 : 1.;
+    if (mix_value > 0.) {
+      stone_value.w = 1. / 8.;
+    }
 
-    colour = mix(stone_colour, grass_colour, clamp(.5 + (value * 8.), 0., 1.));
+    vec3 stone_normal = normal;
+    if (stone_value.w >= 1. / 16. && stone_value.w <= 3. / 16.) {
+      stone_normal = cross(
+        plane_u + normal * dot(plane_u, stone_value.xyz),
+        plane_v + normal * dot(plane_v, stone_value.xyz));
+    } else if (stone_value.w >= -3. / 16. && stone_value.w <= -1. / 16.) {
+      stone_normal = cross(
+        plane_u + normal * dot(plane_u, -stone_value.xyz),
+        plane_v + normal * dot(plane_v, -stone_value.xyz));
+    }
+
+    colour = mix(stone_colour, grass_colour, clamp(mix_value * 2. - 1., 0., 1.));
+    normal = normalize(mix(stone_normal, normal, clamp(.75 + mix_value, 0., 1.)));
   } else {
     vec3 seed = world;
     seed.y /= 8.;
     float value = (simplex3(seed / 32.) + simplex3(seed / 8.)) / 2.;
+
     const vec3 wall_colour = vec3(.65, .65, .75);
     colour = value * value < 1. / 32. ? wall_colour * .75 : wall_colour;
   }
