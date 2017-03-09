@@ -1,13 +1,33 @@
 #ifndef GLOAM_WORKERS_CLIENT_SRC_SHADERS_LIGHT_H
 #define GLOAM_WORKERS_CLIENT_SRC_SHADERS_LIGHT_H
-#include "workers/client/src/shaders/common.h"
 #include <string>
 
 namespace gloam {
 namespace shaders {
 namespace {
 
-const std::string light_fragment = gamma + R"""(
+const std::string light = R"""(
+float distance_factor(vec3 a, vec3 b)
+{
+  vec3 d = (b - a) / 32.;
+  return pow(1. / dot(d, d), 1. / 16.);
+}
+
+float cutoff_factor(vec3 a, vec3 b, float intensity)
+{
+  float cutoff = 256.;
+  float cutoff_sq = cutoff * cutoff;
+  vec3 d = b - a;
+  return 1. - clamp((dot(d, d) -  cutoff_sq) / (intensity * cutoff_sq), 0., 1.);
+}
+
+float angle_factor(vec3 direction, vec3 normal)
+{
+  return clamp(dot(normalize(-direction), normal), 0., 1.);
+}
+)""";
+
+const std::string light_fragment = light + R"""(
 uniform sampler2D world_buffer_position;
 uniform sampler2D material_buffer_normal;
 uniform sampler2D material_buffer_colour;
@@ -21,25 +41,6 @@ out vec4 output_colour;
 const float ambient_undirected = 1. / 32.;
 const float ambient_intensity = 1. / 16.;
 const vec3 ambient_direction = vec3(-1., -4., 2.);
-
-float distance_factor(vec3 a, vec3 b)
-{
-  vec3 d = (b - a) / 32.;
-  return pow(1. / dot(d, d), 1. / 16.);
-}
-
-float cutoff_factor(vec3 a, vec3 b, float intensity)
-{
-  float cutoff = 256.;
-  float cutoff_sq = cutoff * cutoff;
-  vec3 d = b - a;
-  return 1. - clamp((dot(d, d) -  cutoff_sq) / (light_intensity * cutoff_sq), 0., 1.);
-}
-
-float angle_factor(vec3 direction, vec3 normal)
-{
-  return clamp(dot(normalize(-direction), normal), 0., 1.);
-}
 
 void main()
 {

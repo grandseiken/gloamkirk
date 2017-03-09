@@ -22,6 +22,7 @@ private:
   glo::Program world_program_;
   glo::Program material_program_;
   glo::Program light_program_;
+  glo::Program fog_program_;
   mutable std::unique_ptr<glo::Framebuffer> world_buffer_;
   mutable std::unique_ptr<glo::Framebuffer> material_buffer_;
 };

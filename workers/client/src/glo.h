@@ -322,7 +322,19 @@ private:
 
     ~Resource() {
       stack[target].pop_back();
-      glBindFramebuffer(target, stack[target].empty() ? 0 : stack[target].back());
+      // Hack, probably works for actual use-cases.
+      if (target == GL_FRAMEBUFFER && stack[target].empty()) {
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, stack[GL_READ_FRAMEBUFFER].empty()
+                              ? 0
+                              : stack[GL_READ_FRAMEBUFFER].back());
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, stack[GL_DRAW_FRAMEBUFFER].empty()
+                              ? 0
+                              : stack[GL_DRAW_FRAMEBUFFER].back());
+      } else if (stack[target].empty()) {
+        glBindFramebuffer(target, stack[GL_FRAMEBUFFER].empty() ? 0 : stack[GL_FRAMEBUFFER].back());
+      } else {
+        glBindFramebuffer(target, stack[target].back());
+      }
     }
 
     GLuint fbo;
@@ -369,7 +381,8 @@ public:
   }
 
   void check_complete() const {
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+    if (glCheckNamedFramebufferStatus(resource_->framebuffer, GL_FRAMEBUFFER) !=
+        GL_FRAMEBUFFER_COMPLETE) {
       std::cerr << "[warning] Framebuffer is not complete." << std::endl;
     }
   }

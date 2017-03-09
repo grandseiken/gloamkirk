@@ -36,8 +36,6 @@ layout(location = 0) out vec3 world_buffer_position;
 layout(location = 1) out vec3 world_buffer_normal;
 layout(location = 2) out vec4 world_buffer_material;
 
-const float pi = 3.14159265359;
-
 void main()
 {
   world_buffer_position = vec3(vertex_world);

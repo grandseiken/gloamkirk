@@ -133,6 +133,10 @@ glm::ivec2 Renderer::framebuffer_dimensions() const {
   return framebuffer_->dimensions();
 }
 
+std::uint64_t Renderer::frame() const {
+  return frame_;
+}
+
 void Renderer::resize(const glm::ivec2& dimensions) {
   if (dimensions == viewport_dimensions_) {
     return;

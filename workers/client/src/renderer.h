@@ -4,6 +4,7 @@
 #include <SFML/Graphics.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
+#include <cstdint>
 #include <memory>
 
 namespace gloam {
@@ -24,6 +25,8 @@ public:
 
   // Rendering flow.
   glm::ivec2 framebuffer_dimensions() const;
+  std::uint64_t frame() const;
+
   void resize(const glm::ivec2& dimensions);
   void begin_frame() const;
   void end_frame() const;
