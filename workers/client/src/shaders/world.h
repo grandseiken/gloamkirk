@@ -95,13 +95,13 @@ void main() {
 
     vec3 stone_normal = normal;
     if (stone_value.w >= 1. / 16. && stone_value.w <= 3. / 16.) {
-      stone_normal = cross(
+      stone_normal = normalize(cross(
         plane_u + normal * dot(plane_u, stone_value.xyz),
-        plane_v + normal * dot(plane_v, stone_value.xyz));
+        plane_v + normal * dot(plane_v, stone_value.xyz)));
     } else if (stone_value.w >= -3. / 16. && stone_value.w <= -1. / 16.) {
-      stone_normal = cross(
+      stone_normal = normalize(cross(
         plane_u + normal * dot(plane_u, -stone_value.xyz),
-        plane_v + normal * dot(plane_v, -stone_value.xyz));
+        plane_v + normal * dot(plane_v, -stone_value.xyz)));
     }
 
     colour = mix(stone_colour, grass_colour, clamp(mix_value * 2. - 1., 0., 1.));

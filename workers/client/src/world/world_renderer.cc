@@ -117,7 +117,7 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
 }
 
 glo::VertexData generate_fog_data(const glm::vec3& camera, const glm::vec2& dimensions,
-                                  std::int32_t layer) {
+                                  float height) {
   std::vector<float> data;
   GLushort count = 0;
 
@@ -129,7 +129,7 @@ glo::VertexData generate_fog_data(const glm::vec3& camera, const glm::vec2& dime
   };
 
   auto distance = std::max(dimensions.x, dimensions.y);
-  auto centre = camera + glm::vec3{0., (.5 + layer) * static_cast<float>(kTileSize), 0.};
+  auto centre = camera + glm::vec3{0., height, 0.};
   add_vec3(centre + glm::vec3{-distance, 0, -distance});
   add_vec3(centre + glm::vec3{-distance, 0, distance});
   add_vec3(centre + glm::vec3{distance, 0, -distance});
@@ -244,15 +244,14 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
                       GL_DEPTH_BUFFER_BIT, GL_NEAREST);
   }
 
-  glm::vec4 fog_colour = {.5, .5, .5, 1. / 4};
-
   renderer.set_default_render_states();
   glEnable(GL_DEPTH_TEST);
   glDepthFunc(GL_LEQUAL);
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-  auto render_fog = [&](std::int32_t layer) {
+  // Fog must be rendered in separate draw calls for transparency.
+  auto render_fog = [&](float height, const glm::vec4 fog_colour) {
     auto program = fog_program_.use();
     glUniformMatrix4fv(program.uniform("camera_matrix"), 1, false, glm::value_ptr(camera_matrix));
     renderer.set_simplex3_uniforms(program);
@@ -260,13 +259,13 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
     glUniform3fv(program.uniform("light_world"), 1, glm::value_ptr(light_position));
     glUniform1f(program.uniform("light_intensity"), 1.f);
     glUniform1f(program.uniform("frame"), renderer.frame());
-    generate_fog_data(camera, renderer.framebuffer_dimensions(), layer).draw();
+    generate_fog_data(camera, renderer.framebuffer_dimensions(), height).draw();
   };
 
-  for (int32_t i = -3; i < 3; ++i) {
-    // Fog must be rendered in separate draw calls for transparency.
-    render_fog(i);
-  }
+  render_fog(-1.5f * static_cast<float>(kTileSize), glm::vec4{.5, .5, .5, .125});
+  render_fog(-.5f * static_cast<float>(kTileSize), glm::vec4{.5, .5, .5, .25});
+  render_fog(.5f * static_cast<float>(kTileSize), glm::vec4{.5, .5, .5, .25});
+  render_fog(1.5f * static_cast<float>(kTileSize), glm::vec4{.5, .5, .5, .125});
 }
 
 }  // ::world
