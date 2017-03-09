@@ -26,7 +26,7 @@ const bool dither_monochrome = true;
 // How much to mix in dithering versus true colouring.
 const float dither_mix = 1.;
 // How many quantization levels per colour.
-const int colours_per_channel = 12;
+const int colours_per_channel = 16;
 const float quantize_div = 1. / (colours_per_channel - 1);
 
 // Make sure no direction aligns exactly with an axis.
@@ -54,8 +54,7 @@ vec3 floor_div(vec3 v)
 
 vec3 linear_dither(vec3 value, vec3 dither)
 {
-  return floor_div(value +
-      mix(vec3(.5 * quantize_div), dither * quantize_div, dither_mix));
+  return floor_div(value + dither * quantize_div);
 }
 
 vec3 gamma_correct_dither(vec3 value, vec3 dither)
@@ -76,7 +75,7 @@ void main()
 
   vec3 value = vec3(texture(source_framebuffer, gl_FragCoord.xy / dimensions));
   vec3 dither = matrix_lookup(gl_FragCoord.xy, r_off / 4., g_off / 4., b_off / 4.);
-  output_colour = vec4(gamma_correct_dither(value, dither), 1.);
+  output_colour = vec4(mix(value, gamma_correct_dither(value, dither), dither_mix), 1.);
 }
 )""";
 

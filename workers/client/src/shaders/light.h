@@ -18,14 +18,14 @@ uniform float light_intensity;
 
 out vec4 output_colour;
 
-const float ambient_undirected = 1. / 64.;
-const float ambient_intensity = 1. / 16.;
+const float ambient_undirected = 1. / 128.;
+const float ambient_intensity = 1. / 32.;
 const vec3 ambient_direction = vec3(-1., -4., 2.);
 
-float square_distance(vec3 a, vec3 b)
+float distance_factor(vec3 a, vec3 b)
 {
   vec3 d = (b - a) / 32.;
-  return dot(d, d);
+  return pow(1. / dot(d, d), 1. / 8.);
 }
 
 float angle_factor(vec3 direction, vec3 normal)
@@ -41,11 +41,11 @@ void main()
 
   float light = ambient_undirected +
       ambient_intensity * angle_factor(ambient_direction, normal) +
-      light_intensity * angle_factor(world - light_world, normal) /
-      square_distance(light_world, world);
+      light_intensity * distance_factor(light_world, world) *
+      (.25 + .75 * angle_factor(world - light_world, normal));
 
   vec3 final_colour = colour * clamp(light, 0., 1.);
-  output_colour = vec4(gamma_inverse(final_colour), 1.);
+  output_colour = vec4(final_colour, 1.);
 }
 )""";
 

@@ -135,9 +135,6 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
     gbuffer_->check_complete();
   }
 
-  static float a = 0;
-  a += 1 / 128.f;
-
   // Not sure what exact values we need for z-planes to be correct, this should do for now.
   auto camera_distance =
       static_cast<float>(std::max(kTileSize, 2 * renderer.framebuffer_dimensions().y));
@@ -145,7 +142,7 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
 
   auto ortho = glm::ortho(dimensions.x / 2, -dimensions.x / 2, -dimensions.y / 2, dimensions.y / 2,
                           1 / camera_distance, 2 * camera_distance);
-  auto look_at = glm::lookAt(camera + camera_distance * glm::vec3{cos(a), 1.f, sin(a)}, camera,
+  auto look_at = glm::lookAt(camera + camera_distance * glm::vec3{.5f, 1.f, -1.f}, camera,
                              glm::vec3{0.f, 1.f, 0.f});
   auto camera_matrix = ortho * look_at;
 
@@ -167,7 +164,9 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
     generate_vertex_data(tile_map).draw();
   }
 
-  auto light_position = camera + glm::vec3{0.f, 64.f, 0.f};
+  static float a = 0;
+  a += 1 / 128.f;
+  auto light_position = camera + glm::vec3{256.f * cos(a), 32.f, 256.f * sin(a)};
   renderer.set_default_render_states();
 
   // Should be converted to draw the lights as individuals quads in a single draw call.
@@ -177,7 +176,7 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
   program.uniform_texture("gbuffer_colour", gbuffer_->colour_textures()[2]);
   glUniform2fv(program.uniform("dimensions"), 1, glm::value_ptr(dimensions));
   glUniform3fv(program.uniform("light_world"), 1, glm::value_ptr(light_position));
-  glUniform1f(program.uniform("light_intensity"), 8.f);
+  glUniform1f(program.uniform("light_intensity"), 1.f);
   renderer.draw_quad();
 }
 
