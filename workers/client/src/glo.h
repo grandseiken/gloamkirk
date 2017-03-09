@@ -325,8 +325,8 @@ private:
       glBindFramebuffer(target, stack[target].empty() ? 0 : stack[target].back());
     }
 
-    GLenum target;
     GLuint fbo;
+    GLenum target;
     static std::unordered_map<GLenum, std::vector<GLuint>> stack;
   };
 

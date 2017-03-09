@@ -32,19 +32,37 @@ flat in vec4 vertex_normal;
 smooth in vec4 vertex_world;
 smooth in float vertex_material;
 
-layout(location = 0) out vec3 gbuffer_world;
-layout(location = 1) out vec3 gbuffer_normal;
-layout(location = 2) out vec4 gbuffer_colour;
+layout(location = 0) out vec3 world_buffer_position;
+layout(location = 1) out vec3 world_buffer_normal;
+layout(location = 2) out vec4 world_buffer_material;
 
 const float pi = 3.14159265359;
 
 void main()
 {
-  vec3 world = vec3(vertex_world);
-  vec3 normal = vec3(vertex_normal);
-  vec3 colour = vec3(0.);
+  world_buffer_position = vec3(vertex_world);
+  world_buffer_normal = vec3(vertex_normal);
+  world_buffer_material = vec4(vertex_material, 0., 0., 0.);
+}
+)""";
 
-  if (vertex_material < 0.5) {
+const std::string material_fragment = simplex3 + R"""(
+uniform sampler2D world_buffer_position;
+uniform sampler2D world_buffer_normal;
+uniform sampler2D world_buffer_material;
+uniform vec2 dimensions;
+
+layout(location = 0) out vec3 material_buffer_normal;
+layout(location = 1) out vec4 material_buffer_colour;
+
+void main() {
+  vec2 texture_coords = gl_FragCoord.xy / dimensions;
+  vec3 world = texture(world_buffer_position, texture_coords).xyz;
+  vec3 normal = texture(world_buffer_normal, texture_coords).xyz;
+  float material = texture(world_buffer_material, texture_coords).r;
+
+  vec3 colour = vec3(0.);
+  if (material < 0.5) {
     float value =
         simplex3(world / 256.) / 2. +
         simplex3(world / 128.) / 4. +
@@ -77,9 +95,8 @@ void main()
     colour = value * value < 1. / 32. ? wall_colour * .75 : wall_colour;
   }
 
-  gbuffer_world = world;
-  gbuffer_normal = normal;
-  gbuffer_colour = vec4(colour, 0.);
+  material_buffer_normal = normal;
+  material_buffer_colour = vec4(colour, 0.);
 }
 )""";
 

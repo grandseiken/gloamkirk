@@ -116,23 +116,34 @@ WorldRenderer::WorldRenderer()
 : world_program_{"world",
                  {"world_vertex", GL_VERTEX_SHADER, shaders::world_vertex},
                  {"world_fragment", GL_FRAGMENT_SHADER, shaders::world_fragment}}
+, material_program_{"material",
+                    {"quad_vertex", GL_VERTEX_SHADER, shaders::quad_vertex},
+                    {"material_fragment", GL_FRAGMENT_SHADER, shaders::material_fragment}}
 , light_program_{"light",
-                 {"light_vertex", GL_VERTEX_SHADER, shaders::quad_vertex},
+                 {"quad_vertex", GL_VERTEX_SHADER, shaders::quad_vertex},
                  {"light_fragment", GL_FRAGMENT_SHADER, shaders::light_fragment}} {}
 
 void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
                            const std::unordered_map<glm::ivec2, schema::Tile>& tile_map) const {
-  if (!gbuffer_ || gbuffer_->dimensions() != renderer.framebuffer_dimensions()) {
-    gbuffer_.reset(new glo::Framebuffer{renderer.framebuffer_dimensions()});
+  if (!world_buffer_ || world_buffer_->dimensions() != renderer.framebuffer_dimensions()) {
+    world_buffer_.reset(new glo::Framebuffer{renderer.framebuffer_dimensions()});
     // World position buffer.
-    gbuffer_->add_colour_buffer(/* high-precision RGB */ true);
+    world_buffer_->add_colour_buffer(/* high-precision RGB */ true);
+    // World normal buffer.
+    world_buffer_->add_colour_buffer(/* high-precision RGB */ true);
+    // World material buffer.
+    world_buffer_->add_colour_buffer(/* RGBA */ false);
+    // World depth buffer.
+    world_buffer_->add_depth_stencil_buffer();
+
+    material_buffer_.reset(new glo::Framebuffer{renderer.framebuffer_dimensions()});
     // Normal buffer.
-    gbuffer_->add_colour_buffer(/* high-precision RGB */ true);
+    material_buffer_->add_colour_buffer(/* high-precision RGB */ true);
     // Colour buffer.
-    gbuffer_->add_colour_buffer(/* RGBA */ false);
-    // Depth buffer.
-    gbuffer_->add_depth_stencil_buffer();
-    gbuffer_->check_complete();
+    material_buffer_->add_colour_buffer(/* RGBA */ false);
+
+    world_buffer_->check_complete();
+    material_buffer_->check_complete();
   }
 
   // Not sure what exact values we need for z-planes to be correct, this should do for now.
@@ -152,9 +163,8 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
   glEnable(GL_CULL_FACE);
   glFrontFace(GL_CCW);
   glCullFace(GL_BACK);
-
   {
-    auto draw = gbuffer_->draw();
+    auto draw = world_buffer_->draw();
     glViewport(0, 0, renderer.framebuffer_dimensions().x, renderer.framebuffer_dimensions().y);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -164,16 +174,28 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
     generate_vertex_data(tile_map).draw();
   }
 
+  renderer.set_default_render_states();
+  {
+    auto draw = material_buffer_->draw();
+    glViewport(0, 0, renderer.framebuffer_dimensions().x, renderer.framebuffer_dimensions().y);
+
+    auto program = material_program_.use();
+    program.uniform_texture("world_buffer_position", world_buffer_->colour_textures()[0]);
+    program.uniform_texture("world_buffer_normal", world_buffer_->colour_textures()[1]);
+    program.uniform_texture("world_buffer_material", world_buffer_->colour_textures()[2]);
+    glUniform2fv(program.uniform("dimensions"), 1, glm::value_ptr(dimensions));
+    renderer.set_simplex3_uniforms(program);
+    renderer.draw_quad();
+  }
   static float a = 0;
   a += 1 / 128.f;
-  auto light_position = camera + glm::vec3{256.f * cos(a), 32.f, 256.f * sin(a)};
-  renderer.set_default_render_states();
+  auto light_position = camera + glm::vec3{256.f * cos(a), 48.f, 256.f * sin(a)};
 
   // Should be converted to draw the lights as individuals quads in a single draw call.
   auto program = light_program_.use();
-  program.uniform_texture("gbuffer_world", gbuffer_->colour_textures()[0]);
-  program.uniform_texture("gbuffer_normal", gbuffer_->colour_textures()[1]);
-  program.uniform_texture("gbuffer_colour", gbuffer_->colour_textures()[2]);
+  program.uniform_texture("world_buffer_position", world_buffer_->colour_textures()[0]);
+  program.uniform_texture("material_buffer_normal", material_buffer_->colour_textures()[0]);
+  program.uniform_texture("material_buffer_colour", material_buffer_->colour_textures()[1]);
   glUniform2fv(program.uniform("dimensions"), 1, glm::value_ptr(dimensions));
   glUniform3fv(program.uniform("light_world"), 1, glm::value_ptr(light_position));
   glUniform1f(program.uniform("light_intensity"), 1.f);
