@@ -15,10 +15,11 @@ namespace {
 // Tile size in pixels.
 const std::int32_t kTileSize = 32;
 
-glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema::Tile>& tile_map) {
+glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema::Tile>& tile_map,
+                                    float pixel_height) {
   std::vector<float> data;
-  std::vector<GLushort> indices;
-  GLushort index = 0;
+  std::vector<GLuint> indices;
+  GLuint index = 0;
 
   auto add_vec4 = [&](const glm::vec4& v) {
     data.push_back(v.x);
@@ -27,11 +28,10 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
     data.push_back(v.w);
   };
 
-  auto add_tri = [&](GLushort a, GLushort b, GLushort c) {
+  auto add_tri = [&](GLuint a, GLuint b, GLuint c) {
     indices.push_back(index + a);
     indices.push_back(index + b);
     indices.push_back(index + c);
-
   };
 
   auto add_quad = [&] {
@@ -61,60 +61,74 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
     bool bl_edge = height_differs(coord + glm::ivec2{-1, -1}, pair.second.height());
     bool br_edge = height_differs(coord + glm::ivec2{1, -1}, pair.second.height());
 
-    add_vec4({min.x, height, min.y, 1.f});
-    add_vec4(top_normal);
-    data.push_back(l_edge || b_edge || bl_edge);
-    data.push_back(0);
+    for (std::int32_t pixel_layer = 0; pixel_layer < 8; ++pixel_layer) {
+      auto world_height = std::abs(pixel_layer * pixel_height);
+      auto world_offset = glm::vec4{0.f, pixel_layer * pixel_height, 0.f, 0.f};
 
-    add_vec4({min.x, height, max.y, 1.f});
-    add_vec4(top_normal);
-    data.push_back(l_edge || t_edge || tl_edge);
-    data.push_back(0);
+      add_vec4(world_offset + glm::vec4{min.x, height, min.y, 1.f});
+      add_vec4(top_normal);
+      data.push_back(0);
+      data.push_back(l_edge || b_edge || bl_edge);
+      data.push_back(world_height);
 
-    add_vec4({max.x, height, min.y, 1.f});
-    add_vec4(top_normal);
-    data.push_back(r_edge || b_edge || br_edge);
-    data.push_back(0);
+      add_vec4(world_offset + glm::vec4{min.x, height, max.y, 1.f});
+      add_vec4(top_normal);
+      data.push_back(0);
+      data.push_back(l_edge || t_edge || tl_edge);
+      data.push_back(world_height);
 
-    add_vec4({max.x, height, max.y, 1.f});
-    add_vec4(top_normal);
-    data.push_back(r_edge || t_edge || tr_edge);
-    data.push_back(0);
+      add_vec4(world_offset + glm::vec4{max.x, height, min.y, 1.f});
+      add_vec4(top_normal);
+      data.push_back(0);
+      data.push_back(r_edge || b_edge || br_edge);
+      data.push_back(world_height);
 
-    add_vec4({min.x, height, (min.y + max.y) / 2, 1.f});
-    add_vec4(top_normal);
-    data.push_back(l_edge);
-    data.push_back(0);
+      add_vec4(world_offset + glm::vec4{max.x, height, max.y, 1.f});
+      add_vec4(top_normal);
+      data.push_back(0);
+      data.push_back(r_edge || t_edge || tr_edge);
+      data.push_back(world_height);
 
-    add_vec4({(min.x + max.x) / 2, height, max.y, 1.f});
-    add_vec4(top_normal);
-    data.push_back(t_edge);
-    data.push_back(0);
+      add_vec4(world_offset + glm::vec4{min.x, height, (min.y + max.y) / 2, 1.f});
+      add_vec4(top_normal);
+      data.push_back(0);
+      data.push_back(l_edge);
+      data.push_back(world_height);
 
-    add_vec4({(min.x + max.x) / 2, height, min.y, 1.f});
-    add_vec4(top_normal);
-    data.push_back(b_edge);
-    data.push_back(0);
+      add_vec4(world_offset + glm::vec4{(min.x + max.x) / 2, height, max.y, 1.f});
+      add_vec4(top_normal);
+      data.push_back(0);
+      data.push_back(t_edge);
+      data.push_back(world_height);
 
-    add_vec4({max.x, height, (min.y + max.y) / 2, 1.f});
-    add_vec4(top_normal);
-    data.push_back(r_edge);
-    data.push_back(0);
+      add_vec4(world_offset + glm::vec4{(min.x + max.x) / 2, height, min.y, 1.f});
+      add_vec4(top_normal);
+      data.push_back(0);
+      data.push_back(b_edge);
+      data.push_back(world_height);
 
-    add_vec4({(min.x + max.x) / 2, height, (min.y + max.y) / 2, 1.f});
-    add_vec4(top_normal);
-    data.push_back(0);
-    data.push_back(0);
+      add_vec4(world_offset + glm::vec4{max.x, height, (min.y + max.y) / 2, 1.f});
+      add_vec4(top_normal);
+      data.push_back(0);
+      data.push_back(r_edge);
+      data.push_back(world_height);
 
-    add_tri(0, 6, 4);
-    add_tri(6, 8, 4);
-    add_tri(4, 8, 1);
-    add_tri(8, 5, 1);
-    add_tri(8, 7, 5);
-    add_tri(7, 3, 5);
-    add_tri(6, 2, 8);
-    add_tri(2, 7, 8);
-    index += 9;
+      add_vec4(world_offset + glm::vec4{(min.x + max.x) / 2, height, (min.y + max.y) / 2, 1.f});
+      add_vec4(top_normal);
+      data.push_back(0);
+      data.push_back(0);
+      data.push_back(world_height);
+
+      add_tri(0, 6, 4);
+      add_tri(6, 8, 4);
+      add_tri(4, 8, 1);
+      add_tri(8, 5, 1);
+      add_tri(8, 7, 5);
+      add_tri(7, 3, 5);
+      add_tri(6, 2, 8);
+      add_tri(2, 7, 8);
+      index += 9;
+    }
 
     auto jt = tile_map.find(coord - glm::ivec2{0, 1});
     if (jt != tile_map.end() && jt->second.height() != pair.second.height()) {
@@ -126,20 +140,24 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
 
       add_vec4({min.x, min.y, y, 1.f});
       add_vec4(side_normal);
-      data.push_back(0);
       data.push_back(1);
+      data.push_back(0);
+      data.push_back(0);
       add_vec4({min.x, max.y, y, 1.f});
       add_vec4(side_normal);
-      data.push_back(0);
       data.push_back(1);
+      data.push_back(0);
+      data.push_back(0);
       add_vec4({max.x, min.y, y, 1.f});
       add_vec4(side_normal);
-      data.push_back(0);
       data.push_back(1);
+      data.push_back(0);
+      data.push_back(0);
       add_vec4({max.x, max.y, y, 1.f});
       add_vec4(side_normal);
-      data.push_back(0);
       data.push_back(1);
+      data.push_back(0);
+      data.push_back(0);
       add_quad();
     }
 
@@ -153,35 +171,39 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
 
       add_vec4({x, min.y, min.x, 1.f});
       add_vec4(side_normal);
-      data.push_back(0);
       data.push_back(1);
+      data.push_back(0);
+      data.push_back(0);
       add_vec4({x, min.y, max.x, 1.f});
       add_vec4(side_normal);
-      data.push_back(0);
       data.push_back(1);
+      data.push_back(0);
+      data.push_back(0);
       add_vec4({x, max.y, min.x, 1.f});
       add_vec4(side_normal);
-      data.push_back(0);
       data.push_back(1);
+      data.push_back(0);
+      data.push_back(0);
       add_vec4({x, max.y, max.x, 1.f});
       add_vec4(side_normal);
-      data.push_back(0);
       data.push_back(1);
+      data.push_back(0);
+      data.push_back(0);
       add_quad();
     }
   }
 
   glo::VertexData result{data, indices, GL_DYNAMIC_DRAW};
-  result.enable_attribute(0, 4, 10, 0);
-  result.enable_attribute(1, 4, 10, 4);
-  result.enable_attribute(2, 2, 10, 8);
+  result.enable_attribute(0, 4, 11, 0);
+  result.enable_attribute(1, 4, 11, 4);
+  result.enable_attribute(2, 3, 11, 8);
   return result;
 }
 
 glo::VertexData generate_fog_data(const glm::vec3& camera, const glm::vec2& dimensions,
                                   float height) {
   std::vector<float> data;
-  std::vector<GLushort> indices;
+  std::vector<GLuint> indices;
 
   auto add_vec3 = [&](const glm::vec3& v) {
     data.push_back(v.x);
@@ -252,11 +274,12 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
   auto camera_distance = static_cast<float>(std::max(kTileSize, 2 * idimensions.y));
   glm::vec2 dimensions = idimensions;
 
+  glm::vec3 up{0.f, 1.f, 0.f};
   auto ortho = glm::ortho(dimensions.x / 2, -dimensions.x / 2, -dimensions.y / 2, dimensions.y / 2,
                           1 / camera_distance, 2 * camera_distance);
-  auto look_at = glm::lookAt(camera + camera_distance * glm::vec3{.5f, 1.f, -1.f}, camera,
-                             glm::vec3{0.f, 1.f, 0.f});
+  auto look_at = glm::lookAt(camera + camera_distance * glm::vec3{.5f, 1.f, -1.f}, camera, up);
   auto camera_matrix = ortho * look_at;
+  auto pixel_height = -1.f / look_at[2][2];
 
   renderer.set_default_render_states();
   glEnable(GL_DEPTH_TEST);
@@ -272,7 +295,7 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
     auto program = world_program_.use();
     glUniformMatrix4fv(program.uniform("camera_matrix"), 1, false, glm::value_ptr(camera_matrix));
     renderer.set_simplex3_uniforms(program);
-    generate_world_data(tile_map).draw();
+    generate_world_data(tile_map, pixel_height).draw();
   }
 
   renderer.set_default_render_states();
@@ -325,7 +348,7 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
     glUniform4fv(program.uniform("fog_colour"), 1, glm::value_ptr(fog_colour));
     glUniform3fv(program.uniform("light_world"), 1, glm::value_ptr(light_position));
     glUniform1f(program.uniform("light_intensity"), 1.f);
-    glUniform1f(program.uniform("frame"), renderer.frame());
+    glUniform1f(program.uniform("frame"), static_cast<float>(renderer.frame()));
     generate_fog_data(camera, renderer.framebuffer_dimensions(), height).draw();
   };
 

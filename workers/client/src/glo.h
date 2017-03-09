@@ -434,7 +434,7 @@ public:
   VertexData& operator=(const VertexData&) = delete;
   VertexData& operator=(VertexData&& other) = default;
 
-  VertexData(const std::vector<GLfloat>& data, const std::vector<GLushort>& indices, GLenum hint)
+  VertexData(const std::vector<GLfloat>& data, const std::vector<GLuint>& indices, GLenum hint)
   : resource_{new Resource} {
     resource_->size = static_cast<GLuint>(indices.size());
 
@@ -442,7 +442,7 @@ public:
     glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * data.size(), data.data(), hint);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, resource_->ibo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLushort) * indices.size(), indices.data(), hint);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLuint) * indices.size(), indices.data(), hint);
 
     glBindVertexArray(resource_->vao);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, resource_->ibo);
@@ -464,7 +464,7 @@ public:
 
   void draw() const {
     glBindVertexArray(resource_->vao);
-    glDrawElements(GL_TRIANGLES, resource_->size, GL_UNSIGNED_SHORT, 0);
+    glDrawElements(GL_TRIANGLES, resource_->size, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
   }
 

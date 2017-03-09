@@ -15,7 +15,7 @@ std::vector<float> quad_vertices = {
     -1, -1, 1, 1, -1, 1, 1, 1, 1, -1, 1, 1, 1, 1, 1, 1,
 };
 
-std::vector<GLushort> quad_indices = {
+std::vector<GLuint> quad_indices = {
     0, 2, 1, 1, 2, 3,
 };
 
@@ -245,9 +245,9 @@ std::uint32_t Renderer::text_width(const std::string& text) const {
 void Renderer::draw_text(const std::string& text, const glm::ivec2& position,
                          const glm::vec4& colour) const {
   std::vector<float> data;
-  std::vector<GLushort> indices;
+  std::vector<GLuint> indices;
+  GLuint index = 0;
 
-  GLushort index = 0;
   std::uint32_t x = 0;
   for (std::uint8_t c : text) {
     auto char_width = shaders::text_widths[c];
