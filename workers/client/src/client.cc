@@ -62,7 +62,7 @@ worker::LocatorParameters locator_params(const std::string& login_token) {
 gloam::ModeAction run(bool fullscreen, bool first_run, bool local, const std::string& login_token) {
   auto window = create_window(fullscreen);
   glo::Init();
-  gloam::Input input{window->getSystemHandle()};
+  gloam::Input input{reinterpret_cast<std::size_t>(window->getSystemHandle())};
   gloam::Renderer renderer;
   renderer.resize({window->getSize().x, window->getSize().y});
 
