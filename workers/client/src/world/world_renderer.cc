@@ -15,30 +15,34 @@ namespace {
 // Tile size in pixels.
 const std::int32_t kTileSize = 32;
 
-std::vector<GLushort> generate_indices(GLushort count) {
-  std::vector<GLushort> indices;
-  GLushort index = 0;
-  for (GLushort i = 0; i < count; ++i) {
-    indices.push_back(index + 0);
-    indices.push_back(index + 2);
-    indices.push_back(index + 1);
-    indices.push_back(index + 1);
-    indices.push_back(index + 2);
-    indices.push_back(index + 3);
-    index += 4;
-  }
-  return indices;
-}
-
 glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema::Tile>& tile_map) {
   std::vector<float> data;
-  GLushort count = 0;
+  std::vector<GLushort> indices;
+  GLushort index = 0;
 
   auto add_vec4 = [&](const glm::vec4& v) {
     data.push_back(v.x);
     data.push_back(v.y);
     data.push_back(v.z);
     data.push_back(v.w);
+  };
+
+  auto add_tri = [&](GLushort a, GLushort b, GLushort c) {
+    indices.push_back(index + a);
+    indices.push_back(index + b);
+    indices.push_back(index + c);
+
+  };
+
+  auto add_quad = [&] {
+    add_tri(0, 2, 1);
+    add_tri(1, 2, 3);
+    index += 4;
+  };
+
+  auto height_differs = [&](const glm::ivec2& coord, std::int32_t height) {
+    auto it = tile_map.find(coord);
+    return it != tile_map.end() && it->second.height() != height;
   };
 
   for (const auto& pair : tile_map) {
@@ -48,19 +52,69 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
     auto height = static_cast<float>(pair.second.height() * kTileSize);
     glm::vec4 top_normal = {0, 1., 0., 1.};
 
+    bool l_edge = height_differs(coord + glm::ivec2{-1, 0}, pair.second.height());
+    bool r_edge = height_differs(coord + glm::ivec2{1, 0}, pair.second.height());
+    bool b_edge = height_differs(coord + glm::ivec2{0, -1}, pair.second.height());
+    bool t_edge = height_differs(coord + glm::ivec2{0, 1}, pair.second.height());
+    bool tl_edge = height_differs(coord + glm::ivec2{-1, 1}, pair.second.height());
+    bool tr_edge = height_differs(coord + glm::ivec2{1, 1}, pair.second.height());
+    bool bl_edge = height_differs(coord + glm::ivec2{-1, -1}, pair.second.height());
+    bool br_edge = height_differs(coord + glm::ivec2{1, -1}, pair.second.height());
+
     add_vec4({min.x, height, min.y, 1.f});
     add_vec4(top_normal);
+    data.push_back(l_edge || b_edge || bl_edge);
     data.push_back(0);
+
     add_vec4({min.x, height, max.y, 1.f});
     add_vec4(top_normal);
+    data.push_back(l_edge || t_edge || tl_edge);
     data.push_back(0);
+
     add_vec4({max.x, height, min.y, 1.f});
     add_vec4(top_normal);
+    data.push_back(r_edge || b_edge || br_edge);
     data.push_back(0);
+
     add_vec4({max.x, height, max.y, 1.f});
     add_vec4(top_normal);
+    data.push_back(r_edge || t_edge || tr_edge);
     data.push_back(0);
-    ++count;
+
+    add_vec4({min.x, height, (min.y + max.y) / 2, 1.f});
+    add_vec4(top_normal);
+    data.push_back(l_edge);
+    data.push_back(0);
+
+    add_vec4({(min.x + max.x) / 2, height, max.y, 1.f});
+    add_vec4(top_normal);
+    data.push_back(t_edge);
+    data.push_back(0);
+
+    add_vec4({(min.x + max.x) / 2, height, min.y, 1.f});
+    add_vec4(top_normal);
+    data.push_back(b_edge);
+    data.push_back(0);
+
+    add_vec4({max.x, height, (min.y + max.y) / 2, 1.f});
+    add_vec4(top_normal);
+    data.push_back(r_edge);
+    data.push_back(0);
+
+    add_vec4({(min.x + max.x) / 2, height, (min.y + max.y) / 2, 1.f});
+    add_vec4(top_normal);
+    data.push_back(0);
+    data.push_back(0);
+
+    add_tri(0, 6, 4);
+    add_tri(6, 8, 4);
+    add_tri(4, 8, 1);
+    add_tri(8, 5, 1);
+    add_tri(8, 7, 5);
+    add_tri(7, 3, 5);
+    add_tri(6, 2, 8);
+    add_tri(2, 7, 8);
+    index += 9;
 
     auto jt = tile_map.find(coord - glm::ivec2{0, 1});
     if (jt != tile_map.end() && jt->second.height() != pair.second.height()) {
@@ -72,17 +126,21 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
 
       add_vec4({min.x, min.y, y, 1.f});
       add_vec4(side_normal);
+      data.push_back(0);
       data.push_back(1);
       add_vec4({min.x, max.y, y, 1.f});
       add_vec4(side_normal);
+      data.push_back(0);
       data.push_back(1);
       add_vec4({max.x, min.y, y, 1.f});
       add_vec4(side_normal);
+      data.push_back(0);
       data.push_back(1);
       add_vec4({max.x, max.y, y, 1.f});
       add_vec4(side_normal);
+      data.push_back(0);
       data.push_back(1);
-      ++count;
+      add_quad();
     }
 
     jt = tile_map.find(coord - glm::ivec2{1, 0});
@@ -95,31 +153,35 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
 
       add_vec4({x, min.y, min.x, 1.f});
       add_vec4(side_normal);
+      data.push_back(0);
       data.push_back(1);
       add_vec4({x, min.y, max.x, 1.f});
       add_vec4(side_normal);
+      data.push_back(0);
       data.push_back(1);
       add_vec4({x, max.y, min.x, 1.f});
       add_vec4(side_normal);
+      data.push_back(0);
       data.push_back(1);
       add_vec4({x, max.y, max.x, 1.f});
       add_vec4(side_normal);
+      data.push_back(0);
       data.push_back(1);
-      ++count;
+      add_quad();
     }
   }
 
-  glo::VertexData result{data, generate_indices(count), GL_DYNAMIC_DRAW};
-  result.enable_attribute(0, 4, 9, 0);
-  result.enable_attribute(1, 4, 9, 4);
-  result.enable_attribute(2, 1, 9, 8);
+  glo::VertexData result{data, indices, GL_DYNAMIC_DRAW};
+  result.enable_attribute(0, 4, 10, 0);
+  result.enable_attribute(1, 4, 10, 4);
+  result.enable_attribute(2, 2, 10, 8);
   return result;
 }
 
 glo::VertexData generate_fog_data(const glm::vec3& camera, const glm::vec2& dimensions,
                                   float height) {
   std::vector<float> data;
-  GLushort count = 0;
+  std::vector<GLushort> indices;
 
   auto add_vec3 = [&](const glm::vec3& v) {
     data.push_back(v.x);
@@ -134,9 +196,14 @@ glo::VertexData generate_fog_data(const glm::vec3& camera, const glm::vec2& dime
   add_vec3(centre + glm::vec3{-distance, 0, distance});
   add_vec3(centre + glm::vec3{distance, 0, -distance});
   add_vec3(centre + glm::vec3{distance, 0, distance});
-  ++count;
+  indices.push_back(0);
+  indices.push_back(2);
+  indices.push_back(1);
+  indices.push_back(1);
+  indices.push_back(2);
+  indices.push_back(3);
 
-  glo::VertexData result{data, generate_indices(count), GL_DYNAMIC_DRAW};
+  glo::VertexData result{data, indices, GL_DYNAMIC_DRAW};
   result.enable_attribute(0, 4, 0, 0);
   return result;
 }

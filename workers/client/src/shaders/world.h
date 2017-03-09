@@ -12,11 +12,11 @@ uniform mat4 camera_matrix;
 
 layout(location = 0) in vec4 world_position;
 layout(location = 1) in vec4 world_normal;
-layout(location = 2) in float material;
+layout(location = 2) in vec2 material;
 
 flat out vec4 vertex_normal;
 smooth out vec4 vertex_world;
-smooth out float vertex_material;
+smooth out vec2 vertex_material;
 
 void main()
 {
@@ -30,7 +30,7 @@ void main()
 const std::string world_fragment = simplex3 + R"""(
 flat in vec4 vertex_normal;
 smooth in vec4 vertex_world;
-smooth in float vertex_material;
+smooth in vec2 vertex_material;
 
 layout(location = 0) out vec3 world_buffer_position;
 layout(location = 1) out vec3 world_buffer_normal;
@@ -40,7 +40,7 @@ void main()
 {
   world_buffer_position = vec3(vertex_world);
   world_buffer_normal = vec3(vertex_normal);
-  world_buffer_material = vec4(vertex_material, 0., 0., 0.);
+  world_buffer_material = vec4(vertex_material, 0., 0.);
 }
 )""";
 
@@ -57,7 +57,8 @@ void main() {
   vec2 texture_coords = gl_FragCoord.xy / dimensions;
   vec3 world = texture(world_buffer_position, texture_coords).xyz;
   vec3 normal = texture(world_buffer_normal, texture_coords).xyz;
-  float material = texture(world_buffer_material, texture_coords).r;
+  float edge_value = texture(world_buffer_material, texture_coords).r;
+  float material = texture(world_buffer_material, texture_coords).g;
 
   // Perpendicular unit vectors in the plane.
   vec3 plane_u = normalize(normal.x == normal.y ?
@@ -85,7 +86,7 @@ void main() {
         simplex3_gradient(world / 16.) / 2. +
         simplex3_gradient(world / 8.) / 4.;
 
-    float mix_value = clamp(.5 + (value * 8.), 0., 1.);
+    float mix_value = clamp(2. * edge_value + clamp(.5 + (value * 8.), 0., 1.), 0., 1.);
     stone_colour *=
         (stone_value.w >= -1. / 8. && stone_value.w <= 1. / 8.)
         || mix_value > 0. ? .75 : 1.;
