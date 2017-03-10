@@ -62,7 +62,7 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
     bool br_edge = height_differs(coord + glm::ivec2{1, -1}, pair.second.height());
 
     for (std::int32_t pixel_layer = 0; pixel_layer < 8; ++pixel_layer) {
-      auto world_height = std::abs(pixel_layer * pixel_height);
+      auto world_height = pixel_layer * pixel_height;
       auto world_offset = glm::vec4{0.f, pixel_layer * pixel_height, 0.f, 0.f};
 
       add_vec4(world_offset + glm::vec4{min.x, height, min.y, 1.f});
@@ -140,22 +140,22 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
 
       add_vec4({min.x, min.y, y, 1.f});
       add_vec4(side_normal);
-      data.push_back(1);
+      data.push_back(0);
       data.push_back(0);
       data.push_back(0);
       add_vec4({min.x, max.y, y, 1.f});
       add_vec4(side_normal);
-      data.push_back(1);
+      data.push_back(0);
       data.push_back(0);
       data.push_back(0);
       add_vec4({max.x, min.y, y, 1.f});
       add_vec4(side_normal);
-      data.push_back(1);
+      data.push_back(0);
       data.push_back(0);
       data.push_back(0);
       add_vec4({max.x, max.y, y, 1.f});
       add_vec4(side_normal);
-      data.push_back(1);
+      data.push_back(0);
       data.push_back(0);
       data.push_back(0);
       add_quad();
@@ -171,22 +171,22 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
 
       add_vec4({x, min.y, min.x, 1.f});
       add_vec4(side_normal);
-      data.push_back(1);
+      data.push_back(0);
       data.push_back(0);
       data.push_back(0);
       add_vec4({x, min.y, max.x, 1.f});
       add_vec4(side_normal);
-      data.push_back(1);
+      data.push_back(0);
       data.push_back(0);
       data.push_back(0);
       add_vec4({x, max.y, min.x, 1.f});
       add_vec4(side_normal);
-      data.push_back(1);
+      data.push_back(0);
       data.push_back(0);
       data.push_back(0);
       add_vec4({x, max.y, max.x, 1.f});
       add_vec4(side_normal);
-      data.push_back(1);
+      data.push_back(0);
       data.push_back(0);
       data.push_back(0);
       add_quad();
@@ -279,7 +279,7 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
                           1 / camera_distance, 2 * camera_distance);
   auto look_at = glm::lookAt(camera + camera_distance * glm::vec3{.5f, 1.f, -1.f}, camera, up);
   auto camera_matrix = ortho * look_at;
-  auto pixel_height = -1.f / look_at[2][2];
+  auto pixel_height = 1.f / look_at[1][1];
 
   renderer.set_default_render_states();
   glEnable(GL_DEPTH_TEST);
@@ -294,6 +294,7 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
 
     auto program = world_program_.use();
     glUniformMatrix4fv(program.uniform("camera_matrix"), 1, false, glm::value_ptr(camera_matrix));
+    glUniform1f(program.uniform("frame"), static_cast<float>(renderer.frame()));
     renderer.set_simplex3_uniforms(program);
     generate_world_data(tile_map, pixel_height).draw();
   }
@@ -308,6 +309,7 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
     program.uniform_texture("world_buffer_normal", world_buffer_->colour_textures()[1]);
     program.uniform_texture("world_buffer_material", world_buffer_->colour_textures()[2]);
     glUniform2fv(program.uniform("dimensions"), 1, glm::value_ptr(dimensions));
+    glUniform1f(program.uniform("frame"), static_cast<float>(renderer.frame()));
     renderer.set_simplex3_uniforms(program);
     renderer.draw_quad();
   }

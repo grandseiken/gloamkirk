@@ -42,6 +42,8 @@ void main()
 )""";
 
 const std::string world_fragment = simplex3 + material_common + R"""(
+uniform float frame;
+
 flat in vec4 vertex_normal;
 smooth in vec4 vertex_world;
 smooth in vec3 vertex_material;
@@ -62,10 +64,8 @@ void main()
   if (material < .5) {
     float value = material0_value(base_world);
     float detail_value = 4. +
-        2. * simplex3(base_world / 32.) +
-        3. * simplex3(base_world / 16.) +
+        4. * simplex3(base_world / 32.) +
         4. * simplex3(base_world / 8.) +
-        5. * simplex3(base_world / 4.) +
         6. * simplex3(base_world / 2.) +
         8. * simplex3(base_world / 1.);
     float height_here = clamp(detail_value, 0., 16.) *
@@ -91,6 +91,7 @@ uniform sampler2D world_buffer_position;
 uniform sampler2D world_buffer_normal;
 uniform sampler2D world_buffer_material;
 uniform vec2 dimensions;
+uniform float frame;
 
 layout(location = 0) out vec3 material_buffer_normal;
 layout(location = 1) out vec4 material_buffer_colour;
@@ -113,46 +114,46 @@ void main() {
   vec3 grass_colour = vec3(3. / 16., 3. / 4., 1. / 2.);
   vec3 stone_colour = vec3(1. / 4., 1. / 2., 1. / 2.);
 
-    float value = material0_value(base_world);
-    float mix_value = clamp(
-        .25 * height_value + edge_value + .5 + (value * 8.), 0., 1.);
-    if (material > .5) {
-      mix_value = 0.;
-    }
+  float value = material0_value(base_world);
+  float mix_value = clamp(
+      .25 * height_value + edge_value + .5 + (value * 8.), 0., 1.);
+  if (normal.y < 1.) {
+    mix_value = 0.;
+  }
 
-    vec4 grass_perturb =
-        simplex3_gradient(base_world / 4.) / 128. +
-        simplex3_gradient(base_world / 2.) / 128.;
-    vec3 grass_normal = normalize(normal + vec3(grass_perturb.x, 0., grass_perturb.z));
+  vec4 grass_perturb =
+      simplex3_gradient(base_world / 4.) / 128. +
+      simplex3_gradient(base_world / 2.) / 128.;
+  vec3 grass_normal = normalize(normal + vec3(grass_perturb.x, 0., grass_perturb.z));
 
-    vec4 stone_value =
-        simplex3_gradient(world / 64.) / 2. +
-        simplex3_gradient(world / 32.) / 1. +
-        simplex3_gradient(world / 16.) / 2. +
-        simplex3_gradient(world / 8.) / 4.;
+  vec4 stone_value =
+      simplex3_gradient(world / 64.) / 2. +
+      simplex3_gradient(world / 32.) / 1. +
+      simplex3_gradient(world / 16.) / 2. +
+      simplex3_gradient(world / 8.) / 4.;
 
-    stone_colour *=
-        (stone_value.w >= -1. / 8. && stone_value.w <= 1. / 8.)
-        || mix_value > 0. || edge_value > .75 ? .75 : 1.;
-    if (mix_value > 0.) {
-      stone_value.w = 1. / 8.;
-    }
+  stone_colour *=
+      (stone_value.w >= -1. / 8. && stone_value.w <= 1. / 8.)
+      || mix_value > 0. || edge_value > .75 ? .75 : 1.;
+  if (mix_value > 0.) {
+    stone_value.w = 1. / 8.;
+  }
 
-    vec3 stone_normal = normal;
-    if (stone_value.w >= 1. / 16. && stone_value.w <= 3. / 16.) {
-      stone_normal = normalize(cross(
-        plane_u + normal * dot(plane_u, stone_value.xyz),
-        plane_v + normal * dot(plane_v, stone_value.xyz)));
-    } else if (stone_value.w >= -3. / 16. && stone_value.w <= -1. / 16.) {
-      stone_normal = normalize(cross(
-        plane_u + normal * dot(plane_u, -stone_value.xyz),
-        plane_v + normal * dot(plane_v, -stone_value.xyz)));
-    }
+  vec3 stone_normal = normal;
+  if (stone_value.w >= 1. / 16. && stone_value.w <= 3. / 16.) {
+    stone_normal = normalize(cross(
+      plane_u + normal * dot(plane_u, stone_value.xyz),
+      plane_v + normal * dot(plane_v, stone_value.xyz)));
+  } else if (stone_value.w >= -3. / 16. && stone_value.w <= -1. / 16.) {
+    stone_normal = normalize(cross(
+      plane_u + normal * dot(plane_u, -stone_value.xyz),
+      plane_v + normal * dot(plane_v, -stone_value.xyz)));
+  }
 
-    colour = mix(stone_colour, grass_colour, clamp(mix_value * 2. - 1., 0., 1.));
-    normal = normalize(mix(
-        mix(stone_normal, normal, clamp(.75 + mix_value, 0., 1.)),
-        grass_normal, mix_value));
+  colour = mix(stone_colour, grass_colour, clamp(mix_value * 2. - 1., 0., 1.));
+  normal = normalize(mix(
+      mix(stone_normal, normal, clamp(.75 + mix_value, 0., 1.)),
+      grass_normal, mix_value));
 
   material_buffer_normal = normal;
   material_buffer_colour = vec4(colour, 0.);
