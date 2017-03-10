@@ -36,8 +36,7 @@ out vec4 output_colour;
 
 void main() {
   vec3 world = vec3(vertex_world);
-
-  vec3 fog_seed =  + world + vec3(frame) / vec3(8., 32., 8.);
+  vec3 fog_seed = world * vec3(1., 4., 1.) + vec3(frame) / vec3(8., 32., 8.);
 
   vec4 n =
       simplex3_gradient(fog_seed * d1024) * d4 +
