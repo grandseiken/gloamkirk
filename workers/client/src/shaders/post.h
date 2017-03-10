@@ -16,6 +16,7 @@ const std::string post_fragment = gamma + POST_STRINGIFY(POST_CONSTANTS) R"""(
 uniform sampler2D source_framebuffer;
 uniform sampler2D dither_matrix;
 uniform vec2 dimensions;
+uniform vec2 translation;
 uniform float frame;
 
 out vec4 output_colour;
@@ -74,7 +75,10 @@ void main()
   vec2 b_off = .11 * b_dir * frame;
 
   vec3 value = vec3(texture(source_framebuffer, gl_FragCoord.xy / dimensions));
-  vec3 dither = matrix_lookup(gl_FragCoord.xy, r_off / 4., g_off / 4., b_off / 4.);
+  vec3 dither = matrix_lookup(
+      gl_FragCoord.xy + translation,
+      r_off / 4., g_off / 4., b_off / 4.);
+
   output_colour = vec4(mix(value, gamma_correct_dither(value, dither), dither_mix), 1.);
 }
 )""";

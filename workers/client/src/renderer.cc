@@ -161,6 +161,7 @@ void Renderer::resize(const glm::ivec2& dimensions) {
 
 void Renderer::begin_frame() const {
   ++frame_;
+  dither_translation_ = {};
   set_default_render_states();
   draw_.reset(new glo::ActiveFramebuffer{framebuffer_->draw()});
   glViewport(0, 0, framebuffer_dimensions().x, framebuffer_dimensions().y);
@@ -175,9 +176,13 @@ void Renderer::end_frame() const {
     auto draw = postbuffer_->draw();
     glViewport(0, 0, framebuffer_dimensions().x, framebuffer_dimensions().y);
 
+    glm::vec2 translation = dither_translation_;
+    translation.y = -translation.y;
+
     auto program = post_program_.use();
     glUniform1f(program.uniform("frame"), static_cast<float>(frame_));
     glUniform2fv(program.uniform("dimensions"), 1, glm::value_ptr(dimensions));
+    glUniform2fv(program.uniform("translation"), 1, glm::value_ptr(translation));
     program.uniform_texture("dither_matrix", a_dither_matrix_);
     program.uniform_texture("source_framebuffer", framebuffer_->colour_textures()[0]);
     draw_quad();
@@ -204,6 +209,10 @@ void Renderer::set_default_render_states() const {
   glDisable(GL_BLEND);
   glDisable(GL_CULL_FACE);
   glDisable(GL_DEPTH_TEST);
+}
+
+void Renderer::set_dither_translation(const glm::ivec2& translation) const {
+  dither_translation_ = translation;
 }
 
 void Renderer::set_simplex3_uniforms(const glo::ActiveProgram& program) const {

@@ -87,6 +87,7 @@ gloam::ModeAction run(bool fullscreen, bool first_run, bool local, const std::st
       }
     }
 
+    // TODO: need to drop frames when rendering too slowly!
     renderer.begin_frame();
     renderer.set_default_render_states();
     auto mode_result = mode->update(input);

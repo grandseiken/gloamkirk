@@ -33,6 +33,7 @@ public:
 
   // Utility functions for common rendering tasks.
   void set_default_render_states() const;
+  void set_dither_translation(const glm::ivec2& translation) const;
   void set_simplex3_uniforms(const glo::ActiveProgram& program) const;
 
   void draw_quad() const;
@@ -44,6 +45,7 @@ public:
 
 private:
   mutable std::uint64_t frame_;
+  mutable glm::ivec2 dither_translation_;
   mutable std::unique_ptr<glo::ActiveFramebuffer> draw_;
 
   int target_upscale_;

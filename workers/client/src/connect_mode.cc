@@ -74,7 +74,7 @@ ConnectMode::ConnectMode(worker::Connection&& connection)
 }
 
 ModeResult ConnectMode::update(const Input& input) {
-  if (input.pressed(Button::kAnyKey)) {
+  if (!connected_ && input.pressed(Button::kAnyKey)) {
     disconnect_ack_ = true;
   }
   if (connected_) {

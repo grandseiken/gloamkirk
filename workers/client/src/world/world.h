@@ -2,8 +2,8 @@
 #define GLOAM_WORKERS_CLIENT_SRC_WORLD_WORLD_H
 #include "common/src/common/hashes.h"
 #include "workers/client/src/world/world_renderer.h"
-#include <improbable/worker.h>
 #include <glm/vec3.hpp>
+#include <improbable/worker.h>
 #include <schema/chunk.h>
 #include <unordered_map>
 

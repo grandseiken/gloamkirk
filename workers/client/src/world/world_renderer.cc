@@ -272,15 +272,22 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
   }
 
   // Not sure what exact values we need for z-planes to be correct, this should do for now.
-  auto camera_distance = static_cast<float>(std::max(kTileSize, 2 * idimensions.y));
   glm::vec2 dimensions = idimensions;
+  auto camera_distance =
+      static_cast<float>(std::max(kTileSize, 2 * std::max(idimensions.x, idimensions.y)));
+  auto ortho = glm::ortho(dimensions.x / 2, -dimensions.x / 2, -dimensions.y / 2, dimensions.y / 2,
+                          -camera_distance, camera_distance);
 
   glm::vec3 up{0.f, 1.f, 0.f};
-  auto ortho = glm::ortho(dimensions.x / 2, -dimensions.x / 2, -dimensions.y / 2, dimensions.y / 2,
-                          1 / camera_distance, 2 * camera_distance);
-  auto look_at = glm::lookAt(camera + camera_distance * glm::vec3{.5f, 1.f, -1.f}, camera, up);
-  auto camera_matrix = ortho * look_at;
+  glm::vec3 camera_direction{1.f, 1.f, -1.f};
+  auto look_at = glm::lookAt(camera_direction, {}, up);
+
+  // Do panning in screen-space to preserve pixels.
+  glm::vec3 screen_space_translation = glm::round(look_at * glm::vec4{camera, 1.f});
+  auto panning = glm::translate({}, -screen_space_translation);
+  auto camera_matrix = ortho * panning * look_at;
   auto pixel_height = 1.f / look_at[1][1];
+  renderer.set_dither_translation(-glm::ivec2{screen_space_translation});
 
   renderer.set_default_render_states();
   glEnable(GL_DEPTH_TEST);

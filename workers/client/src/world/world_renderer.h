@@ -15,6 +15,7 @@ namespace world {
 class WorldRenderer {
 public:
   WorldRenderer();
+  glm::vec3 get_screen_space_translation(const glm::vec3& camera) const;
   void render(const Renderer& renderer, const glm::vec3& camera,
               const std::unordered_map<glm::ivec2, schema::Tile>& tile_map) const;
 

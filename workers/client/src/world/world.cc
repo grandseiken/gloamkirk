@@ -70,16 +70,16 @@ void World::set_player_id(worker::EntityId player_id) {
 void World::update(const Input& input) {
   glm::vec3 direction;
   if (input.held(Button::kLeft)) {
-    direction += glm::vec3{-1.f, 0.f, 0.f};
+    direction += glm::vec3{-1.f, 0.f, -1.f};
   }
   if (input.held(Button::kRight)) {
-    direction += glm::vec3{1.f, 0.f, 0.f};
+    direction += glm::vec3{1.f, 0.f, 1.f};
   }
   if (input.held(Button::kDown)) {
-    direction += glm::vec3{0.f, 0.f, -1.f};
+    direction += glm::vec3{1.f, 0.f, -1.f};
   }
   if (input.held(Button::kUp)) {
-    direction += glm::vec3{0.f, 0.f, 1.f};
+    direction += glm::vec3{-1.f, 0.f, 1.f};
   }
   if (direction != glm::vec3{}) {
     entity_positions_[player_id_] += 1.5f * glm::normalize(direction);
@@ -91,7 +91,7 @@ void World::render(const Renderer& renderer) const {
   if (it == entity_positions_.end()) {
     return;
   }
-  world_renderer_.render(renderer, glm::round(it->second), tile_map_);
+  world_renderer_.render(renderer, it->second, tile_map_);
 }
 
 void World::update_chunk(const schema::ChunkData& data) {
