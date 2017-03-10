@@ -14,6 +14,7 @@ namespace world {
 namespace {
 // Tile size in pixels.
 const std::int32_t kTileSize = 32;
+const std::int32_t kPixelLayers = 8;
 
 glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema::Tile>& tile_map,
                                     float pixel_height) {
@@ -61,7 +62,7 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
     bool bl_edge = height_differs(coord + glm::ivec2{-1, -1}, pair.second.height());
     bool br_edge = height_differs(coord + glm::ivec2{1, -1}, pair.second.height());
 
-    for (std::int32_t pixel_layer = 0; pixel_layer < 8; ++pixel_layer) {
+    for (std::int32_t pixel_layer = 0; pixel_layer < kPixelLayers; ++pixel_layer) {
       auto world_height = pixel_layer * pixel_height;
       auto world_offset = glm::vec4{0.f, pixel_layer * pixel_height, 0.f, 0.f};
 

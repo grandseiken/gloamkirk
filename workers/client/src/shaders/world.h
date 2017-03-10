@@ -7,20 +7,6 @@ namespace gloam {
 namespace shaders {
 namespace {
 
-const std::string material_common = R"""(
-float material0_value(vec3 world) {
-  return
-      simplex3(world / 256.) / 2. +
-      simplex3(world / 128.) / 4. +
-      simplex3(world / 64.) / 8. +
-      simplex3(world / 32.) / 16.;
-      simplex3(world / 16.) / 32. +
-      simplex3(world / 8.) / 64. +
-      simplex3(world / 4.) / 128. +
-      simplex3(world / 2.) / 256.;
-}
-)""";
-
 const std::string world_vertex = R"""(
 uniform mat4 camera_matrix;
 
@@ -41,7 +27,7 @@ void main()
 }
 )""";
 
-const std::string world_fragment = simplex3 + material_common + R"""(
+const std::string world_fragment = simplex3 + R"""(
 uniform float frame;
 
 flat in vec4 vertex_normal;
@@ -52,6 +38,17 @@ layout(location = 0) out vec3 world_buffer_position;
 layout(location = 1) out vec3 world_buffer_normal;
 layout(location = 2) out vec4 world_buffer_material;
 
+const float d512 = 1. / 512.;
+const float d256 = 1. / 256.;
+const float d128 = 1. / 128.;
+const float d64 = 1. / 64.;
+const float d32 = 1. / 32.;
+const float d16 = 1. / 16.;
+const float d8 = 1. / 8.;
+const float d4 = 1. / 4.;
+const float d2 = 1. / 2.;
+const float d1 = 1. / 1.;
+
 void main()
 {
   vec3 world = vec3(vertex_world);
@@ -61,15 +58,22 @@ void main()
   float height_value = vertex_material.b;
 
   vec3 base_world = world - vec3(0., height_value, 0.);
-  if (material < .5) {
-    float value = material0_value(base_world);
-    float detail_value = 4. +
-        4. * simplex3(base_world / 32.) +
-        4. * simplex3(base_world / 8.) +
-        6. * simplex3(base_world / 2.) +
-        8. * simplex3(base_world / 1.);
-    float height_here = clamp(detail_value, 0., 16.) *
-        clamp(edge_value + .5 + (value * 8.), 0., 1.);
+  if (normal.y >= 1.) {
+    float s512 = simplex3(base_world * d512);
+    float s256 = simplex3(base_world * d256);
+    float s128 = simplex3(base_world * d128);
+    float s64 = simplex3(base_world * d64);
+    float s32 = simplex3(base_world * d32);
+    float s16 = simplex3(base_world * d16);
+    float s2 = simplex3(base_world * d2);
+    float s1 = simplex3(base_world * d1);
+
+    float value = d2 * s512 + d1 * s256 + d2 * s128 + d4 * s64 + d8 * s32 + d16 * s16;
+    float detail_value = 4. + 4. * s32 + 4. * s16 + 6. * s2 + 8. * s1;
+
+    float height_here =
+        clamp(detail_value, 0., 16.) *
+        clamp(edge_value + d2 + (value * 8.), 0., 1.);
 
     if (height_value > height_here) {
       discard;
@@ -86,7 +90,7 @@ void main()
 }
 )""";
 
-const std::string material_fragment = simplex3 + material_common + R"""(
+const std::string material_fragment = simplex3 + R"""(
 uniform sampler2D world_buffer_position;
 uniform sampler2D world_buffer_normal;
 uniform sampler2D world_buffer_material;
@@ -95,6 +99,17 @@ uniform float frame;
 
 layout(location = 0) out vec3 material_buffer_normal;
 layout(location = 1) out vec4 material_buffer_colour;
+
+const float d512 = 1. / 512.;
+const float d256 = 1. / 256.;
+const float d128 = 1. / 128.;
+const float d64 = 1. / 64.;
+const float d32 = 1. / 32.;
+const float d16 = 1. / 16.;
+const float d8 = 1. / 8.;
+const float d4 = 1. / 4.;
+const float d2 = 1. / 2.;
+const float d1 = 1. / 1.;
 
 void main() {
   vec2 texture_coords = gl_FragCoord.xy / dimensions;
@@ -114,23 +129,23 @@ void main() {
   vec3 grass_colour = vec3(3. / 16., 3. / 4., 1. / 2.);
   vec3 stone_colour = vec3(1. / 4., 1. / 2., 1. / 2.);
 
-  float value = material0_value(base_world);
-  float mix_value = clamp(
-      .25 * height_value + edge_value + .5 + (value * 8.), 0., 1.);
+  float s512 = simplex3(base_world * d512);
+  float s256 = simplex3(base_world * d256);
+  float s128 = simplex3(base_world * d128);
+  vec4 g64 = simplex3_gradient(base_world * d64);
+  vec4 g32 = simplex3_gradient(base_world * d32);
+  vec4 g16 = simplex3_gradient(base_world * d16);
+  vec4 g8 = simplex3_gradient(base_world * d8);
+  vec4 g2 = simplex3_gradient(base_world * d2);
+
+  float value = d2 * s512 + d1 * s256 + d2 * s128 + d4 * g64.w + d8 * g32.w + d16 * g16.w;
+  float mix_value = clamp(d4 * height_value + edge_value + d2 + (value * 8.), 0., 1.);
   if (normal.y < 1.) {
     mix_value = 0.;
   }
 
-  vec4 grass_perturb =
-      simplex3_gradient(base_world / 4.) / 128. +
-      simplex3_gradient(base_world / 2.) / 128.;
-  vec3 grass_normal = normalize(normal + vec3(grass_perturb.x, 0., grass_perturb.z));
-
-  vec4 stone_value =
-      simplex3_gradient(world / 64.) / 2. +
-      simplex3_gradient(world / 32.) / 1. +
-      simplex3_gradient(world / 16.) / 2. +
-      simplex3_gradient(world / 8.) / 4.;
+  vec3 grass_normal = normalize(normal + d64 * vec3(g2.x, 0., g2.z));
+  vec4 stone_value = d2 * g64 + d1 * g32 + d2 * g16 + d4 * g8;
 
   stone_colour *=
       (stone_value.w >= -1. / 8. && stone_value.w <= 1. / 8.)

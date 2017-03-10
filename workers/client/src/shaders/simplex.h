@@ -62,7 +62,7 @@ vec4 simplex3_internal_permute(vec4 x)
         texture(simplex3_permutation_lut, s.z).x,
         texture(simplex3_permutation_lut, s.w).x);
   }
-  return mod(1 + x * (1 + 2 * x * simplex3_permutation_prime_factor),
+  return mod(1. + x * (1. + 2. * x * simplex3_permutation_prime_factor),
              simplex3_permutation_ring_size);
 }
 
@@ -73,9 +73,9 @@ vec4 simplex3_internal_random4(vec3 i0, vec3 i1, vec3 i2)
     i0 = mod(i0, simplex3_permutation_ring_size);
   }
   return
-      simplex3_internal_permute(i0.x + vec4(0, i1.x, i2.x, 1) +
-      simplex3_internal_permute(i0.y + vec4(0, i1.y, i2.y, 1) +
-      simplex3_internal_permute(i0.z + vec4(0, i1.z, i2.z, 1))));
+      simplex3_internal_permute(i0.x + vec4(0., i1.x, i2.x, 1) +
+      simplex3_internal_permute(i0.y + vec4(0., i1.y, i2.y, 1) +
+      simplex3_internal_permute(i0.z + vec4(0., i1.z, i2.z, 1))));
 }
 
 vec4 simplex3_internal(vec3 coord, bool compute_gradient)
