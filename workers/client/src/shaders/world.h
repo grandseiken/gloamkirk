@@ -69,7 +69,7 @@ void main()
         6. * simplex3(base_world / 2.) +
         8. * simplex3(base_world / 1.);
     float height_here = clamp(detail_value, 0., 16.) *
-        clamp(2. * edge_value + .5 + (value * 8.), 0., 1.);
+        clamp(edge_value + .5 + (value * 8.), 0., 1.);
 
     if (height_value > height_here) {
       discard;
@@ -112,11 +112,13 @@ void main() {
   vec3 colour = vec3(0.);
   vec3 grass_colour = vec3(3. / 16., 3. / 4., 1. / 2.);
   vec3 stone_colour = vec3(1. / 4., 1. / 2., 1. / 2.);
-  if (material < .5) {
+
     float value = material0_value(base_world);
     float mix_value = clamp(
-        .25 * height_value + 2. * edge_value + clamp(.5 + (value * 8.), 0., 1.),
-        0., 1.);
+        .25 * height_value + edge_value + .5 + (value * 8.), 0., 1.);
+    if (material > .5) {
+      mix_value = 0.;
+    }
 
     vec4 grass_perturb =
         simplex3_gradient(base_world / 4.) / 128. +
@@ -131,7 +133,7 @@ void main() {
 
     stone_colour *=
         (stone_value.w >= -1. / 8. && stone_value.w <= 1. / 8.)
-        || mix_value > 0. ? .75 : 1.;
+        || mix_value > 0. || edge_value > .75 ? .75 : 1.;
     if (mix_value > 0.) {
       stone_value.w = 1. / 8.;
     }
@@ -151,14 +153,6 @@ void main() {
     normal = normalize(mix(
         mix(stone_normal, normal, clamp(.75 + mix_value, 0., 1.)),
         grass_normal, mix_value));
-  } else {
-    vec3 seed = world;
-    seed.y /= 8.;
-    float value = (simplex3(seed / 32.) + simplex3(seed / 8.)) / 2.;
-
-    const vec3 wall_colour = vec3(.65, .65, .85);
-    colour = value * value < 1. / 32. ? stone_colour * .75 : stone_colour;
-  }
 
   material_buffer_normal = normal;
   material_buffer_colour = vec4(colour, 0.);
