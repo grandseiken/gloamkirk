@@ -1,4 +1,5 @@
 #include "workers/client/src/connect_mode.h"
+#include "workers/client/src/input.h"
 #include "workers/client/src/renderer.h"
 #include "workers/client/src/shaders/common.h"
 #include "workers/client/src/world/world.h"
@@ -72,14 +73,10 @@ ConnectMode::ConnectMode(worker::Connection&& connection)
   world_.reset(new world::World{*connection_, dispatcher_});
 }
 
-ModeResult ConnectMode::event(const sf::Event& event) {
-  if (!connected_ && event.type == sf::Event::KeyPressed) {
+ModeResult ConnectMode::update(const Input& input) {
+  if (input.pressed(Button::kAnyKey)) {
     disconnect_ack_ = true;
   }
-  return {ModeAction::kNone, {}};
-}
-
-ModeResult ConnectMode::update() {
   if (connected_) {
     dispatcher_.Process(connection_->GetOpList(/* millis */ 0));
 

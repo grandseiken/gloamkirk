@@ -14,8 +14,7 @@ public:
   TitleMode(bool first_run, bool fade_in, bool local,
             const worker::ConnectionParameters& connection_params,
             const worker::LocatorParameters& locator_params);
-  ModeResult event(const sf::Event& event) override;
-  ModeResult update() override;
+  ModeResult update(const Input& input) override;
   void render(const Renderer& renderer) const override;
 
 private:

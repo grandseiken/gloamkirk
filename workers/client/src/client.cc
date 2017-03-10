@@ -75,8 +75,7 @@ gloam::ModeAction run(bool fullscreen, bool first_run, bool local, const std::st
   first_run = false;
 
   while (window->isOpen()) {
-    gloam::ModeResult mode_result = {};
-
+    input.update();
     sf::Event event;
     while (window->pollEvent(event)) {
       if (event.type == sf::Event::Closed) {
@@ -84,21 +83,16 @@ gloam::ModeAction run(bool fullscreen, bool first_run, bool local, const std::st
       } else if (event.type == sf::Event::Resized) {
         renderer.resize({window->getSize().x, window->getSize().y});
       } else {
-        mode_result = mode->event(event);
-        if (mode_result.action != gloam::ModeAction::kNone || mode_result.new_mode) {
-          break;
-        }
+        input.handle(event);
       }
     }
 
-    if (mode_result.action == gloam::ModeAction::kNone && !mode_result.new_mode) {
-      renderer.begin_frame();
-      renderer.set_default_render_states();
-      mode_result = mode->update();
-      mode->render(renderer);
-      renderer.end_frame();
-      window->display();
-    }
+    renderer.begin_frame();
+    renderer.set_default_render_states();
+    auto mode_result = mode->update(input);
+    mode->render(renderer);
+    renderer.end_frame();
+    window->display();
 
     if (mode_result.action == gloam::ModeAction::kExitApplication ||
         mode_result.action == gloam::ModeAction::kToggleFullscreen) {

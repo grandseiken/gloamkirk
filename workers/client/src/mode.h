@@ -7,6 +7,7 @@ class Event;
 }  // ::sf
 
 namespace gloam {
+class Input;
 class Renderer;
 
 enum class ModeAction {
@@ -25,8 +26,7 @@ struct ModeResult {
 class Mode {
 public:
   virtual ~Mode() = default;
-  virtual ModeResult event(const sf::Event& event) = 0;
-  virtual ModeResult update() = 0;
+  virtual ModeResult update(const Input& input) = 0;
   virtual void render(const Renderer& renderer) const = 0;
 };
 

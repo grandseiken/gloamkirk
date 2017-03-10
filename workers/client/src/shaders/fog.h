@@ -1,5 +1,6 @@
 #ifndef GLOAM_WORKERS_CLIENT_SRC_SHADERS_FOG_H
 #define GLOAM_WORKERS_CLIENT_SRC_SHADERS_FOG_H
+#include "workers/client/src/shaders/common.h"
 #include "workers/client/src/shaders/light.h"
 #include "workers/client/src/shaders/simplex.h"
 #include <string>
@@ -22,7 +23,7 @@ void main()
 }
 )""";
 
-const std::string fog_fragment = light + simplex3 + R"""(
+const std::string fog_fragment = common + light + simplex3 + R"""(
 uniform vec4 fog_colour;
 uniform vec3 light_world;
 uniform float light_intensity;
@@ -39,14 +40,14 @@ void main() {
   vec3 fog_seed =  + world + vec3(frame) / vec3(8., 32., 8.);
 
   vec4 n =
-      simplex3_gradient(fog_seed / 1024.) / 1. +
-      simplex3_gradient(fog_seed / 512.) / 2. +
-      simplex3_gradient(fog_seed / 256.) / 1. +
-      simplex3_gradient(fog_seed / 128.) / 2. +
-      simplex3_gradient(fog_seed / 64.) / 4. +
-      simplex3_gradient(fog_seed / 32.) / 8. +
-      simplex3_gradient(fog_seed / 16.) / 16. +
-      simplex3_gradient(fog_seed / 8.) / 8.;
+      simplex3_gradient(fog_seed * d1024) * d4 +
+      simplex3_gradient(fog_seed * d512) * d2 +
+      simplex3_gradient(fog_seed * d256) * d1 +
+      simplex3_gradient(fog_seed * d128) * d2 +
+      simplex3_gradient(fog_seed * d64) * d4 +
+      simplex3_gradient(fog_seed * d32) * d8 +
+      simplex3_gradient(fog_seed * d16) * d16 +
+      simplex3_gradient(fog_seed * d8) * d8;
 
   vec3 u = vec3(1., 0., 0.);
   vec3 v = vec3(0., 0., 1.);

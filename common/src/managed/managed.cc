@@ -107,6 +107,7 @@ int connect(const std::string& worker_type, const std::vector<WorkerLogic*>& log
       }
     }
 
+    // TODO: report load based on how much time out of the frame was used.
     next_update += std::chrono::duration<std::uint64_t, std::ratio<1, kFramesPerSecond>>{1};
     std::this_thread::sleep_until(next_update);
   }

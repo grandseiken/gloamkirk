@@ -12,6 +12,13 @@ void hash_combine(std::size_t& seed, const T& v) {
   seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }
 
+template <typename T>
+struct identity_hash {
+  std::size_t operator()(const T& t) const {
+    return static_cast<std::size_t>(t);
+  }
+};
+
 }  // ::common
 }  // ::gloam
 

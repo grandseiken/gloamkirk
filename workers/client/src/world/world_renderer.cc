@@ -315,9 +315,7 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
     renderer.draw_quad();
   }
 
-  static float a = 0;
-  a += 1 / 128.f;
-  auto light_position = camera + glm::vec3{256.f * cos(a), 48.f, 256.f * sin(a)};
+  auto light_position = camera + glm::vec3{0.f, 48.f, 0.f};
   {
     // Should be converted to draw the lights as individuals quads in a single draw call.
     auto program = light_program_.use();

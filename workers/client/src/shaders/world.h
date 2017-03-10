@@ -1,5 +1,6 @@
 #ifndef GLOAM_WORKERS_CLIENT_SRC_SHADERS_WORLD_H
 #define GLOAM_WORKERS_CLIENT_SRC_SHADERS_WORLD_H
+#include "workers/client/src/shaders/common.h"
 #include "workers/client/src/shaders/simplex.h"
 #include <string>
 
@@ -27,7 +28,7 @@ void main()
 }
 )""";
 
-const std::string world_fragment = simplex3 + R"""(
+const std::string world_fragment = common + simplex3 + R"""(
 uniform float frame;
 
 flat in vec4 vertex_normal;
@@ -37,17 +38,6 @@ smooth in vec3 vertex_material;
 layout(location = 0) out vec3 world_buffer_position;
 layout(location = 1) out vec3 world_buffer_normal;
 layout(location = 2) out vec4 world_buffer_material;
-
-const float d512 = 1. / 512.;
-const float d256 = 1. / 256.;
-const float d128 = 1. / 128.;
-const float d64 = 1. / 64.;
-const float d32 = 1. / 32.;
-const float d16 = 1. / 16.;
-const float d8 = 1. / 8.;
-const float d4 = 1. / 4.;
-const float d2 = 1. / 2.;
-const float d1 = 1. / 1.;
 
 void main()
 {
@@ -90,7 +80,7 @@ void main()
 }
 )""";
 
-const std::string material_fragment = simplex3 + R"""(
+const std::string material_fragment = common + simplex3 + R"""(
 uniform sampler2D world_buffer_position;
 uniform sampler2D world_buffer_normal;
 uniform sampler2D world_buffer_material;
@@ -99,17 +89,6 @@ uniform float frame;
 
 layout(location = 0) out vec3 material_buffer_normal;
 layout(location = 1) out vec4 material_buffer_colour;
-
-const float d512 = 1. / 512.;
-const float d256 = 1. / 256.;
-const float d128 = 1. / 128.;
-const float d64 = 1. / 64.;
-const float d32 = 1. / 32.;
-const float d16 = 1. / 16.;
-const float d8 = 1. / 8.;
-const float d4 = 1. / 4.;
-const float d2 = 1. / 2.;
-const float d1 = 1. / 1.;
 
 void main() {
   vec2 texture_coords = gl_FragCoord.xy / dimensions;

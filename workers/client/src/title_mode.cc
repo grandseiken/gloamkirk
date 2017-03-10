@@ -1,5 +1,6 @@
 #include "workers/client/src/title_mode.h"
 #include "workers/client/src/connect_mode.h"
+#include "workers/client/src/input.h"
 #include "workers/client/src/shaders/common.h"
 #include "workers/client/src/shaders/text.h"
 #include "workers/client/src/shaders/title.h"
@@ -58,22 +59,20 @@ TitleMode::TitleMode(bool first_run, bool fade_in, bool local,
   }
 }
 
-ModeResult TitleMode::event(const sf::Event& event) {
-  if (connection_future_) {
-    if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape) {
-      // Doesn't seem to work.
-      connection_cancel_ = true;
-    }
-    return {ModeAction::kNone, {}};
-  }
-
-  if (deployment_list_) {
-    if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Up) {
+ModeResult TitleMode::update(const Input& input) {
+  ModeResult result = {ModeAction::kNone, {}};
+  if (connection_future_ && input.pressed(Button::kCancel)) {
+    // Doesn't seem to work most of the time, can't cancel once we're past the locator.
+    connection_cancel_ = true;
+  } else if (deployment_list_) {
+    if (input.pressed(Button::kUp)) {
       deployment_choice_ = (deployment_choice_ + deployment_list_->Deployments.size() - 1) %
           static_cast<std::int32_t>(deployment_list_->Deployments.size());
-    } else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Down) {
+    }
+    if (input.pressed(Button::kDown)) {
       deployment_choice_ = (deployment_choice_ + 1) % deployment_list_->Deployments.size();
-    } else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Return) {
+    }
+    if (input.pressed(Button::kConfirm)) {
       connection_future_.reset(new ConnectionFutureWrapper{locator_.ConnectAsync(
           deployment_list_->Deployments[deployment_choice_].DeploymentName, connection_params_,
           [&](const worker::QueueStatus& status) {
@@ -88,35 +87,29 @@ ModeResult TitleMode::event(const sf::Event& event) {
           })});
       connect_frame_ = frame_;
     }
-    return {ModeAction::kNone, {}};
-  }
-
-  if (text_alpha(frame_) <= 0.f || locator_future_) {
-    return {ModeAction::kNone, {}};
-  }
-
-  if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Up) {
-    menu_item_ = (menu_item_ + kMenuItemCount - 1) % kMenuItemCount;
-  } else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Down) {
-    menu_item_ = (menu_item_ + 1) % kMenuItemCount;
-  } else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Return) {
-    if (menu_item_ == kConnect && connection_local_) {
-      connection_future_.reset(new ConnectionFutureWrapper{
-          worker::Connection::ConnectAsync(kLocalhost, kLocalPort, connection_params_)});
-      connect_frame_ = frame_;
-    } else if (menu_item_ == kConnect && !connection_local_) {
-      locator_future_.reset(new LocatorFutureWrapper{locator_.GetDeploymentListAsync()});
-      connect_frame_ = frame_;
-    } else if (menu_item_ == kToggleFullscreen) {
-      return {ModeAction::kToggleFullscreen, {}};
-    } else if (menu_item_ == kExitApplication) {
-      return {ModeAction::kExitApplication, {}};
+  } else if (text_alpha(frame_) > 0.f && !locator_future_) {
+    if (input.pressed(Button::kUp)) {
+      menu_item_ = (menu_item_ + kMenuItemCount - 1) % kMenuItemCount;
+    }
+    if (input.pressed(Button::kDown)) {
+      menu_item_ = (menu_item_ + 1) % kMenuItemCount;
+    }
+    if (input.pressed(Button::kConfirm)) {
+      if (menu_item_ == kConnect && connection_local_) {
+        connection_future_.reset(new ConnectionFutureWrapper{
+            worker::Connection::ConnectAsync(kLocalhost, kLocalPort, connection_params_)});
+        connect_frame_ = frame_;
+      } else if (menu_item_ == kConnect && !connection_local_) {
+        locator_future_.reset(new LocatorFutureWrapper{locator_.GetDeploymentListAsync()});
+        connect_frame_ = frame_;
+      } else if (menu_item_ == kToggleFullscreen) {
+        result = {ModeAction::kToggleFullscreen, {}};
+      } else if (menu_item_ == kExitApplication) {
+        result = {ModeAction::kExitApplication, {}};
+      }
     }
   }
-  return {ModeAction::kNone, {}};
-}
 
-ModeResult TitleMode::update() {
   if (fade_in_) {
     --fade_in_;
   }
@@ -151,7 +144,7 @@ ModeResult TitleMode::update() {
              connection_future_->future.Wait({0})) {
     finish_connect_frame_ = frame_;
   }
-  return {};
+  return result;
 }
 
 void TitleMode::render(const Renderer& renderer) const {

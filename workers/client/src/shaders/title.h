@@ -1,5 +1,6 @@
 #ifndef GLOAM_WORKERS_CLIENT_SRC_SHADERS_TITLE_H
 #define GLOAM_WORKERS_CLIENT_SRC_SHADERS_TITLE_H
+#include "workers/client/src/shaders/common.h"
 #include "workers/client/src/shaders/simplex.h"
 #include <string>
 
@@ -7,7 +8,7 @@ namespace gloam {
 namespace shaders {
 namespace {
 
-const std::string title_fragment = simplex3 + R"""(
+const std::string title_fragment = common + simplex3 + R"""(
 uniform float fade;
 uniform float frame;
 uniform float random_seed;
@@ -23,18 +24,18 @@ void main()
 {
   vec2 frag = gl_FragCoord.xy;
   vec3 fog_seed = vec3(random_seed, 0., 0.) +
-      vec3(frag.xy - dimensions.xy / 2., 0.) + vec3(frame) / vec3(8., 32., 8.);
+      vec3(frag.xy - d2 * dimensions.xy, 0.) + vec3(frame) / vec3(8., 32., 8.);
   float n =
-      simplex3(fog_seed / 1024.) / 2. +
-      simplex3(fog_seed / 512.) / 1. +
-      simplex3(fog_seed / 256.) / 2. +
-      simplex3(fog_seed / 128.) / 4. +
-      simplex3(fog_seed / 64.) / 8. +
-      simplex3(fog_seed / 32.) / 16. +
-      simplex3(fog_seed / 16.) / 32. +
-      simplex3(fog_seed / 8.) / 64. +
-      simplex3(fog_seed / 4.) / 64. +
-      simplex3(fog_seed / 2.) / 64.;
+      simplex3(fog_seed * d1024) * d2 +
+      simplex3(fog_seed * d512) * d1 +
+      simplex3(fog_seed * d256) * d2 +
+      simplex3(fog_seed * d128) * d4 +
+      simplex3(fog_seed * d64) * d8 +
+      simplex3(fog_seed * d32) * d16 +
+      simplex3(fog_seed * d16) * d32 +
+      simplex3(fog_seed * d8) * d64 +
+      simplex3(fog_seed * d4) * d64 +
+      simplex3(fog_seed * d2) * d64;
   float fog_value = n / 6. + 1. / 6.;
   vec3 value = vec3(clamp(fog_value, 0., 1.));
 
@@ -46,7 +47,7 @@ void main()
 
     vec4 texture_value = texture(title_texture, sample_coords);
 
-    float fog_mix = 1. - clamp((fog_value - .125) * 8., 0., 1.);
+    float fog_mix = 1. - clamp((fog_value - d8) * 8., 0., 1.);
     value = mix(value, texture_value.rgb, texture_value.a * fog_mix * title_alpha);
   }
   output_colour = vec4(value.rg, pow(value.b, .875), 1.);

@@ -6,6 +6,20 @@ namespace gloam {
 namespace shaders {
 namespace {
 
+const std::string common = R"""(
+const float d1024 = 1. / 1024.;
+const float d512 = 1. / 512.;
+const float d256 = 1. / 256.;
+const float d128 = 1. / 128.;
+const float d64 = 1. / 64.;
+const float d32 = 1. / 32.;
+const float d16 = 1. / 16.;
+const float d8 = 1. / 8.;
+const float d4 = 1. / 4.;
+const float d2 = 1. / 2.;
+const float d1 = 1. / 1.;
+)""";
+
 const std::string gamma = R"""(
 const float gamma_value = 2.2;
 const float inverse_value = 1. / gamma_value;
