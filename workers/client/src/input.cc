@@ -7,12 +7,16 @@ namespace {
 
 Button key_code_to_button(sf::Keyboard::Key code) {
   switch (code) {
+  case sf::Keyboard::A:
   case sf::Keyboard::Left:
     return Button::kLeft;
+  case sf::Keyboard::D:
   case sf::Keyboard::Right:
     return Button::kRight;
+  case sf::Keyboard::S:
   case sf::Keyboard::Down:
     return Button::kDown;
+  case sf::Keyboard::W:
   case sf::Keyboard::Up:
     return Button::kUp;
   case sf::Keyboard::Return:
@@ -43,24 +47,19 @@ void Input::handle(const sf::Event& event) {
     auto button = key_code_to_button(event.key.code);
     if (button != Button::kNone) {
       pressed_.insert(button);
-      held_.emplace(button, 0);
-      ++held_[button];
+      held_.insert(button);
     }
   } else if (event.type == sf::Event::KeyReleased) {
     auto button = key_code_to_button(event.key.code);
     if (button != Button::kNone) {
       released_.insert(button);
-      auto it = held_.find(button);
-      if (it != held_.end() && it->second && !--it->second) {
-        held_.erase(it);
-      }
+      held_.erase(button);
     }
   }
 }
 
 bool Input::held(Button button) const {
-  auto it = held_.find(button);
-  return it != held_.end() && it->second;
+  return held_.find(button) != held_.end();
 }
 
 bool Input::pressed(Button button) const {

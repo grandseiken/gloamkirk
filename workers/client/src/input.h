@@ -43,7 +43,7 @@ private:
   std::unique_ptr<OIS::InputManager, void (*)(OIS::InputManager*)> manager_;
 
   bool any_key_ = false;
-  std::unordered_map<Button, std::uint32_t, common::identity_hash<Button>> held_;
+  std::unordered_set<Button, common::identity_hash<Button>> held_;
   std::unordered_set<Button, common::identity_hash<Button>> pressed_;
   std::unordered_set<Button, common::identity_hash<Button>> released_;
 };

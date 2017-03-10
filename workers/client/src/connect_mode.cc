@@ -89,6 +89,13 @@ ModeResult ConnectMode::update(const Input& input) {
       logged_in_ = true;
       enter_frame_ = frame_;
     }
+    if (player_id_ >= 0) {
+      world_->update(input);
+    }
+    if (logged_in_ && player_id_ < 0) {
+      connected_ = false;
+      disconnect_reason_ = "Lost player entity.";
+    }
   } else if (disconnect_reason_.empty() || disconnect_ack_) {
     return {ModeAction::kExitToTitle, {}};
   }

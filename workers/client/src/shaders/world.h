@@ -59,7 +59,7 @@ void main()
     float s1 = simplex3(base_world * d1);
 
     float value = d2 * s512 + d1 * s256 + d2 * s128 + d4 * s64 + d8 * s32 + d16 * s16;
-    float detail_value = 4. + 4. * s32 + 4. * s16 + 6. * s2 + 8. * s1;
+    float detail_value = 4. + 4. * s32 + 4. * s16 + 8. * s2 + 8. * s1;
 
     float height_here =
         clamp(detail_value, 0., 16.) *
