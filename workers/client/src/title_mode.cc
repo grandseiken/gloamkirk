@@ -61,9 +61,11 @@ TitleMode::TitleMode(bool first_run, bool fade_in, bool local,
 
 ModeResult TitleMode::update(const Input& input) {
   ModeResult result = {ModeAction::kNone, {}};
-  if (connection_future_ && input.pressed(Button::kCancel)) {
-    // Doesn't seem to work most of the time, can't cancel once we're past the locator.
-    connection_cancel_ = true;
+  if (connection_future_) {
+    if (input.pressed(Button::kCancel)) {
+      // Doesn't seem to work most of the time, can't cancel once we're past the locator.
+      connection_cancel_ = true;
+    }
   } else if (deployment_list_) {
     if (input.pressed(Button::kUp)) {
       deployment_choice_ = (deployment_choice_ + deployment_list_->Deployments.size() - 1) %

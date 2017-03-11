@@ -13,14 +13,15 @@ namespace {
 const std::string kProjectName = "alpha_zebra_pizza_956";
 const std::string kTitle = "Gloamkirk";
 const std::string kWorkerType = "client";
+constexpr const std::uint64_t kFramesPerSecond = 60;
 
 std::unique_ptr<sf::RenderWindow> create_window(bool fullscreen) {
   sf::ContextSettings settings;
   settings.depthBits = 0;
   settings.stencilBits = 0;
   settings.antialiasingLevel = 0;
-  settings.majorVersion = 3;
-  settings.minorVersion = 3;
+  settings.majorVersion = 4;
+  settings.minorVersion = 0;
   settings.attributeFlags = sf::ContextSettings::Core;
 
   std::unique_ptr<sf::RenderWindow> window{
@@ -31,7 +32,7 @@ std::unique_ptr<sf::RenderWindow> create_window(bool fullscreen) {
                 sf::Style::Default, settings}};
   // Note: vsync implicitly limits framerate to 60.
   window->setVerticalSyncEnabled(true);
-  window->setFramerateLimit(60);
+  window->setFramerateLimit(kFramesPerSecond);
   window->setVisible(true);
   window->display();
   return window;
@@ -86,11 +87,11 @@ gloam::ModeAction run(bool fullscreen, bool first_run, bool local, const std::st
         input.handle(event);
       }
     }
+    auto mode_result = mode->update(input);
 
     // TODO: need to drop frames when rendering too slowly!
     renderer.begin_frame();
     renderer.set_default_render_states();
-    auto mode_result = mode->update(input);
     mode->render(renderer);
     renderer.end_frame();
     window->display();

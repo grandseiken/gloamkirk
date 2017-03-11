@@ -26,9 +26,13 @@ inline void Init() {
   GLEW_CHECK(GLEW_ARB_shading_language_100);
   GLEW_CHECK(GLEW_ARB_shader_objects);
   GLEW_CHECK(GLEW_ARB_vertex_shader);
+  GLEW_CHECK(GLEW_ARB_tessellation_shader);
+  GLEW_CHECK(GLEW_ARB_geometry_shader4);
   GLEW_CHECK(GLEW_ARB_fragment_shader);
+  GLEW_CHECK(GLEW_ARB_texture_rectangle);
+  GLEW_CHECK(GLEW_ARB_sampler_objects);
   GLEW_CHECK(GLEW_ARB_framebuffer_object);
-  GLEW_CHECK(GLEW_EXT_framebuffer_multisample);
+  GLEW_CHECK(GLEW_EXT_framebuffer_blit);
 #undef GLEW_CHECK
 }
 
@@ -41,7 +45,7 @@ public:
 
   Shader(const std::string& name, std::uint32_t shader_type, const std::string& source)
   : resource_{new Resource{shader_type}} {
-    auto source_versioned = "#version 430\n" + source;
+    auto source_versioned = "#version 430 core\n" + source;
     auto data = source_versioned.data();
     glShaderSource(resource_->shader, 1, &data, nullptr);
     glCompileShader(resource_->shader);
@@ -324,12 +328,12 @@ private:
       stack[target].pop_back();
       // Hack, probably works for actual use-cases.
       if (target == GL_FRAMEBUFFER && stack[target].empty()) {
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, stack[GL_READ_FRAMEBUFFER].empty()
-                              ? 0
-                              : stack[GL_READ_FRAMEBUFFER].back());
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, stack[GL_DRAW_FRAMEBUFFER].empty()
-                              ? 0
-                              : stack[GL_DRAW_FRAMEBUFFER].back());
+        glBindFramebuffer(GL_READ_FRAMEBUFFER,
+                          stack[GL_READ_FRAMEBUFFER].empty() ? 0
+                                                             : stack[GL_READ_FRAMEBUFFER].back());
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER,
+                          stack[GL_DRAW_FRAMEBUFFER].empty() ? 0
+                                                             : stack[GL_DRAW_FRAMEBUFFER].back());
       } else if (stack[target].empty()) {
         glBindFramebuffer(target, stack[GL_FRAMEBUFFER].empty() ? 0 : stack[GL_FRAMEBUFFER].back());
       } else {

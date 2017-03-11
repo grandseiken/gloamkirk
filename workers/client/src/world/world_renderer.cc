@@ -16,8 +16,28 @@ namespace {
 const std::int32_t kTileSize = 32;
 const std::int32_t kPixelLayers = 8;
 
+bool is_visible(const glm::mat4& camera_matrix, const std::vector<glm::vec3>& vertices) {
+  bool xlo = false;
+  bool xhi = false;
+  bool ylo = false;
+  bool yhi = false;
+  bool zlo = false;
+  bool zhi = false;
+
+  for (const auto& v : vertices) {
+    auto s = camera_matrix * glm::vec4{v, 1.f};
+    xlo = xlo || s.x >= -1.f;
+    xhi = xhi || s.x <= 1.f;
+    ylo = ylo || s.y >= -1.f;
+    yhi = yhi || s.y <= 1.f;
+    zlo = zlo || s.z >= -1.f;
+    zhi = zhi || s.z <= 1.f;
+  }
+  return xlo && xhi && ylo && yhi && zlo && zhi;
+}
+
 glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema::Tile>& tile_map,
-                                    float pixel_height) {
+                                    const glm::mat4& camera_matrix, float pixel_height) {
   std::vector<float> data;
   std::vector<GLuint> indices;
   GLuint index = 0;
@@ -62,7 +82,17 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
     bool bl_edge = height_differs(coord + glm::ivec2{-1, -1}, pair.second.height());
     bool br_edge = height_differs(coord + glm::ivec2{1, -1}, pair.second.height());
 
-    for (std::int32_t pixel_layer = 0; pixel_layer < kPixelLayers; ++pixel_layer) {
+    std::vector<glm::vec3> vertices = {{min.x, height, min.y},
+                                       {min.x, height, max.y},
+                                       {max.x, height, min.y},
+                                       {max.x, height, max.y}};
+    auto all_vertices = vertices;
+    for (const auto& v : vertices) {
+      all_vertices.emplace_back(v + glm::vec3{0.f, kPixelLayers * pixel_height, 0.f});
+    }
+
+    bool visible = is_visible(camera_matrix, all_vertices);
+    for (std::int32_t pixel_layer = 0; visible && pixel_layer < kPixelLayers; ++pixel_layer) {
       auto world_height = pixel_layer * pixel_height;
       auto world_offset = glm::vec4{0.f, pixel_layer * pixel_height, 0.f, 0.f};
 
@@ -139,27 +169,31 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
       max = glm::vec2{(1 + coord.x) * kTileSize, height};
       glm::vec4 side_normal = {0., 0., jt->second.height() > pair.second.height() ? 1. : -1., 1.};
 
-      add_vec4({min.x, min.y, y, 1.f});
-      add_vec4(side_normal);
-      data.push_back(0);
-      data.push_back(0);
-      data.push_back(0);
-      add_vec4({min.x, max.y, y, 1.f});
-      add_vec4(side_normal);
-      data.push_back(0);
-      data.push_back(0);
-      data.push_back(0);
-      add_vec4({max.x, min.y, y, 1.f});
-      add_vec4(side_normal);
-      data.push_back(0);
-      data.push_back(0);
-      data.push_back(0);
-      add_vec4({max.x, max.y, y, 1.f});
-      add_vec4(side_normal);
-      data.push_back(0);
-      data.push_back(0);
-      data.push_back(0);
-      add_quad();
+      if (is_visible(
+              camera_matrix,
+              {{min.x, min.y, y}, {min.x, max.y, y}, {max.x, min.y, y}, {max.x, max.y, y}})) {
+        add_vec4({min.x, min.y, y, 1.f});
+        add_vec4(side_normal);
+        data.push_back(0);
+        data.push_back(0);
+        data.push_back(0);
+        add_vec4({min.x, max.y, y, 1.f});
+        add_vec4(side_normal);
+        data.push_back(0);
+        data.push_back(0);
+        data.push_back(0);
+        add_vec4({max.x, min.y, y, 1.f});
+        add_vec4(side_normal);
+        data.push_back(0);
+        data.push_back(0);
+        data.push_back(0);
+        add_vec4({max.x, max.y, y, 1.f});
+        add_vec4(side_normal);
+        data.push_back(0);
+        data.push_back(0);
+        data.push_back(0);
+        add_quad();
+      }
     }
 
     jt = tile_map.find(coord - glm::ivec2{1, 0});
@@ -170,33 +204,40 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
       max = glm::vec2{(1 + coord.y) * kTileSize, height};
       glm::vec4 side_normal = {jt->second.height() > pair.second.height() ? 1. : -1., 0., 0., 1.};
 
-      add_vec4({x, min.y, min.x, 1.f});
-      add_vec4(side_normal);
-      data.push_back(0);
-      data.push_back(0);
-      data.push_back(0);
-      add_vec4({x, min.y, max.x, 1.f});
-      add_vec4(side_normal);
-      data.push_back(0);
-      data.push_back(0);
-      data.push_back(0);
-      add_vec4({x, max.y, min.x, 1.f});
-      add_vec4(side_normal);
-      data.push_back(0);
-      data.push_back(0);
-      data.push_back(0);
-      add_vec4({x, max.y, max.x, 1.f});
-      add_vec4(side_normal);
-      data.push_back(0);
-      data.push_back(0);
-      data.push_back(0);
-      add_quad();
+      if (is_visible(
+              camera_matrix,
+              {{x, min.y, min.x}, {x, min.y, max.x}, {x, max.y, min.x}, {x, max.y, max.x}})) {
+        add_vec4({x, min.y, min.x, 1.f});
+        add_vec4(side_normal);
+        data.push_back(0);
+        data.push_back(0);
+        data.push_back(0);
+        add_vec4({x, min.y, max.x, 1.f});
+        add_vec4(side_normal);
+        data.push_back(0);
+        data.push_back(0);
+        data.push_back(0);
+        add_vec4({x, max.y, min.x, 1.f});
+        add_vec4(side_normal);
+        data.push_back(0);
+        data.push_back(0);
+        data.push_back(0);
+        add_vec4({x, max.y, max.x, 1.f});
+        add_vec4(side_normal);
+        data.push_back(0);
+        data.push_back(0);
+        data.push_back(0);
+        add_quad();
+      }
     }
   }
 
   glo::VertexData result{data, indices, GL_DYNAMIC_DRAW};
+  // World position.
   result.enable_attribute(0, 4, 11, 0);
+  // Vertex normals.
   result.enable_attribute(1, 4, 11, 4);
+  // Material (material value, edge value, height value, ...?).
   result.enable_attribute(2, 3, 11, 8);
   return result;
 }
@@ -304,7 +345,7 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
     glUniformMatrix4fv(program.uniform("camera_matrix"), 1, false, glm::value_ptr(camera_matrix));
     glUniform1f(program.uniform("frame"), static_cast<float>(renderer.frame()));
     renderer.set_simplex3_uniforms(program);
-    generate_world_data(tile_map, pixel_height).draw();
+    generate_world_data(tile_map, camera_matrix, pixel_height).draw();
   }
 
   renderer.set_default_render_states();
