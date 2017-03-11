@@ -37,7 +37,8 @@ bool is_visible(const glm::mat4& camera_matrix, const std::vector<glm::vec3>& ve
 }
 
 glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema::Tile>& tile_map,
-                                    const glm::mat4& camera_matrix, float pixel_height) {
+                                    const glm::mat4& camera_matrix, bool world_pass,
+                                    float pixel_height) {
   std::vector<float> data;
   std::vector<GLuint> indices;
   GLuint index = 0;
@@ -92,7 +93,8 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
     }
 
     bool visible = is_visible(camera_matrix, all_vertices);
-    for (std::int32_t pixel_layer = 0; visible && pixel_layer < kPixelLayers; ++pixel_layer) {
+    auto max_layer = world_pass ? kPixelLayers : 1;
+    for (std::int32_t pixel_layer = 0; visible && pixel_layer < max_layer; ++pixel_layer) {
       auto world_height = pixel_layer * pixel_height;
       auto world_offset = glm::vec4{0.f, pixel_layer * pixel_height, 0.f, 0.f};
 
@@ -275,7 +277,10 @@ glo::VertexData generate_fog_data(const glm::vec3& camera, const glm::vec2& dime
 }  // anonymous
 
 WorldRenderer::WorldRenderer()
-: world_program_{"world",
+: height_program_{"height",
+                  {"world_vertex", GL_VERTEX_SHADER, shaders::world_vertex},
+                  {"height_fragment", GL_FRAGMENT_SHADER, shaders::height_fragment}}
+, world_program_{"world",
                  {"world_vertex", GL_VERTEX_SHADER, shaders::world_vertex},
                  {"world_fragment", GL_FRAGMENT_SHADER, shaders::world_fragment}}
 , material_program_{"material",
@@ -292,6 +297,11 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
                            const std::unordered_map<glm::ivec2, schema::Tile>& tile_map) const {
   auto idimensions = renderer.framebuffer_dimensions();
   if (!world_buffer_ || world_buffer_->dimensions() != idimensions) {
+    world_height_buffer_.reset(new glo::Framebuffer{2 * idimensions});
+    // World height buffer.
+    world_height_buffer_->add_colour_buffer(/* high-precision RGB */ true);
+    world_height_buffer_->add_depth_stencil_buffer();
+
     world_buffer_.reset(new glo::Framebuffer{idimensions});
     // World position buffer.
     world_buffer_->add_colour_buffer(/* high-precision RGB */ true);
@@ -308,16 +318,14 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
     // Colour buffer.
     material_buffer_->add_colour_buffer(/* RGBA */ false);
 
+    world_height_buffer_->check_complete();
     world_buffer_->check_complete();
     material_buffer_->check_complete();
   }
 
-  // Not sure what exact values we need for z-planes to be correct, this should do for now.
-  glm::vec2 dimensions = idimensions;
+  // Not sure what exact values we need for z-planes to be correct. This should do for now.
   auto camera_distance =
       static_cast<float>(std::max(kTileSize, 2 * std::max(idimensions.x, idimensions.y)));
-  auto ortho = glm::ortho(dimensions.x / 2, -dimensions.x / 2, -dimensions.y / 2, dimensions.y / 2,
-                          -camera_distance, camera_distance);
 
   glm::vec3 up{0.f, 1.f, 0.f};
   glm::vec3 camera_direction{1.f, 1.f, -1.f};
@@ -326,9 +334,15 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
   // Do panning in screen-space to preserve pixels.
   glm::vec3 screen_space_translation = glm::round(look_at * glm::vec4{camera, 1.f});
   auto panning = glm::translate({}, -screen_space_translation);
-  auto camera_matrix = ortho * panning * look_at;
   auto pixel_height = 1.f / look_at[1][1];
   renderer.set_dither_translation(-glm::ivec2{screen_space_translation});
+
+  auto camera_matrix = [&](const glm::vec2& dimensions) {
+    auto ortho = glm::ortho(dimensions.x / 2, -dimensions.x / 2, -dimensions.y / 2,
+                            dimensions.y / 2, -camera_distance, camera_distance);
+    return ortho * panning * look_at;
+  };
+  glm::vec2 dimensions = idimensions;
 
   renderer.set_default_render_states();
   glEnable(GL_DEPTH_TEST);
@@ -337,15 +351,34 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
   glFrontFace(GL_CCW);
   glCullFace(GL_BACK);
   {
+    auto draw = world_height_buffer_->draw();
+    glViewport(0, 0, 2 * idimensions.x, 2 * idimensions.y);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    auto program = height_program_.use();
+    glUniformMatrix4fv(program.uniform("camera_matrix"), 1, false,
+                       glm::value_ptr(camera_matrix(2.f * dimensions)));
+    glUniform1f(program.uniform("frame"), static_cast<float>(renderer.frame()));
+    renderer.set_simplex3_uniforms(program);
+    generate_world_data(tile_map,
+                        camera_matrix(dimensions + 2.f * glm::vec2{kPixelLayers, kPixelLayers}),
+                        false, pixel_height)
+        .draw();
+  }
+
+  {
     auto draw = world_buffer_->draw();
     glViewport(0, 0, idimensions.x, idimensions.y);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    auto world_height_buffer_scale = glm::vec2{2.f, 2.f};
 
     auto program = world_program_.use();
-    glUniformMatrix4fv(program.uniform("camera_matrix"), 1, false, glm::value_ptr(camera_matrix));
-    glUniform1f(program.uniform("frame"), static_cast<float>(renderer.frame()));
-    renderer.set_simplex3_uniforms(program);
-    generate_world_data(tile_map, camera_matrix, pixel_height).draw();
+    program.uniform_texture("world_height_buffer", world_height_buffer_->colour_textures()[0]);
+    glUniformMatrix4fv(program.uniform("camera_matrix"), 1, false,
+                       glm::value_ptr(camera_matrix(dimensions)));
+    glUniform2fv(program.uniform("world_height_buffer_scale"), 1,
+                 glm::value_ptr(world_height_buffer_scale));
+    generate_world_data(tile_map, camera_matrix(dimensions), true, pixel_height).draw();
   }
 
   renderer.set_default_render_states();
@@ -392,7 +425,8 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
   // Fog must be rendered in separate draw calls for transparency.
   auto render_fog = [&](float height, const glm::vec4 fog_colour) {
     auto program = fog_program_.use();
-    glUniformMatrix4fv(program.uniform("camera_matrix"), 1, false, glm::value_ptr(camera_matrix));
+    glUniformMatrix4fv(program.uniform("camera_matrix"), 1, false,
+                       glm::value_ptr(camera_matrix(dimensions)));
     renderer.set_simplex3_uniforms(program);
     glUniform4fv(program.uniform("fog_colour"), 1, glm::value_ptr(fog_colour));
     glUniform3fv(program.uniform("light_world"), 1, glm::value_ptr(light_position));

@@ -28,8 +28,48 @@ void main()
 }
 )""";
 
-const std::string world_fragment = common + simplex3 + R"""(
+const std::string height_fragment = common + simplex3 + R"""(
 uniform float frame;
+
+flat in vec4 vertex_normal;
+smooth in vec4 vertex_world;
+smooth in vec3 vertex_material;
+
+layout(location = 0) out vec3 world_height_buffer;
+
+void main()
+{
+  vec3 world = vec3(vertex_world);
+  vec3 normal = vec3(vertex_normal);
+  float material = vertex_material.r;
+  float edge_value = vertex_material.g;
+
+  float height_value = 0.;
+  if (normal.y >= 1.) {
+    float s512 = simplex3(world * d512);
+    float s256 = simplex3(world * d256);
+    float s128 = simplex3(world * d128);
+    float s64 = simplex3(world * d64);
+    float s32 = simplex3(world * d32);
+    float s16 = simplex3(world * d16);
+    float s2 = simplex3(world * d2);
+    float s1 = simplex3(world * d1);
+
+    float value = d2 * s512 + d1 * s256 + d2 * s128 + d4 * s64 + d8 * s32 + d16 * s16;
+    float detail_value = 4. + 4. * s32 + 4. * s16 + 8. * s2 + 8. * s1;
+
+    height_value =
+        clamp(detail_value, 0., 16.) *
+        clamp(edge_value + d2 + (value * 8.), 0., 1.);
+  }
+  world_height_buffer = vec3(height_value, 0., 0.);
+}
+)""";
+
+const std::string world_fragment = R"""(
+uniform mat4 camera_matrix;
+uniform sampler2D world_height_buffer;
+uniform vec2 world_height_buffer_scale;
 
 flat in vec4 vertex_normal;
 smooth in vec4 vertex_world;
@@ -41,42 +81,18 @@ layout(location = 2) out vec4 world_buffer_material;
 
 void main()
 {
-  vec3 world = vec3(vertex_world);
-  vec3 normal = vec3(vertex_normal);
-  float material = vertex_material.r;
-  float edge_value = vertex_material.g;
-  float height_value = vertex_material.b;
+  float vertex_height_value = vertex_material.b;
+  vec4 base_world = vertex_world - vec4(0., vertex_height_value, 0., 0.);
+  vec2 texture_coords = ((camera_matrix * base_world).xy / world_height_buffer_scale + 1.) / 2.;
+  float world_height_value = texture(world_height_buffer, texture_coords).r;
 
-  vec3 base_world = world - vec3(0., height_value, 0.);
-  if (normal.y >= 1.) {
-    float s512 = simplex3(base_world * d512);
-    float s256 = simplex3(base_world * d256);
-    float s128 = simplex3(base_world * d128);
-    float s64 = simplex3(base_world * d64);
-    float s32 = simplex3(base_world * d32);
-    float s16 = simplex3(base_world * d16);
-    float s2 = simplex3(base_world * d2);
-    float s1 = simplex3(base_world * d1);
-
-    float value = d2 * s512 + d1 * s256 + d2 * s128 + d4 * s64 + d8 * s32 + d16 * s16;
-    float detail_value = 4. + 4. * s32 + 4. * s16 + 8. * s2 + 8. * s1;
-
-    float height_here =
-        clamp(detail_value, 0., 16.) *
-        clamp(edge_value + d2 + (value * 8.), 0., 1.);
-
-    if (height_value > height_here) {
-      discard;
-    }
+  if (vertex_height_value > world_height_value) {
+    discard;
   } else {
-    if (height_value > 0.) {
-      discard;
-    }
+    world_buffer_position = vec3(vertex_world);
+    world_buffer_normal = vec3(vertex_normal);
+    world_buffer_material = vec4(vertex_material, 0.);
   }
-
-  world_buffer_position = world;
-  world_buffer_normal = normal;
-  world_buffer_material = vec4(vertex_material, 0.);
 }
 )""";
 

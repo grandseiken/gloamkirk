@@ -15,15 +15,16 @@ namespace world {
 class WorldRenderer {
 public:
   WorldRenderer();
-  glm::vec3 get_screen_space_translation(const glm::vec3& camera) const;
   void render(const Renderer& renderer, const glm::vec3& camera,
               const std::unordered_map<glm::ivec2, schema::Tile>& tile_map) const;
 
 private:
+  glo::Program height_program_;
   glo::Program world_program_;
   glo::Program material_program_;
   glo::Program light_program_;
   glo::Program fog_program_;
+  mutable std::unique_ptr<glo::Framebuffer> world_height_buffer_;
   mutable std::unique_ptr<glo::Framebuffer> world_buffer_;
   mutable std::unique_ptr<glo::Framebuffer> material_buffer_;
 };
