@@ -17,10 +17,13 @@ else()
   add_definitions(-Wall -Wextra -Werror -pedantic)
 endif()
 
+# Find toolbelt.
+find_program(SPATIAL_COMMAND spatial)
+# Function to package workers.
 function(managed_worker_zip TARGET)
-  add_custom_target("${TARGET}_zip"
+  add_custom_target("${TARGET}_zip" ALL
     COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_ASSEMBLY}/worker"
-    COMMAND spatial file zip
+    COMMAND ${SPATIAL_COMMAND} file zip
             -b "$<TARGET_FILE_DIR:${TARGET}>"
             -o "${PROJECT_ASSEMBLY}/worker/${TARGET}"
             --worker_platform=current "$<TARGET_FILE_NAME:${TARGET}>"
