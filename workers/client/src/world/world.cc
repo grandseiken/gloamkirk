@@ -1,23 +1,11 @@
 #include "workers/client/src/world/world.h"
+#include "common/src/common/conversions.h"
 #include "workers/client/src/input.h"
 #include <glm/glm.hpp>
 #include <schema/common.h>
 
 namespace gloam {
 namespace world {
-namespace {
-
-glm::vec3 coords(const improbable::math::Coordinates& schema_coords) {
-  return {schema_coords.x(), schema_coords.y(), schema_coords.z()};
-}
-
-glm::ivec2 tile_coords(const schema::ChunkData& data, std::size_t tile_index) {
-  auto index = static_cast<std::int32_t>(tile_index);
-  auto size = data.chunk_size();
-  return {size * data.chunk_x() + index % size, size * data.chunk_y() + index / size};
-}
-
-}  // anonymous
 
 World::World(worker::Connection& connection, worker::Dispatcher& dispatcher)
 : connection_{connection}, dispatcher_{dispatcher}, player_id_{-1} {
@@ -27,18 +15,18 @@ World::World(worker::Connection& connection, worker::Dispatcher& dispatcher)
 
   dispatcher_.OnAddComponent<schema::Position>(
       [&](const worker::AddComponentOp<schema::Position>& op) {
-        entity_positions_.insert(std::make_pair(op.EntityId, coords(op.Data.coords())));
+        entity_positions_.insert(std::make_pair(op.EntityId, common::coords(op.Data.coords())));
       });
 
   dispatcher_.OnRemoveComponent<schema::Position>(
       [&](const worker::RemoveComponentOp& op) { entity_positions_.erase(op.EntityId); });
 
-  dispatcher_.OnComponentUpdate<schema::Position>(
-      [&](const worker::ComponentUpdateOp<schema::Position>& op) {
-        if (op.Update.coords()) {
-          entity_positions_.insert(std::make_pair(op.EntityId, coords(*op.Update.coords())));
-        }
-      });
+  dispatcher_.OnComponentUpdate<schema::Position>([&](
+      const worker::ComponentUpdateOp<schema::Position>& op) {
+    if (op.Update.coords()) {
+      entity_positions_.insert(std::make_pair(op.EntityId, common::coords(*op.Update.coords())));
+    }
+  });
 
   dispatcher_.OnAddComponent<schema::Chunk>([&](const worker::AddComponentOp<schema::Chunk>& op) {
     chunk_map_.emplace(op.EntityId, op.Data);
@@ -95,15 +83,13 @@ void World::render(const Renderer& renderer) const {
 }
 
 void World::update_chunk(const schema::ChunkData& data) {
-  for (std::size_t i = 0; i < data.tiles().size(); ++i) {
-    tile_map_.insert(std::make_pair(tile_coords(data, i), data.tiles()[i]));
-  }
+  common::update_chunk(tile_map_, data);
+  collision_.update(tile_map_);
 }
 
 void World::clear_chunk(const schema::ChunkData& data) {
-  for (std::size_t i = 0; i < data.tiles().size(); ++i) {
-    tile_map_.erase(tile_coords(data, i));
-  }
+  common::clear_chunk(tile_map_, data);
+  collision_.update(tile_map_);
 }
 
 }  // ::world

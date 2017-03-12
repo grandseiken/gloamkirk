@@ -12,5 +12,5 @@ source_group(src "src/[^/]*")
 
 add_executable(master ${MASTER_SOURCE_FILES})
 target_include_directories(master PRIVATE "${PROJECT_ROOT}")
-target_link_libraries(master managed worker_sdk schema glm)
+target_link_libraries(master managed schema worker_sdk glm)
 managed_worker_zip(master)

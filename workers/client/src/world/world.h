@@ -1,6 +1,7 @@
 #ifndef GLOAM_WORKERS_CLIENT_SRC_WORLD_WORLD_H
 #define GLOAM_WORKERS_CLIENT_SRC_WORLD_WORLD_H
 #include "common/src/common/hashes.h"
+#include "common/src/collision/collision.h"
 #include "workers/client/src/world/world_renderer.h"
 #include <glm/vec3.hpp>
 #include <improbable/worker.h>
@@ -36,6 +37,7 @@ private:
   std::unordered_map<worker::EntityId, glm::vec3> entity_positions_;
   std::unordered_map<worker::EntityId, schema::ChunkData> chunk_map_;
   std::unordered_map<glm::ivec2, schema::Tile> tile_map_;
+  collision::Collision collision_;
   WorldRenderer world_renderer_;
 };
 
