@@ -30,7 +30,6 @@ uniform float light_intensity;
 uniform float frame;
 
 smooth in vec4 vertex_world;
-smooth in vec4 vertex_screen;
 
 out vec4 output_colour;
 

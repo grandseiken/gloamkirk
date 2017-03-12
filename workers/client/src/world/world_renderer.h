@@ -27,6 +27,7 @@ private:
   mutable std::unique_ptr<glo::Framebuffer> world_height_buffer_;
   mutable std::unique_ptr<glo::Framebuffer> world_buffer_;
   mutable std::unique_ptr<glo::Framebuffer> material_buffer_;
+  mutable std::unique_ptr<glo::Framebuffer> composition_buffer_;
 };
 
 }  // ::world

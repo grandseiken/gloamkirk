@@ -15,6 +15,7 @@ namespace {
 // Tile size in pixels.
 const std::int32_t kTileSize = 32;
 const std::int32_t kPixelLayers = 8;
+const std::int32_t kAntialiasLevel = 2;
 
 bool is_visible(const glm::mat4& camera_matrix, const std::vector<glm::vec3>& vertices) {
   bool xlo = false;
@@ -297,12 +298,15 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
                            const std::unordered_map<glm::ivec2, schema::Tile>& tile_map) const {
   auto idimensions = renderer.framebuffer_dimensions();
   if (!world_buffer_ || world_buffer_->dimensions() != idimensions) {
+    // The height buffer dimensions are doubled, but this is just so we can sample past the edge of
+    // the screen. We don't want to antialias it since this makes for a blurry result.
     world_height_buffer_.reset(new glo::Framebuffer{2 * idimensions});
     // World height buffer.
     world_height_buffer_->add_colour_buffer(/* high-precision RGB */ true);
     world_height_buffer_->add_depth_stencil_buffer();
 
-    world_buffer_.reset(new glo::Framebuffer{idimensions});
+    // The dimensions and scale of the remaining buffers are increased for antialiasing.
+    world_buffer_.reset(new glo::Framebuffer{kAntialiasLevel * idimensions});
     // World position buffer.
     world_buffer_->add_colour_buffer(/* high-precision RGB */ true);
     // World normal buffer.
@@ -312,15 +316,21 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
     // World depth buffer.
     world_buffer_->add_depth_stencil_buffer();
 
-    material_buffer_.reset(new glo::Framebuffer{idimensions});
+    material_buffer_.reset(new glo::Framebuffer{kAntialiasLevel * idimensions});
     // Normal buffer.
     material_buffer_->add_colour_buffer(/* high-precision RGB */ true);
     // Colour buffer.
     material_buffer_->add_colour_buffer(/* RGBA */ false);
 
+    // Composition buffer.
+    composition_buffer_.reset(new glo::Framebuffer{kAntialiasLevel * idimensions});
+    composition_buffer_->add_colour_buffer(/* RGBA */ false);
+    composition_buffer_->add_depth_stencil_buffer();
+
     world_height_buffer_->check_complete();
     world_buffer_->check_complete();
     material_buffer_->check_complete();
+    composition_buffer_->check_complete();
   }
 
   // Not sure what exact values we need for z-planes to be correct. This should do for now.
@@ -343,6 +353,7 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
     return ortho * panning * look_at;
   };
   glm::vec2 dimensions = idimensions;
+  glm::vec2 aa_dimensions = static_cast<float>(kAntialiasLevel) * dimensions;
 
   renderer.set_default_render_states();
   glEnable(GL_DEPTH_TEST);
@@ -368,7 +379,7 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
 
   {
     auto draw = world_buffer_->draw();
-    glViewport(0, 0, idimensions.x, idimensions.y);
+    glViewport(0, 0, kAntialiasLevel * idimensions.x, kAntialiasLevel * idimensions.y);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     auto world_height_buffer_scale = glm::vec2{2.f, 2.f};
 
@@ -384,13 +395,13 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
   renderer.set_default_render_states();
   {
     auto draw = material_buffer_->draw();
-    glViewport(0, 0, idimensions.x, idimensions.y);
+    glViewport(0, 0, kAntialiasLevel * idimensions.x, kAntialiasLevel * idimensions.y);
 
     auto program = material_program_.use();
     program.uniform_texture("world_buffer_position", world_buffer_->colour_textures()[0]);
     program.uniform_texture("world_buffer_normal", world_buffer_->colour_textures()[1]);
     program.uniform_texture("world_buffer_material", world_buffer_->colour_textures()[2]);
-    glUniform2fv(program.uniform("dimensions"), 1, glm::value_ptr(dimensions));
+    glUniform2fv(program.uniform("dimensions"), 1, glm::value_ptr(aa_dimensions));
     glUniform1f(program.uniform("frame"), static_cast<float>(renderer.frame()));
     renderer.set_simplex3_uniforms(program);
     renderer.draw_quad();
@@ -398,22 +409,43 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
 
   auto light_position = camera + glm::vec3{0.f, 48.f, 0.f};
   {
-    // Should be converted to draw the lights as individuals quads in a single draw call.
-    auto program = light_program_.use();
-    program.uniform_texture("world_buffer_position", world_buffer_->colour_textures()[0]);
-    program.uniform_texture("material_buffer_normal", material_buffer_->colour_textures()[0]);
-    program.uniform_texture("material_buffer_colour", material_buffer_->colour_textures()[1]);
-    glUniform2fv(program.uniform("dimensions"), 1, glm::value_ptr(dimensions));
-    glUniform3fv(program.uniform("light_world"), 1, glm::value_ptr(light_position));
-    glUniform1f(program.uniform("light_intensity"), 1.f);
-    renderer.draw_quad();
+    auto draw = composition_buffer_->draw();
+    glViewport(0, 0, kAntialiasLevel * idimensions.x, kAntialiasLevel * idimensions.y);
+    glClear(GL_COLOR_BUFFER_BIT);
+    {
+      // Should be converted to draw the lights as individuals quads in a single draw call.
+      auto program = light_program_.use();
+      program.uniform_texture("world_buffer_position", world_buffer_->colour_textures()[0]);
+      program.uniform_texture("material_buffer_normal", material_buffer_->colour_textures()[0]);
+      program.uniform_texture("material_buffer_colour", material_buffer_->colour_textures()[1]);
+      glUniform2fv(program.uniform("dimensions"), 1, glm::value_ptr(aa_dimensions));
+      glUniform3fv(program.uniform("light_world"), 1, glm::value_ptr(light_position));
+      glUniform1f(program.uniform("light_intensity"), 1.f);
+      renderer.draw_quad();
+    }
+
+    {
+      // Copy over the depth value so we can do forward rendering into the composite buffer.
+      auto read = world_buffer_->read();
+      glBlitFramebuffer(0, 0, kAntialiasLevel * idimensions.x, kAntialiasLevel * idimensions.y, 0,
+                        0, kAntialiasLevel * idimensions.x, kAntialiasLevel * idimensions.y,
+                        GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+    }
   }
 
+  glViewport(0, 0, idimensions.x, idimensions.y);
+  renderer.set_default_render_states();
+  glEnable(GL_DEPTH_TEST);
+  glDepthFunc(GL_LEQUAL);
+
+  // Finally, downsample into the output buffer and render final / transparent effects which don't
+  // need to be anti-aliased.
   {
-    // Copy over the depth value so we can do forward rendering into the final buffer.
-    auto read = world_buffer_->read();
-    glBlitFramebuffer(0, 0, idimensions.x, idimensions.y, 0, 0, idimensions.x, idimensions.y,
-                      GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+    auto read = composition_buffer_->read();
+    glBlitFramebuffer(0, 0, kAntialiasLevel * idimensions.x, kAntialiasLevel * idimensions.y, 0, 0,
+                      idimensions.x, idimensions.y, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glBlitFramebuffer(0, 0, kAntialiasLevel * idimensions.x, kAntialiasLevel * idimensions.y, 0, 0,
+                      idimensions.x, idimensions.y, GL_DEPTH_BUFFER_BIT, GL_LINEAR);
   }
 
   renderer.set_default_render_states();
@@ -427,12 +459,12 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
     auto program = fog_program_.use();
     glUniformMatrix4fv(program.uniform("camera_matrix"), 1, false,
                        glm::value_ptr(camera_matrix(dimensions)));
-    renderer.set_simplex3_uniforms(program);
     glUniform4fv(program.uniform("fog_colour"), 1, glm::value_ptr(fog_colour));
     glUniform3fv(program.uniform("light_world"), 1, glm::value_ptr(light_position));
     glUniform1f(program.uniform("light_intensity"), 1.f);
     glUniform1f(program.uniform("frame"), static_cast<float>(renderer.frame()));
-    generate_fog_data(camera, renderer.framebuffer_dimensions(), height).draw();
+    renderer.set_simplex3_uniforms(program);
+    generate_fog_data(camera, 2 * renderer.framebuffer_dimensions(), height).draw();
   };
 
   render_fog(-1.5f * static_cast<float>(kTileSize), glm::vec4{.5, .5, .5, .125});
