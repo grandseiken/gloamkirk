@@ -20,14 +20,15 @@ public:
               const std::unordered_map<glm::ivec2, schema::Tile>& tile_map) const;
 
 private:
-  void create_framebuffers(const glm::ivec2& dimensions) const;
+  void create_framebuffers(const glm::ivec2& aa_dimensions,
+                           const glm::ivec2& protrusion_dimensions) const;
 
-  glo::Program height_program_;
+  glo::Program protrusion_program_;
   glo::Program world_program_;
   glo::Program material_program_;
   glo::Program light_program_;
   glo::Program fog_program_;
-  mutable std::unique_ptr<glo::Framebuffer> world_height_buffer_;
+  mutable std::unique_ptr<glo::Framebuffer> protrusion_buffer_;
   mutable std::unique_ptr<glo::Framebuffer> world_buffer_;
   mutable std::unique_ptr<glo::Framebuffer> material_buffer_;
   mutable std::unique_ptr<glo::Framebuffer> composition_buffer_;

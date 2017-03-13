@@ -14,11 +14,9 @@ namespace world {
 namespace {
 // Tile size in pixels.
 const std::int32_t kTileSize = 32;
+// TODO: should these be a graphics quality settings?
 const std::int32_t kPixelLayers = 8;
-// TODO: currently this has to match the height buffer scaling exactly to avoid artifacts. Not sure
-// why. Want to change this to {1, 2} since we get most of the environmental AA benefit on from the
-// vertical axis.
-const glm::ivec2 kAntialiasLevel = {2, 2};
+const glm::ivec2 kAntialiasLevel = {1, 2};
 
 bool is_visible(const glm::mat4& camera_matrix, const std::vector<glm::vec3>& vertices) {
   bool xlo = false;
@@ -100,7 +98,7 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
     auto max_layer = world_pass ? kPixelLayers : 1;
     for (std::int32_t pixel_layer = 0; visible && pixel_layer < max_layer; ++pixel_layer) {
       auto world_height = pixel_layer * pixel_height;
-      auto world_offset = glm::vec4{0.f, pixel_layer * pixel_height, 0.f, 0.f};
+      auto world_offset = glm::vec4{0.f, world_height, 0.f, 0.f};
 
       add_vec4(world_offset + glm::vec4{min.x, height, min.y, 1.f});
       add_vec4(top_normal);
@@ -304,9 +302,9 @@ glm::mat4 camera_matrix(const glm::vec3& camera, const glm::ivec2& dimensions) {
 }  // anonymous
 
 WorldRenderer::WorldRenderer()
-: height_program_{"height",
-                  {"world_vertex", GL_VERTEX_SHADER, shaders::world_vertex},
-                  {"height_fragment", GL_FRAGMENT_SHADER, shaders::height_fragment}}
+: protrusion_program_{"protrusion",
+                      {"world_vertex", GL_VERTEX_SHADER, shaders::world_vertex},
+                      {"protrusion_fragment", GL_FRAGMENT_SHADER, shaders::protrusion_fragment}}
 , world_program_{"world",
                  {"world_vertex", GL_VERTEX_SHADER, shaders::world_vertex},
                  {"world_fragment", GL_FRAGMENT_SHADER, shaders::world_fragment}}
@@ -324,8 +322,12 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
                            const std::unordered_map<glm::ivec2, schema::Tile>& tile_map) const {
   auto dimensions = renderer.framebuffer_dimensions();
   auto aa_dimensions = kAntialiasLevel * dimensions;
+  auto protrusion_dimensions = 2 * dimensions;
+  // Need pixel-perfect sampling from a dimensions-sized centred box, so have to do adjust this.
+  protrusion_dimensions -= dimensions % 2;
+
   if (!world_buffer_ || world_buffer_->dimensions() != dimensions) {
-    create_framebuffers(dimensions);
+    create_framebuffers(aa_dimensions, protrusion_dimensions);
   }
   renderer.set_dither_translation(-glm::ivec2{screen_space_translation(camera)});
   auto pixel_height = 1.f / look_at_matrix()[1][1];
@@ -337,13 +339,13 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
   glFrontFace(GL_CCW);
   glCullFace(GL_BACK);
   {
-    auto draw = world_height_buffer_->draw();
-    glViewport(0, 0, 2 * dimensions.x, 2 * dimensions.y);
+    auto draw = protrusion_buffer_->draw();
+    glViewport(0, 0, protrusion_dimensions.x, protrusion_dimensions.y);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    auto program = height_program_.use();
+    auto program = protrusion_program_.use();
     glUniformMatrix4fv(program.uniform("camera_matrix"), 1, false,
-                       glm::value_ptr(camera_matrix(camera, 2 * dimensions)));
+                       glm::value_ptr(camera_matrix(camera, protrusion_dimensions)));
     glUniform1f(program.uniform("frame"), static_cast<float>(renderer.frame()));
     renderer.set_simplex3_uniforms(program);
     generate_world_data(
@@ -358,11 +360,12 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     auto program = world_program_.use();
-    program.uniform_texture("world_height_buffer", world_height_buffer_->colour_textures()[0]);
+    program.uniform_texture("protrusion_buffer", protrusion_buffer_->colour_textures()[0]);
     glUniformMatrix4fv(program.uniform("camera_matrix"), 1, false,
                        glm::value_ptr(camera_matrix(camera, dimensions)));
-    glUniform2fv(program.uniform("world_height_buffer_scale"), 1,
-                 glm::value_ptr(glm::vec2{2.f, 2.f}));
+    glUniform2fv(program.uniform("protrusion_buffer_dimensions"), 1,
+                 glm::value_ptr(glm::vec2{protrusion_dimensions}));
+    glUniform2fv(program.uniform("dimensions"), 1, glm::value_ptr(glm::vec2{dimensions}));
     generate_world_data(tile_map, camera_matrix(camera, dimensions), true, pixel_height).draw();
   }
 
@@ -446,20 +449,21 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
   render_fog(1.5f * static_cast<float>(kTileSize), glm::vec4{.5, .5, .5, .125});
 }
 
-void WorldRenderer::create_framebuffers(const glm::ivec2& dimensions) const {
+void WorldRenderer::create_framebuffers(const glm::ivec2& aa_dimensions,
+                                        const glm::ivec2& protrusion_dimensions) const {
   // World height buffer. This is the first pass where we render the pixel height (protrusion) of
   // surfaces into a temporary buffer, low-resolution buffer (the dimensions are doubled just so
   // we can sample past the edge of the screen). Not scaled up for antialiasing since it makes for
   // a blurry result.
-  world_height_buffer_.reset(new glo::Framebuffer{2 * dimensions});
-  world_height_buffer_->add_colour_buffer(/* high-precision RGB */ true);
-  world_height_buffer_->add_depth_stencil_buffer();
-  world_height_buffer_->check_complete();
+  protrusion_buffer_.reset(new glo::Framebuffer{protrusion_dimensions});
+  protrusion_buffer_->add_colour_buffer(/* high-precision RGB */ true);
+  protrusion_buffer_->add_depth_stencil_buffer();
+  protrusion_buffer_->check_complete();
 
   // The dimensions and scale of the remaining buffers are increased for antialiasing. The world
   // buffer is for the second pass. This is a very simple pass which uses the height buffer to
   // render many layers of pixels with depth-checking to construct the geometry.
-  world_buffer_.reset(new glo::Framebuffer{kAntialiasLevel * dimensions});
+  world_buffer_.reset(new glo::Framebuffer{aa_dimensions});
   // World position buffer.
   world_buffer_->add_colour_buffer(/* high-precision RGB */ true);
   // World normal buffer.
@@ -471,7 +475,7 @@ void WorldRenderer::create_framebuffers(const glm::ivec2& dimensions) const {
 
   // The material buffer is for the material pass which renders the colour and normal of the scene
   // using the information stored in previous buffers.
-  material_buffer_.reset(new glo::Framebuffer{kAntialiasLevel * dimensions});
+  material_buffer_.reset(new glo::Framebuffer{aa_dimensions});
   // Normal buffer.
   material_buffer_->add_colour_buffer(/* high-precision RGB */ true);
   // Colour buffer.
@@ -482,7 +486,7 @@ void WorldRenderer::create_framebuffers(const glm::ivec2& dimensions) const {
   // we downsample into the final output buffer and render effects like fog that don't benefit
   // from anti-aliasing. If anti-aliasing is disabled, there's no need for it.
   if (kAntialiasLevel.x > 1 || kAntialiasLevel.y > 1) {
-    composition_buffer_.reset(new glo::Framebuffer{kAntialiasLevel * dimensions});
+    composition_buffer_.reset(new glo::Framebuffer{aa_dimensions});
     composition_buffer_->add_colour_buffer(/* RGBA */ false);
     composition_buffer_->add_depth_stencil_buffer();
     composition_buffer_->check_complete();

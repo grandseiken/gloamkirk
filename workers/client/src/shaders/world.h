@@ -28,14 +28,14 @@ void main()
 }
 )""";
 
-const std::string height_fragment = common + simplex3 + R"""(
+const std::string protrusion_fragment = common + simplex3 + R"""(
 uniform float frame;
 
 flat in vec4 vertex_normal;
 smooth in vec4 vertex_world;
 smooth in vec3 vertex_material;
 
-layout(location = 0) out vec3 world_height_buffer;
+layout(location = 0) out vec3 protrusion_buffer;
 
 void main()
 {
@@ -44,7 +44,7 @@ void main()
   float material = vertex_material.r;
   float edge_value = vertex_material.g;
 
-  float height_value = 0.;
+  float protrusion_value = 0.;
   if (normal.y >= 1.) {
     float s512 = simplex3(world * d512);
     float s256 = simplex3(world * d256);
@@ -58,17 +58,18 @@ void main()
     float value = d2 * s512 + d1 * s256 + d2 * s128 + d4 * s64 + d8 * s32 + d16 * s16;
     float detail_value = 4. + 4. * s32 + 4. * s16 + 8. * s2 + 8. * s1;
 
-    height_value =
+    protrusion_value =
         clamp(detail_value, 0., 16.) *
         clamp(edge_value + d2 + (value * 8.), 0., 1.);
   }
-  world_height_buffer = vec3(height_value, 0., 0.);
+  protrusion_buffer = vec3(protrusion_value, 0., 0.);
 }
 )""";
 
 const std::string world_fragment = R"""(
-uniform sampler2D world_height_buffer;
-uniform vec2 world_height_buffer_scale;
+uniform sampler2D protrusion_buffer;
+uniform vec2 protrusion_buffer_dimensions;
+uniform vec2 dimensions;
 uniform mat4 camera_matrix;
 
 flat in vec4 vertex_normal;
@@ -81,12 +82,15 @@ layout(location = 2) out vec4 world_buffer_material;
 
 void main()
 {
-  float vertex_height_value = vertex_material.b;
-  vec4 base_world = vertex_world - vec4(0., vertex_height_value, 0., 0.);
-  vec2 texture_coords = ((camera_matrix * base_world).xy / world_height_buffer_scale + 1.) / 2.;
-  float world_height_value = texture(world_height_buffer, texture_coords).r;
+  float vertex_protrusion = vertex_material.b;
+  vec4 base_world = vertex_world - vec4(0., vertex_protrusion, 0., 0.);
+  vec2 pixel_coords = dimensions * ((camera_matrix * base_world).xy + 1.) / 2.;
+  vec2 protrusion_pixel_coords = .5 + floor(pixel_coords) +
+      (protrusion_buffer_dimensions - dimensions) / 2.;
+  vec2 texture_coords = protrusion_pixel_coords / protrusion_buffer_dimensions;
+  float world_protrusion = texture(protrusion_buffer, texture_coords).r;
 
-  if (vertex_height_value > world_height_value) {
+  if (vertex_protrusion > world_protrusion) {
     discard;
   } else {
     world_buffer_position = vec3(vertex_world);
@@ -112,9 +116,9 @@ void main() {
   vec3 normal = texture(world_buffer_normal, texture_coords).xyz;
   float material = texture(world_buffer_material, texture_coords).r;
   float edge_value = texture(world_buffer_material, texture_coords).g;
-  float height_value = texture(world_buffer_material, texture_coords).b;
+  float protrusion = texture(world_buffer_material, texture_coords).b;
 
-  vec3 base_world = world - vec3(0., height_value, 0.);
+  vec3 base_world = world - vec3(0., protrusion, 0.);
   // Perpendicular unit vectors in the plane.
   vec3 plane_u = normalize(normal.x == normal.y ?
       vec3(-normal.z, 0, normal.x) : vec3(-normal.y, normal.x, 0));
@@ -134,7 +138,7 @@ void main() {
   vec4 g2 = simplex3_gradient(base_world * d2);
 
   float value = d2 * s512 + d1 * s256 + d2 * s128 + d4 * g64.w + d8 * g32.w + d16 * g16.w;
-  float mix_value = clamp(d4 * height_value + edge_value + d2 + (value * 8.), 0., 1.);
+  float mix_value = clamp(d4 * protrusion + edge_value + d2 + (value * 8.), 0., 1.);
   if (normal.y < 1.) {
     mix_value = 0.;
   }
