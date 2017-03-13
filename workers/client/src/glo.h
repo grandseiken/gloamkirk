@@ -328,12 +328,12 @@ private:
       stack[target].pop_back();
       // Hack, probably works for actual use-cases.
       if (target == GL_FRAMEBUFFER && stack[target].empty()) {
-        glBindFramebuffer(GL_READ_FRAMEBUFFER,
-                          stack[GL_READ_FRAMEBUFFER].empty() ? 0
-                                                             : stack[GL_READ_FRAMEBUFFER].back());
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER,
-                          stack[GL_DRAW_FRAMEBUFFER].empty() ? 0
-                                                             : stack[GL_DRAW_FRAMEBUFFER].back());
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, stack[GL_READ_FRAMEBUFFER].empty()
+                              ? 0
+                              : stack[GL_READ_FRAMEBUFFER].back());
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, stack[GL_DRAW_FRAMEBUFFER].empty()
+                              ? 0
+                              : stack[GL_DRAW_FRAMEBUFFER].back());
       } else if (stack[target].empty()) {
         glBindFramebuffer(target, stack[GL_FRAMEBUFFER].empty() ? 0 : stack[GL_FRAMEBUFFER].back());
       } else {

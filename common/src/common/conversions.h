@@ -21,7 +21,7 @@ inline glm::ivec2 tile_coords(const schema::ChunkData& data, std::size_t tile_in
 }
 
 inline void update_chunk(std::unordered_map<glm::ivec2, schema::Tile>& tile_map,
-                  const schema::ChunkData& chunk_data) {
+                         const schema::ChunkData& chunk_data) {
   for (std::size_t i = 0; i < chunk_data.tiles().size(); ++i) {
     auto key = tile_coords(chunk_data, i);
     auto it = tile_map.find(key);
@@ -34,7 +34,7 @@ inline void update_chunk(std::unordered_map<glm::ivec2, schema::Tile>& tile_map,
 }
 
 inline void clear_chunk(std::unordered_map<glm::ivec2, schema::Tile>& tile_map,
-                 const schema::ChunkData& chunk_data) {
+                        const schema::ChunkData& chunk_data) {
   for (std::size_t i = 0; i < chunk_data.tiles().size(); ++i) {
     tile_map.erase(tile_coords(chunk_data, i));
   }

@@ -14,7 +14,7 @@ const glm::ivec2 native_resolution = {720, 480};
 
 struct TextureImage {
   glo::Texture texture;
-  glm::vec2 dimensions;
+  glm::ivec2 dimensions;
 };
 
 TextureImage load_texture(const std::string& path);

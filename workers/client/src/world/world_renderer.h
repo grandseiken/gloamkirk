@@ -2,6 +2,7 @@
 #define GLOAM_WORKERS_CLIENT_SRC_WORLD_WORLD_RENDERER_H
 #include "common/src/common/hashes.h"
 #include "workers/client/src/glo.h"
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
 namespace gloam {
@@ -19,6 +20,8 @@ public:
               const std::unordered_map<glm::ivec2, schema::Tile>& tile_map) const;
 
 private:
+  void create_framebuffers(const glm::ivec2& dimensions) const;
+
   glo::Program height_program_;
   glo::Program world_program_;
   glo::Program material_program_;

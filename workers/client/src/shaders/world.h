@@ -67,9 +67,9 @@ void main()
 )""";
 
 const std::string world_fragment = R"""(
-uniform mat4 camera_matrix;
 uniform sampler2D world_height_buffer;
 uniform vec2 world_height_buffer_scale;
+uniform mat4 camera_matrix;
 
 flat in vec4 vertex_normal;
 smooth in vec4 vertex_world;

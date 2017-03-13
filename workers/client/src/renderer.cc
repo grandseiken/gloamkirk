@@ -169,20 +169,18 @@ void Renderer::begin_frame() const {
 }
 
 void Renderer::end_frame() const {
-  glm::vec2 dimensions = framebuffer_dimensions();
   set_default_render_states();
   draw_.reset();
   {
     auto draw = postbuffer_->draw();
     glViewport(0, 0, framebuffer_dimensions().x, framebuffer_dimensions().y);
 
-    glm::vec2 translation = dither_translation_;
-    translation.y = -translation.y;
-
     auto program = post_program_.use();
     glUniform1f(program.uniform("frame"), static_cast<float>(frame_));
-    glUniform2fv(program.uniform("dimensions"), 1, glm::value_ptr(dimensions));
-    glUniform2fv(program.uniform("translation"), 1, glm::value_ptr(translation));
+    glUniform2fv(program.uniform("dimensions"), 1,
+                 glm::value_ptr(glm::vec2{framebuffer_->dimensions()}));
+    glUniform2fv(program.uniform("translation"), 1,
+                 glm::value_ptr(glm::vec2{dither_translation_.x, -dither_translation_.y}));
     program.uniform_texture("dither_matrix", a_dither_matrix_);
     program.uniform_texture("source_framebuffer", framebuffer_->colour_textures()[0]);
     draw_quad();
@@ -295,12 +293,13 @@ void Renderer::draw_text(const std::string& text, const glm::ivec2& position,
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-  glm::vec2 dimensions = framebuffer_dimensions();
   glo::VertexData vertex_data{data, indices, GL_DYNAMIC_DRAW};
   auto program = text_program_.use();
   program.uniform_texture("text_texture", text_image_.texture);
-  glUniform2fv(program.uniform("text_dimensions"), 1, glm::value_ptr(text_image_.dimensions));
-  glUniform2fv(program.uniform("framebuffer_dimensions"), 1, glm::value_ptr(dimensions));
+  glUniform2fv(program.uniform("text_dimensions"), 1,
+               glm::value_ptr(glm::vec2{text_image_.dimensions}));
+  glUniform2fv(program.uniform("framebuffer_dimensions"), 1,
+               glm::value_ptr(glm::vec2{framebuffer_->dimensions()}));
   glUniform4fv(program.uniform("text_colour"), 1, glm::value_ptr(colour));
   vertex_data.enable_attribute(0, 2, 4, 0);
   vertex_data.enable_attribute(1, 2, 4, 2);
