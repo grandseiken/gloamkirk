@@ -4,6 +4,8 @@
 #include "workers/client/src/glo.h"
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
+#include <unordered_map>
+#include <vector>
 
 namespace gloam {
 class Renderer;
@@ -12,11 +14,15 @@ class Tile;
 }  // ::schema
 
 namespace world {
+struct Light {
+  glm::vec3 world;
+  float intensity;
+};
 
 class WorldRenderer {
 public:
   WorldRenderer();
-  void render(const Renderer& renderer, const glm::vec3& camera,
+  void render(const Renderer& renderer, const glm::vec3& camera, const std::vector<Light>& lights,
               const std::unordered_map<glm::ivec2, schema::Tile>& tile_map) const;
 
 private:

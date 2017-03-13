@@ -14,6 +14,10 @@ inline glm::vec3 coords(const improbable::math::Coordinates& schema_coords) {
   return {schema_coords.x(), schema_coords.y(), schema_coords.z()};
 }
 
+inline improbable::math::Coordinates coords(const glm::vec3& coords) {
+  return {coords.x, coords.y, coords.z};
+}
+
 inline glm::ivec2 tile_coords(const schema::ChunkData& data, std::size_t tile_index) {
   auto index = static_cast<std::int32_t>(tile_index);
   auto size = data.chunk_size();

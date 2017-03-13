@@ -151,7 +151,9 @@ void ClientHandler::update() {
 
   auto create_player_entity = [&](const Client& client, worker::EntityId entity_id) {
     worker::Map<worker::ComponentId, improbable::WorkerRequirementSet> acl_map = {
-        {schema::Player::ComponentId, client_acl(client)}};
+        {schema::Player::ComponentId, client_acl(client)},
+        // TODO: temporary client-side authority.
+        {schema::Position::ComponentId, client_acl(client)}};
     improbable::EntityAclData entity_acl{common::kAllWorkersSet, {acl_map}};
 
     worker::Entity entity;

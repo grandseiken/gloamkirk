@@ -3,6 +3,7 @@
 #include "workers/client/src/input.h"
 #include <glm/glm.hpp>
 #include <schema/common.h>
+#include <schema/player.h>
 
 namespace gloam {
 namespace world {
@@ -10,11 +11,13 @@ namespace world {
 World::World(worker::Connection& connection, worker::Dispatcher& dispatcher)
 : connection_{connection}, dispatcher_{dispatcher}, player_id_{-1} {
   dispatcher_.OnAddEntity([&](const worker::AddEntityOp& op) {
-    connection_.SendInterestedComponents<schema::Position, schema::Chunk>(op.EntityId);
+    connection_.SendInterestedComponents<schema::Position, schema::Player, schema::Chunk>(
+        op.EntityId);
   });
 
   dispatcher_.OnAddComponent<schema::Position>(
       [&](const worker::AddComponentOp<schema::Position>& op) {
+        entity_positions_.erase(op.EntityId);
         entity_positions_.insert(std::make_pair(op.EntityId, common::coords(op.Data.coords())));
       });
 
@@ -24,9 +27,17 @@ World::World(worker::Connection& connection, worker::Dispatcher& dispatcher)
   dispatcher_.OnComponentUpdate<schema::Position>([&](
       const worker::ComponentUpdateOp<schema::Position>& op) {
     if (op.Update.coords()) {
+      entity_positions_.erase(op.EntityId);
       entity_positions_.insert(std::make_pair(op.EntityId, common::coords(*op.Update.coords())));
     }
   });
+
+  dispatcher_.OnAddComponent<schema::Player>([&](const worker::AddComponentOp<schema::Player>& op) {
+    player_entities_.insert(op.EntityId);
+  });
+
+  dispatcher_.OnRemoveComponent<schema::Player>(
+      [&](const worker::RemoveComponentOp& op) { player_entities_.erase(op.EntityId); });
 
   dispatcher_.OnAddComponent<schema::Chunk>([&](const worker::AddComponentOp<schema::Chunk>& op) {
     chunk_map_.emplace(op.EntityId, op.Data);
@@ -70,8 +81,12 @@ void World::update(const Input& input) {
     direction += glm::vec3{-1.f, 0.f, 1.f};
   }
   if (direction != glm::vec3{}) {
-    entity_positions_[player_id_] += 1.5f * glm::normalize(direction);
+    entity_positions_[player_id_] += (1.5f / 32.f) * glm::normalize(direction);
   }
+  // TODO: temporary client-side authority.
+  connection_.SendComponentUpdate<schema::Position>(
+      player_id_,
+      schema::Position::Update{}.set_coords(common::coords(entity_positions_[player_id_])));
 }
 
 void World::render(const Renderer& renderer) const {
@@ -79,7 +94,15 @@ void World::render(const Renderer& renderer) const {
   if (it == entity_positions_.end()) {
     return;
   }
-  world_renderer_.render(renderer, it->second, tile_map_);
+  std::vector<Light> lights;
+  lights.push_back({it->second + glm::vec3{0.f, 1.f, 0.f}, 1.f});
+  for (worker::EntityId entity_id : player_entities_) {
+    auto jt = entity_positions_.find(entity_id);
+    if (entity_id != player_id_ && jt != entity_positions_.end()) {
+      lights.push_back({jt->second + glm::vec3{0.f, 1.f, 0.f}, .75f});
+    }
+  }
+  world_renderer_.render(renderer, it->second, lights, tile_map_);
 }
 
 void World::update_chunk(const schema::ChunkData& data) {

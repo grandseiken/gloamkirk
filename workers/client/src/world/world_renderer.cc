@@ -38,6 +38,7 @@ bool is_visible(const glm::mat4& camera_matrix, const std::vector<glm::vec3>& ve
   return xlo && xhi && ylo && yhi && zlo && zhi;
 }
 
+// TODO: should see if we can cache this between frames.
 glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema::Tile>& tile_map,
                                     const glm::mat4& camera_matrix, bool world_pass,
                                     float pixel_height) {
@@ -318,8 +319,15 @@ WorldRenderer::WorldRenderer()
                {"fog_vertex", GL_VERTEX_SHADER, shaders::fog_vertex},
                {"fog_fragment", GL_FRAGMENT_SHADER, shaders::fog_fragment}} {}
 
-void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
+void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera_in,
+                           const std::vector<Light>& lights_in,
                            const std::unordered_map<glm::ivec2, schema::Tile>& tile_map) const {
+  auto camera = static_cast<float>(kTileSize) * camera_in;
+  auto lights = lights_in;
+  for (auto& light : lights) {
+    light.world *= static_cast<float>(kTileSize);
+  }
+
   auto dimensions = renderer.framebuffer_dimensions();
   auto aa_dimensions = kAntialiasLevel * dimensions;
   auto protrusion_dimensions = 2 * dimensions;
@@ -384,7 +392,6 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
     renderer.draw_quad();
   }
 
-  auto light_position = camera + glm::vec3{0.f, 48.f, 0.f};
   auto render_lit_scene = [&] {
     glViewport(0, 0, aa_dimensions.x, aa_dimensions.y);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -395,8 +402,21 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
     program.uniform_texture("material_buffer_normal", material_buffer_->colour_textures()[0]);
     program.uniform_texture("material_buffer_colour", material_buffer_->colour_textures()[1]);
     glUniform2fv(program.uniform("dimensions"), 1, glm::value_ptr(glm::vec2{aa_dimensions}));
-    glUniform3fv(program.uniform("light_world"), 1, glm::value_ptr(light_position));
-    glUniform1f(program.uniform("light_intensity"), 1.f);
+
+    auto light_count = std::min<std::size_t>(8u, lights.size());
+    std::vector<float> light_worlds;
+    std::vector<float> light_intensities;
+    for (std::size_t i = 0; i < light_count; ++i) {
+      light_worlds.push_back(lights[i].world.x);
+      light_worlds.push_back(lights[i].world.y);
+      light_worlds.push_back(lights[i].world.z);
+      light_intensities.push_back(lights[i].intensity);
+    }
+    glUniform3fv(program.uniform("light_world"), static_cast<GLsizei>(light_count),
+                 light_worlds.data());
+    glUniform1fv(program.uniform("light_intensity"), static_cast<GLsizei>(light_count),
+                 light_intensities.data());
+    glUniform1i(program.uniform("light_count"), static_cast<GLsizei>(light_count));
     renderer.draw_quad();
 
     // Copy over the depth value so we can do forward rendering into the composite buffer.
@@ -436,8 +456,8 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera,
     glUniformMatrix4fv(program.uniform("camera_matrix"), 1, false,
                        glm::value_ptr(camera_matrix(camera, dimensions)));
     glUniform4fv(program.uniform("fog_colour"), 1, glm::value_ptr(fog_colour));
-    glUniform3fv(program.uniform("light_world"), 1, glm::value_ptr(light_position));
-    glUniform1f(program.uniform("light_intensity"), 1.f);
+    glUniform3fv(program.uniform("light_world"), 1, glm::value_ptr(lights.front().world));
+    glUniform1f(program.uniform("light_intensity"), lights.front().intensity);
     glUniform1f(program.uniform("frame"), static_cast<float>(renderer.frame()));
     renderer.set_simplex3_uniforms(program);
     generate_fog_data(camera, 2 * dimensions, height).draw();

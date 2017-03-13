@@ -7,6 +7,7 @@
 #include <improbable/worker.h>
 #include <schema/chunk.h>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace worker {
 class Connection;
@@ -33,6 +34,7 @@ private:
   worker::Connection& connection_;
   worker::Dispatcher& dispatcher_;
   worker::EntityId player_id_;
+  std::unordered_set<worker::EntityId> player_entities_;
 
   std::unordered_map<worker::EntityId, glm::vec3> entity_positions_;
   std::unordered_map<worker::EntityId, schema::ChunkData> chunk_map_;

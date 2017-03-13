@@ -33,8 +33,9 @@ uniform sampler2D material_buffer_normal;
 uniform sampler2D material_buffer_colour;
 
 uniform vec2 dimensions;
-uniform vec3 light_world;
-uniform float light_intensity;
+uniform vec3 light_world[8];
+uniform float light_intensity[8];
+uniform int light_count;
 
 out vec4 output_colour;
 
@@ -49,13 +50,16 @@ void main()
   vec3 normal = texture(material_buffer_normal, texture_coords).xyz;
   vec3 colour = texture(material_buffer_colour, texture_coords).rgb;
 
-  float light = ambient_undirected +
-      ambient_intensity * angle_factor(ambient_direction, normal) +
-      light_intensity * distance_factor(light_world, world) *
-      cutoff_factor(light_world, world, light_intensity) *
-      (.25 + .75 * angle_factor(world - light_world, normal));
+  float total = ambient_undirected +
+      ambient_intensity * angle_factor(ambient_direction, normal);
 
-  vec3 final_colour = colour * clamp(light, 0., 1.);
+  for (int i = 0; i < light_count; ++i) {
+    total += light_intensity[i] * distance_factor(light_world[i], world) *
+        cutoff_factor(light_world[i], world, light_intensity[i]) *
+        (.25 + .75 * angle_factor(world - light_world[i], normal));
+  }
+
+  vec3 final_colour = colour * clamp(total, 0., 1.);
   output_colour = vec4(final_colour, 1.);
 }
 )""";
