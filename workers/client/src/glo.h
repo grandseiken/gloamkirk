@@ -360,18 +360,24 @@ public:
   Framebuffer(const glm::ivec2& dimensions) : resource_{new Resource{dimensions}} {}
 
   void add_colour_buffer(bool high_precision) {
-    ActiveFramebuffer bind{resource_->framebuffer, GL_FRAMEBUFFER};
     resource_->colour_textures.emplace_back();
     if (high_precision) {
       resource_->colour_textures.back().create_high_precision_rgb(resource_->dimensions);
     } else {
       resource_->colour_textures.back().create_rgba(resource_->dimensions);
     }
-    resource_->colour_textures.back().attach_to_framebuffer(GL_COLOR_ATTACHMENT0 +
-                                                            resource_->colour_attachment++);
+    add_colour_buffer(resource_->colour_textures.back());
+  }
+
+  void add_colour_buffer(const Texture& texture) {
+    ActiveFramebuffer bind{resource_->framebuffer, GL_FRAMEBUFFER};
+    texture.attach_to_framebuffer(GL_COLOR_ATTACHMENT0 + resource_->colour_attachment++);
+  }
+
+  void set_draw_buffers(const std::vector<std::size_t>& indices) {
     std::vector<GLenum> draw_buffers;
-    for (GLenum i = 0; i < resource_->colour_textures.size(); ++i) {
-      draw_buffers.push_back(GL_COLOR_ATTACHMENT0 + i);
+    for (auto i : indices) {
+      draw_buffers.push_back(GL_COLOR_ATTACHMENT0 + static_cast<GLenum>(i));
     }
     glNamedFramebufferDrawBuffers(resource_->framebuffer, static_cast<GLsizei>(draw_buffers.size()),
                                   draw_buffers.data());
@@ -381,7 +387,12 @@ public:
     ActiveFramebuffer bind{resource_->framebuffer, GL_FRAMEBUFFER};
     resource_->depth_stencil_texture.reset(new Texture);
     resource_->depth_stencil_texture->create_depth_stencil(resource_->dimensions);
-    resource_->depth_stencil_texture->attach_to_framebuffer(GL_DEPTH_STENCIL_ATTACHMENT);
+    add_depth_stencil_buffer(*resource_->depth_stencil_texture);
+  }
+
+  void add_depth_stencil_buffer(const Texture& texture) {
+    ActiveFramebuffer bind{resource_->framebuffer, GL_FRAMEBUFFER};
+    texture.attach_to_framebuffer(GL_DEPTH_STENCIL_ATTACHMENT);
   }
 
   void check_complete() const {

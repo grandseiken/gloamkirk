@@ -20,6 +20,38 @@ const float d2 = 1. / 2.;
 const float d1 = 1. / 1.;
 )""";
 
+const std::string tonemap = R"""(
+float ldr_tonemap(float v)
+{
+  return clamp(v, 0., 1.);
+}
+
+vec3 ldr_tonemap(vec3 v)
+{
+  return clamp(v, 0., 1.);
+}
+
+float reinhard_tonemap(float v)
+{
+  return v / (1. + v);
+}
+
+vec3 reinhard_tonemap(vec3 v)
+{
+  return v / (1. + v);
+}
+
+float exposure_tonemap(float x)
+{
+  return 1. - exp2(-x);
+}
+
+vec3 exposure_tonemap(vec3 x)
+{
+  return 1. - exp2(-x);
+}
+)""";
+
 const std::string gamma = R"""(
 const float gamma_value = 2.2;
 const float inverse_value = 1. / gamma_value;

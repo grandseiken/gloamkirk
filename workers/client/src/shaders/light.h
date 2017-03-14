@@ -13,12 +13,12 @@ float distance_factor(vec3 a, vec3 b)
   return pow(1. / dot(d, d), 1. / 16.);
 }
 
-float cutoff_factor(vec3 a, vec3 b, float intensity)
+float cutoff_factor(vec3 a, vec3 b, float spread)
 {
-  float cutoff = 256.;
+  float cutoff = 128.;
   float cutoff_sq = cutoff * cutoff;
   vec3 d = b - a;
-  return 1. - clamp((dot(d, d) -  cutoff_sq) / (intensity * cutoff_sq), 0., 1.);
+  return 1. - clamp((dot(d, d) - spread * cutoff_sq / 2.) / (spread * cutoff_sq), 0., 1.);
 }
 
 float angle_factor(vec3 direction, vec3 normal)
@@ -27,14 +27,17 @@ float angle_factor(vec3 direction, vec3 normal)
 }
 )""";
 
-const std::string light_fragment = light + R"""(
+const std::string light_fragment = tonemap + light + R"""(
 uniform sampler2D world_buffer_position;
 uniform sampler2D material_buffer_normal;
 uniform sampler2D material_buffer_colour;
 
+const int kLightMax = 8;
+
 uniform vec2 dimensions;
-uniform vec3 light_world[8];
-uniform float light_intensity[8];
+uniform vec3 light_world[kLightMax];
+uniform float light_intensity[kLightMax];
+uniform float light_spread[kLightMax];
 uniform int light_count;
 
 out vec4 output_colour;
@@ -55,11 +58,12 @@ void main()
 
   for (int i = 0; i < light_count; ++i) {
     total += light_intensity[i] * distance_factor(light_world[i], world) *
-        cutoff_factor(light_world[i], world, light_intensity[i]) *
+        cutoff_factor(light_world[i], world, light_spread[i]) *
         (.25 + .75 * angle_factor(world - light_world[i], normal));
   }
 
-  vec3 final_colour = colour * clamp(total, 0., 1.);
+  // Pretty hacky HDR: isn't applied consistently with fog, or anything.
+  vec3 final_colour = colour * reinhard_tonemap(total);
   output_colour = vec4(final_colour, 1.);
 }
 )""";

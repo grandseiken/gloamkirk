@@ -95,14 +95,18 @@ void World::render(const Renderer& renderer) const {
     return;
   }
   std::vector<Light> lights;
-  lights.push_back({it->second + glm::vec3{0.f, 1.f, 0.f}, 1.f});
+  std::vector<glm::vec3> positions;
+
+  lights.push_back({it->second + glm::vec3{0.f, 1.f, 0.f}, 2.f, 4.f});
   for (worker::EntityId entity_id : player_entities_) {
     auto jt = entity_positions_.find(entity_id);
+    positions.push_back(jt->second);
     if (entity_id != player_id_ && jt != entity_positions_.end()) {
-      lights.push_back({jt->second + glm::vec3{0.f, 1.f, 0.f}, .75f});
+      lights.push_back({jt->second + glm::vec3{0.f, 1.f, 0.f}, 2.f, 4.f});
     }
   }
-  world_renderer_.render(renderer, it->second, lights, tile_map_);
+
+  world_renderer_.render(renderer, it->second, lights, positions, tile_map_);
 }
 
 void World::update_chunk(const schema::ChunkData& data) {

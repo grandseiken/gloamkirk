@@ -17,12 +17,14 @@ namespace world {
 struct Light {
   glm::vec3 world;
   float intensity;
+  float spread;
 };
 
 class WorldRenderer {
 public:
   WorldRenderer();
   void render(const Renderer& renderer, const glm::vec3& camera, const std::vector<Light>& lights,
+              const std::vector<glm::vec3>& positions,
               const std::unordered_map<glm::ivec2, schema::Tile>& tile_map) const;
 
 private:
@@ -32,6 +34,7 @@ private:
   glo::Program protrusion_program_;
   glo::Program world_program_;
   glo::Program material_program_;
+  glo::Program entity_program_;
   glo::Program light_program_;
   glo::Program fog_program_;
   mutable std::unique_ptr<glo::Framebuffer> protrusion_buffer_;

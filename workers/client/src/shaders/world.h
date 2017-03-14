@@ -56,7 +56,7 @@ void main()
     float s1 = simplex3(world * d1);
 
     float value = d2 * s512 + d1 * s256 + d2 * s128 + d4 * s64 + d8 * s32 + d16 * s16;
-    float detail_value = 4. + 4. * s32 + 4. * s16 + 8. * s2 + 8. * s1;
+    float detail_value = 4. * (1. + s32 + s16 + s2 + 2. * s1);
 
     protrusion_value =
         clamp(detail_value, 0., 16.) *
