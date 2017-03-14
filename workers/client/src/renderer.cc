@@ -145,9 +145,11 @@ void Renderer::resize(const glm::ivec2& dimensions) {
 
   static const int target_width = native_resolution.x;
   static const int min_height = (native_resolution.y * 2) / 3;
+  static const int max_height = (native_resolution.y * 4) / 3;
   target_upscale_ = std::max(
-      1, std::min(static_cast<int>(dimensions.y / static_cast<float>(min_height)),
-                  static_cast<int>(round(dimensions.x / static_cast<float>(target_width)))));
+      static_cast<int>(std::ceil(dimensions.y / static_cast<float>(max_height))),
+      std::min(static_cast<int>(dimensions.y / static_cast<float>(min_height)),
+               static_cast<int>(std::round(dimensions.x / static_cast<float>(target_width)))));
   auto framebuffer_dimensions = dimensions / glm::ivec2{target_upscale_};
 
   framebuffer_.reset(new glo::Framebuffer{framebuffer_dimensions});

@@ -15,6 +15,7 @@ set(CLIENT_SOURCE_FILES
   "src/title_mode.cc"
   "src/title_mode.h"
   "src/shaders/common.h"
+  "src/shaders/entity.h"
   "src/shaders/fog.h"
   "src/shaders/light.h"
   "src/shaders/post.h"

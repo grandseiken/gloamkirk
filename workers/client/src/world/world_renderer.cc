@@ -39,6 +39,13 @@ bool is_visible(const glm::mat4& camera_matrix, const std::vector<glm::vec3>& ve
   return xlo && xhi && ylo && yhi && zlo && zhi;
 }
 
+float tile_material(const schema::Tile& tile) {
+  if (tile.terrain() == schema::Tile::Terrain::GRASS) {
+    return 0.f;
+  }
+  return 1.f;
+}
+
 // TODO: should see if we can cache this between frames.
 glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema::Tile>& tile_map,
                                     const glm::mat4& camera_matrix, bool world_pass,
@@ -47,11 +54,10 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
   std::vector<GLuint> indices;
   GLuint index = 0;
 
-  auto add_vec4 = [&](const glm::vec4& v) {
+  auto add_vec3 = [&](const glm::vec3& v) {
     data.push_back(v.x);
     data.push_back(v.y);
     data.push_back(v.z);
-    data.push_back(v.w);
   };
 
   auto add_tri = [&](GLuint a, GLuint b, GLuint c) {
@@ -66,26 +72,41 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
     index += 4;
   };
 
-  auto height_differs = [&](const glm::ivec2& coord, std::int32_t height) {
-    auto it = tile_map.find(coord);
-    return it != tile_map.end() && it->second.height() != height;
-  };
-
   for (const auto& pair : tile_map) {
     const auto& coord = pair.first;
     glm::vec2 min = coord * kTileSize;
     glm::vec2 max = (coord + glm::ivec2{1, 1}) * kTileSize;
     auto height = static_cast<float>(pair.second.height() * kTileSize);
-    glm::vec4 top_normal = {0, 1., 0., 1.};
+    auto material = tile_material(pair.second);
+    glm::vec3 top_normal = {0, 1., 0.};
 
-    bool l_edge = height_differs(coord + glm::ivec2{-1, 0}, pair.second.height());
-    bool r_edge = height_differs(coord + glm::ivec2{1, 0}, pair.second.height());
-    bool b_edge = height_differs(coord + glm::ivec2{0, -1}, pair.second.height());
-    bool t_edge = height_differs(coord + glm::ivec2{0, 1}, pair.second.height());
-    bool tl_edge = height_differs(coord + glm::ivec2{-1, 1}, pair.second.height());
-    bool tr_edge = height_differs(coord + glm::ivec2{1, 1}, pair.second.height());
-    bool bl_edge = height_differs(coord + glm::ivec2{-1, -1}, pair.second.height());
-    bool br_edge = height_differs(coord + glm::ivec2{1, -1}, pair.second.height());
+    auto height_difference = [&](const glm::ivec2& coord) {
+      auto it = tile_map.find(coord);
+      return it == tile_map.end() ? 0 : it->second.height() - pair.second.height();
+    };
+
+    auto terrain_difference = [&](const glm::ivec2& coord) {
+      auto it = tile_map.find(coord);
+      return it != tile_map.end() && it->second.terrain() != pair.second.terrain();
+    };
+
+    auto l_height = height_difference(coord + glm::ivec2{-1, 0});
+    auto r_height = height_difference(coord + glm::ivec2{1, 0});
+    auto b_height = height_difference(coord + glm::ivec2{0, -1});
+    auto t_height = height_difference(coord + glm::ivec2{0, 1});
+    auto tl_height = height_difference(coord + glm::ivec2{-1, 1});
+    auto tr_height = height_difference(coord + glm::ivec2{1, 1});
+    auto bl_height = height_difference(coord + glm::ivec2{-1, -1});
+    auto br_height = height_difference(coord + glm::ivec2{1, -1});
+
+    auto l_terrain = terrain_difference(coord + glm::ivec2{-1, 0});
+    auto r_terrain = terrain_difference(coord + glm::ivec2{1, 0});
+    auto b_terrain = terrain_difference(coord + glm::ivec2{0, -1});
+    auto t_terrain = terrain_difference(coord + glm::ivec2{0, 1});
+    auto tl_terrain = terrain_difference(coord + glm::ivec2{-1, 1});
+    auto tr_terrain = terrain_difference(coord + glm::ivec2{1, 1});
+    auto bl_terrain = terrain_difference(coord + glm::ivec2{-1, -1});
+    auto br_terrain = terrain_difference(coord + glm::ivec2{1, -1});
 
     std::vector<glm::vec3> vertices = {{min.x, height, min.y},
                                        {min.x, height, max.y},
@@ -100,61 +121,79 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
     auto max_layer = world_pass ? kPixelLayers : 1;
     for (std::int32_t pixel_layer = 0; visible && pixel_layer < max_layer; ++pixel_layer) {
       auto world_height = pixel_layer * pixel_height;
-      auto world_offset = glm::vec4{0.f, world_height, 0.f, 0.f};
+      auto world_offset = glm::vec3{0.f, world_height, 0.f};
 
-      add_vec4(world_offset + glm::vec4{min.x, height, min.y, 1.f});
-      add_vec4(top_normal);
-      data.push_back(0);
-      data.push_back(l_edge || b_edge || bl_edge);
+      add_vec3(world_offset + glm::vec3{min.x, height, min.y});
+      add_vec3(top_normal);
+      data.push_back(l_height > 0 || b_height > 0 || bl_height > 0);
+      data.push_back(l_height < 0 || b_height < 0 || bl_height < 0);
+      data.push_back(l_terrain || b_terrain || bl_terrain);
       data.push_back(world_height);
+      data.push_back(material);
 
-      add_vec4(world_offset + glm::vec4{min.x, height, max.y, 1.f});
-      add_vec4(top_normal);
-      data.push_back(0);
-      data.push_back(l_edge || t_edge || tl_edge);
+      add_vec3(world_offset + glm::vec3{min.x, height, max.y});
+      add_vec3(top_normal);
+      data.push_back(l_height > 0 || t_height > 0 || tl_height > 0);
+      data.push_back(l_height < 0 || t_height < 0 || tl_height < 0);
+      data.push_back(l_terrain || t_terrain || tl_terrain);
       data.push_back(world_height);
+      data.push_back(material);
 
-      add_vec4(world_offset + glm::vec4{max.x, height, min.y, 1.f});
-      add_vec4(top_normal);
-      data.push_back(0);
-      data.push_back(r_edge || b_edge || br_edge);
+      add_vec3(world_offset + glm::vec3{max.x, height, min.y});
+      add_vec3(top_normal);
+      data.push_back(r_height > 0 || b_height > 0 || br_height > 0);
+      data.push_back(r_height < 0 || b_height < 0 || br_height < 0);
+      data.push_back(r_terrain || b_terrain || br_terrain);
       data.push_back(world_height);
+      data.push_back(material);
 
-      add_vec4(world_offset + glm::vec4{max.x, height, max.y, 1.f});
-      add_vec4(top_normal);
-      data.push_back(0);
-      data.push_back(r_edge || t_edge || tr_edge);
+      add_vec3(world_offset + glm::vec3{max.x, height, max.y});
+      add_vec3(top_normal);
+      data.push_back(r_height > 0 || t_height > 0 || tr_height > 0);
+      data.push_back(r_height < 0 || t_height < 0 || tr_height < 0);
+      data.push_back(r_terrain || t_terrain || tr_terrain);
       data.push_back(world_height);
+      data.push_back(material);
 
-      add_vec4(world_offset + glm::vec4{min.x, height, (min.y + max.y) / 2, 1.f});
-      add_vec4(top_normal);
-      data.push_back(0);
-      data.push_back(l_edge);
+      add_vec3(world_offset + glm::vec3{min.x, height, (min.y + max.y) / 2});
+      add_vec3(top_normal);
+      data.push_back(l_height > 0);
+      data.push_back(l_height < 0);
+      data.push_back(l_terrain);
       data.push_back(world_height);
+      data.push_back(material);
 
-      add_vec4(world_offset + glm::vec4{(min.x + max.x) / 2, height, max.y, 1.f});
-      add_vec4(top_normal);
-      data.push_back(0);
-      data.push_back(t_edge);
+      add_vec3(world_offset + glm::vec3{(min.x + max.x) / 2, height, max.y});
+      add_vec3(top_normal);
+      data.push_back(t_height > 0);
+      data.push_back(t_height < 0);
+      data.push_back(t_terrain);
       data.push_back(world_height);
+      data.push_back(material);
 
-      add_vec4(world_offset + glm::vec4{(min.x + max.x) / 2, height, min.y, 1.f});
-      add_vec4(top_normal);
-      data.push_back(0);
-      data.push_back(b_edge);
+      add_vec3(world_offset + glm::vec3{(min.x + max.x) / 2, height, min.y});
+      add_vec3(top_normal);
+      data.push_back(b_height > 0);
+      data.push_back(b_height < 0);
+      data.push_back(b_terrain);
       data.push_back(world_height);
+      data.push_back(material);
 
-      add_vec4(world_offset + glm::vec4{max.x, height, (min.y + max.y) / 2, 1.f});
-      add_vec4(top_normal);
-      data.push_back(0);
-      data.push_back(r_edge);
+      add_vec3(world_offset + glm::vec3{max.x, height, (min.y + max.y) / 2});
+      add_vec3(top_normal);
+      data.push_back(r_height > 0);
+      data.push_back(r_height < 0);
+      data.push_back(r_terrain);
       data.push_back(world_height);
+      data.push_back(material);
 
-      add_vec4(world_offset + glm::vec4{(min.x + max.x) / 2, height, (min.y + max.y) / 2, 1.f});
-      add_vec4(top_normal);
+      add_vec3(world_offset + glm::vec3{(min.x + max.x) / 2, height, (min.y + max.y) / 2});
+      add_vec3(top_normal);
+      data.push_back(0);
       data.push_back(0);
       data.push_back(0);
       data.push_back(world_height);
+      data.push_back(material);
 
       add_tri(0, 6, 4);
       add_tri(6, 8, 4);
@@ -173,31 +212,39 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
       auto next_height = static_cast<float>(jt->second.height() * kTileSize);
       min = glm::vec2{coord.x * kTileSize, next_height};
       max = glm::vec2{(1 + coord.x) * kTileSize, height};
-      glm::vec4 side_normal = {0., 0., jt->second.height() > pair.second.height() ? 1. : -1., 1.};
+      glm::vec3 side_normal = {0., 0., jt->second.height() > pair.second.height() ? 1. : -1.};
 
       if (is_visible(
               camera_matrix,
               {{min.x, min.y, y}, {min.x, max.y, y}, {max.x, min.y, y}, {max.x, max.y, y}})) {
-        add_vec4({min.x, min.y, y, 1.f});
-        add_vec4(side_normal);
+        add_vec3({min.x, min.y, y});
+        add_vec3(side_normal);
         data.push_back(0);
         data.push_back(0);
         data.push_back(0);
-        add_vec4({min.x, max.y, y, 1.f});
-        add_vec4(side_normal);
+        data.push_back(0);
+        data.push_back(material);
+        add_vec3({min.x, max.y, y});
+        add_vec3(side_normal);
         data.push_back(0);
         data.push_back(0);
         data.push_back(0);
-        add_vec4({max.x, min.y, y, 1.f});
-        add_vec4(side_normal);
+        data.push_back(0);
+        data.push_back(material);
+        add_vec3({max.x, min.y, y});
+        add_vec3(side_normal);
         data.push_back(0);
         data.push_back(0);
         data.push_back(0);
-        add_vec4({max.x, max.y, y, 1.f});
-        add_vec4(side_normal);
+        data.push_back(0);
+        data.push_back(material);
+        add_vec3({max.x, max.y, y});
+        add_vec3(side_normal);
         data.push_back(0);
         data.push_back(0);
         data.push_back(0);
+        data.push_back(0);
+        data.push_back(material);
         add_quad();
       }
     }
@@ -208,31 +255,39 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
       auto next_height = static_cast<float>(jt->second.height() * kTileSize);
       min = glm::vec2{coord.y * kTileSize, next_height};
       max = glm::vec2{(1 + coord.y) * kTileSize, height};
-      glm::vec4 side_normal = {jt->second.height() > pair.second.height() ? 1. : -1., 0., 0., 1.};
+      glm::vec3 side_normal = {jt->second.height() > pair.second.height() ? 1. : -1., 0., 0.};
 
       if (is_visible(
               camera_matrix,
               {{x, min.y, min.x}, {x, min.y, max.x}, {x, max.y, min.x}, {x, max.y, max.x}})) {
-        add_vec4({x, min.y, min.x, 1.f});
-        add_vec4(side_normal);
+        add_vec3({x, min.y, min.x});
+        add_vec3(side_normal);
         data.push_back(0);
         data.push_back(0);
         data.push_back(0);
-        add_vec4({x, min.y, max.x, 1.f});
-        add_vec4(side_normal);
+        data.push_back(0);
+        data.push_back(material);
+        add_vec3({x, min.y, max.x});
+        add_vec3(side_normal);
         data.push_back(0);
         data.push_back(0);
         data.push_back(0);
-        add_vec4({x, max.y, min.x, 1.f});
-        add_vec4(side_normal);
+        data.push_back(0);
+        data.push_back(material);
+        add_vec3({x, max.y, min.x});
+        add_vec3(side_normal);
         data.push_back(0);
         data.push_back(0);
         data.push_back(0);
-        add_vec4({x, max.y, max.x, 1.f});
-        add_vec4(side_normal);
+        data.push_back(0);
+        data.push_back(material);
+        add_vec3({x, max.y, max.x});
+        add_vec3(side_normal);
         data.push_back(0);
         data.push_back(0);
         data.push_back(0);
+        data.push_back(0);
+        data.push_back(material);
         add_quad();
       }
     }
@@ -240,12 +295,13 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
 
   glo::VertexData result{data, indices, GL_DYNAMIC_DRAW};
   // World position.
-  result.enable_attribute(0, 4, 11, 0);
+  result.enable_attribute(0, 3, 11, 0);
   // Vertex normals.
-  result.enable_attribute(1, 4, 11, 4);
-  // Material (material value, edge value, height value, ...?).
-  // TODO: perhaps separate edge values for up, down, terrain change?
-  result.enable_attribute(2, 3, 11, 8);
+  result.enable_attribute(1, 3, 11, 3);
+  // Vertex geometry (up edge, down edge, terrain edge, protrusion).
+  result.enable_attribute(2, 4, 11, 6);
+  // Material parameters.
+  result.enable_attribute(3, 1, 11, 10);
   return result;
 }
 
@@ -459,7 +515,8 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera_in,
       auto program = material_program_.use();
       program.uniform_texture("world_buffer_position", world_buffer_->colour_textures()[0]);
       program.uniform_texture("world_buffer_normal", world_buffer_->colour_textures()[1]);
-      program.uniform_texture("world_buffer_material", world_buffer_->colour_textures()[2]);
+      program.uniform_texture("world_buffer_geometry", world_buffer_->colour_textures()[2]);
+      program.uniform_texture("world_buffer_material", world_buffer_->colour_textures()[3]);
       glUniform2fv(program.uniform("dimensions"), 1, glm::value_ptr(glm::vec2{aa_dimensions}));
       glUniform1f(program.uniform("frame"), static_cast<float>(renderer.frame()));
       renderer.set_simplex3_uniforms(program);
@@ -580,10 +637,12 @@ void WorldRenderer::create_framebuffers(const glm::ivec2& aa_dimensions,
   world_buffer_->add_colour_buffer(/* high-precision RGB */ true);
   // World normal buffer.
   world_buffer_->add_colour_buffer(/* high-precision RGB */ true);
+  // World geometry buffer.
+  world_buffer_->add_colour_buffer(/* RGBA */ false);
   // World material buffer.
   world_buffer_->add_colour_buffer(/* RGBA */ false);
   world_buffer_->add_depth_stencil_buffer();
-  world_buffer_->set_draw_buffers({0, 1, 2});
+  world_buffer_->set_draw_buffers({0, 1, 2, 3});
   world_buffer_->check_complete();
 
   // The material buffer is for the material pass which renders the colour and normal of the scene

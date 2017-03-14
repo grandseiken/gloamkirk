@@ -1,7 +1,12 @@
 package gloam.schema;
 
 type Tile {
-  int32 height = 1;
+  enum Terrain {
+    GRASS = 1;
+  }
+
+  Terrain terrain = 1;
+  int32 height = 2;
 }
 
 // Component exclusive to chunk entities.
