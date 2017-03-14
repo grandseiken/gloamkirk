@@ -114,11 +114,12 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
                                        {max.x, height, max.y}};
     auto all_vertices = vertices;
     for (const auto& v : vertices) {
-      all_vertices.emplace_back(v + glm::vec3{0.f, kPixelLayers * pixel_height, 0.f});
+      all_vertices.emplace_back(
+          v + glm::vec3{0.f, kPixelLayers * kAntialiasLevel.y * pixel_height, 0.f});
     }
 
     bool visible = is_visible(camera_matrix, all_vertices);
-    auto max_layer = world_pass ? kPixelLayers : 1;
+    auto max_layer = world_pass ? kPixelLayers * kAntialiasLevel.y : 1;
     for (std::int32_t pixel_layer = 0; visible && pixel_layer < max_layer; ++pixel_layer) {
       auto world_height = pixel_layer * pixel_height;
       auto world_offset = glm::vec3{0.f, world_height, 0.f};
@@ -465,7 +466,7 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera_in,
     create_framebuffers(aa_dimensions, protrusion_dimensions);
   }
   renderer.set_dither_translation(-glm::ivec2{screen_space_translation(camera)});
-  auto pixel_height = 1.f / look_at_matrix()[1][1];
+  auto pixel_height = 1.f / look_at_matrix()[1][1] / kAntialiasLevel.y;
 
   renderer.set_default_render_states();
   glEnable(GL_DEPTH_TEST);
@@ -483,9 +484,8 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera_in,
                        glm::value_ptr(camera_matrix(camera, protrusion_dimensions)));
     glUniform1f(program.uniform("frame"), static_cast<float>(renderer.frame()));
     renderer.set_simplex3_uniforms(program);
-    generate_world_data(
-        tile_map, camera_matrix(camera, dimensions + 2 * glm::ivec2{kPixelLayers, kPixelLayers}),
-        false, pixel_height)
+    auto clip_dimensions = dimensions + 2 * kAntialiasLevel * glm::ivec2{kPixelLayers};
+    generate_world_data(tile_map, camera_matrix(camera, clip_dimensions), false, pixel_height)
         .draw();
   }
 
