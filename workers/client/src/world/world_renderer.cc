@@ -15,7 +15,7 @@ namespace world {
 namespace {
 // Tile size in pixels.
 const std::int32_t kTileSize = 32;
-// TODO: should these be a graphics quality settings?
+// TODO: should these be graphics quality settings?
 const std::int32_t kPixelLayers = 8;
 const glm::ivec2 kAntialiasLevel = {1, 2};
 
@@ -458,12 +458,11 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera_in,
 
   auto dimensions = renderer.framebuffer_dimensions();
   auto aa_dimensions = kAntialiasLevel * dimensions;
-  auto protrusion_dimensions = 2 * dimensions;
-  // Need pixel-perfect sampling from a dimensions-sized centred box, so have to do adjust this.
-  protrusion_dimensions -= dimensions % 2;
+  auto protrusion_dimensions = dimensions + 2 * glm::ivec2{kPixelLayers};
+  auto protrusion_aa_dimensions = kAntialiasLevel * protrusion_dimensions;
 
   if (!world_buffer_ || world_buffer_->dimensions() != dimensions) {
-    create_framebuffers(aa_dimensions, protrusion_dimensions);
+    create_framebuffers(aa_dimensions, protrusion_aa_dimensions);
   }
   renderer.set_dither_translation(-glm::ivec2{screen_space_translation(camera)});
   auto pixel_height = 1.f / look_at_matrix()[1][1] / kAntialiasLevel.y;
@@ -476,7 +475,7 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera_in,
   glCullFace(GL_BACK);
   {
     auto draw = protrusion_buffer_->draw();
-    glViewport(0, 0, protrusion_dimensions.x, protrusion_dimensions.y);
+    glViewport(0, 0, protrusion_aa_dimensions.x, protrusion_aa_dimensions.y);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     auto program = protrusion_program_.use();
@@ -484,8 +483,7 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera_in,
                        glm::value_ptr(camera_matrix(camera, protrusion_dimensions)));
     glUniform1f(program.uniform("frame"), static_cast<float>(renderer.frame()));
     renderer.set_simplex3_uniforms(program);
-    auto clip_dimensions = dimensions + 2 * kAntialiasLevel * glm::ivec2{kPixelLayers};
-    generate_world_data(tile_map, camera_matrix(camera, clip_dimensions), false, pixel_height)
+    generate_world_data(tile_map, camera_matrix(camera, protrusion_dimensions), false, pixel_height)
         .draw();
   }
 
@@ -499,8 +497,8 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera_in,
     glUniformMatrix4fv(program.uniform("camera_matrix"), 1, false,
                        glm::value_ptr(camera_matrix(camera, dimensions)));
     glUniform2fv(program.uniform("protrusion_buffer_dimensions"), 1,
-                 glm::value_ptr(glm::vec2{protrusion_dimensions}));
-    glUniform2fv(program.uniform("dimensions"), 1, glm::value_ptr(glm::vec2{dimensions}));
+                 glm::value_ptr(glm::vec2{protrusion_aa_dimensions}));
+    glUniform2fv(program.uniform("dimensions"), 1, glm::value_ptr(glm::vec2{aa_dimensions}));
     generate_world_data(tile_map, camera_matrix(camera, dimensions), true, pixel_height).draw();
   }
 
