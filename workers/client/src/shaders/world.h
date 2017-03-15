@@ -164,7 +164,7 @@ void main() {
 
   stone_colour *=
       (stone_value.w >= -1. / 8. && stone_value.w <= 1. / 8.)
-      || mix_value > 0. || max(edge_up, edge_down) > .75 ? .75 : 1.;
+      || mix_value > 0. || (normal.y > 0. && max(edge_up, edge_down) > .75) ? .75 : 1.;
   if (mix_value > 0.) {
     stone_value.w = 1. / 8.;
   }

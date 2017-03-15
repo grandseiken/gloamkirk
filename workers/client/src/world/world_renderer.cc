@@ -66,12 +66,6 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
     indices.push_back(index + c);
   };
 
-  auto add_quad = [&] {
-    add_tri(0, 2, 1);
-    add_tri(1, 2, 3);
-    index += 4;
-  };
-
   for (const auto& pair : tile_map) {
     const auto& coord = pair.first;
     glm::vec2 min = coord * kTileSize;
@@ -211,6 +205,7 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
     if (jt != tile_map.end() && jt->second.height() != pair.second.height()) {
       auto y = coord.y * kTileSize;
       auto next_height = static_cast<float>(jt->second.height() * kTileSize);
+      auto edge = height > next_height ? kTileSize / 2 : -kTileSize / 2;
       min = glm::vec2{coord.x * kTileSize, next_height};
       max = glm::vec2{(1 + coord.x) * kTileSize, height};
       glm::vec3 side_normal = {0., 0., jt->second.height() > pair.second.height() ? 1. : -1.};
@@ -221,39 +216,82 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
         add_vec3({min.x, min.y, y});
         add_vec3(side_normal);
         data.push_back(0);
-        data.push_back(0);
-        data.push_back(0);
+        data.push_back(1);
+        data.push_back(l_terrain || bl_terrain);
         data.push_back(0);
         data.push_back(material);
+
         add_vec3({min.x, max.y, y});
         add_vec3(side_normal);
+        data.push_back(1);
         data.push_back(0);
-        data.push_back(0);
-        data.push_back(0);
+        data.push_back(l_terrain || bl_terrain);
         data.push_back(0);
         data.push_back(material);
+
         add_vec3({max.x, min.y, y});
         add_vec3(side_normal);
         data.push_back(0);
-        data.push_back(0);
-        data.push_back(0);
+        data.push_back(1);
+        data.push_back(r_terrain || br_terrain);
         data.push_back(0);
         data.push_back(material);
+
         add_vec3({max.x, max.y, y});
+        add_vec3(side_normal);
+        data.push_back(1);
+        data.push_back(0);
+        data.push_back(r_terrain || br_terrain);
+        data.push_back(0);
+        data.push_back(material);
+
+        add_vec3({min.x, min.y + edge, y});
         add_vec3(side_normal);
         data.push_back(0);
         data.push_back(0);
-        data.push_back(0);
+        data.push_back(l_terrain || bl_terrain);
         data.push_back(0);
         data.push_back(material);
-        add_quad();
+
+        add_vec3({min.x, max.y - edge, y});
+        add_vec3(side_normal);
+        data.push_back(0);
+        data.push_back(0);
+        data.push_back(l_terrain || bl_terrain);
+        data.push_back(0);
+        data.push_back(material);
+
+        add_vec3({max.x, min.y + edge, y});
+        add_vec3(side_normal);
+        data.push_back(0);
+        data.push_back(0);
+        data.push_back(r_terrain || br_terrain);
+        data.push_back(0);
+        data.push_back(material);
+
+        add_vec3({max.x, max.y - edge, y});
+        add_vec3(side_normal);
+        data.push_back(0);
+        data.push_back(0);
+        data.push_back(r_terrain || br_terrain);
+        data.push_back(0);
+        data.push_back(material);
+
+        add_tri(0, 2, 4);
+        add_tri(4, 2, 6);
+        add_tri(5, 7, 1);
+        add_tri(1, 7, 3);
+        add_tri(4, 6, 5);
+        add_tri(5, 6, 7);
+        index += 8;
       }
     }
 
     jt = tile_map.find(coord - glm::ivec2{1, 0});
-    if (jt != tile_map.end()) {
+    if (jt != tile_map.end() && jt->second.height() != pair.second.height()) {
       auto x = coord.x * kTileSize;
       auto next_height = static_cast<float>(jt->second.height() * kTileSize);
+      auto edge = height > next_height ? kTileSize / 2 : -kTileSize / 2;
       min = glm::vec2{coord.y * kTileSize, next_height};
       max = glm::vec2{(1 + coord.y) * kTileSize, height};
       glm::vec3 side_normal = {jt->second.height() > pair.second.height() ? 1. : -1., 0., 0.};
@@ -264,32 +302,74 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
         add_vec3({x, min.y, min.x});
         add_vec3(side_normal);
         data.push_back(0);
-        data.push_back(0);
-        data.push_back(0);
+        data.push_back(1);
+        data.push_back(b_terrain || bl_terrain);
         data.push_back(0);
         data.push_back(material);
+
         add_vec3({x, min.y, max.x});
         add_vec3(side_normal);
         data.push_back(0);
-        data.push_back(0);
-        data.push_back(0);
+        data.push_back(1);
+        data.push_back(t_terrain || tl_terrain);
         data.push_back(0);
         data.push_back(material);
+
         add_vec3({x, max.y, min.x});
         add_vec3(side_normal);
+        data.push_back(1);
         data.push_back(0);
-        data.push_back(0);
-        data.push_back(0);
+        data.push_back(b_terrain || bl_terrain);
         data.push_back(0);
         data.push_back(material);
+
         add_vec3({x, max.y, max.x});
+        add_vec3(side_normal);
+        data.push_back(1);
+        data.push_back(0);
+        data.push_back(t_terrain || tl_terrain);
+        data.push_back(0);
+        data.push_back(material);
+
+        add_vec3({x, min.y + edge, min.x});
         add_vec3(side_normal);
         data.push_back(0);
         data.push_back(0);
-        data.push_back(0);
+        data.push_back(b_terrain || bl_terrain);
         data.push_back(0);
         data.push_back(material);
-        add_quad();
+
+        add_vec3({x, min.y + edge, max.x});
+        add_vec3(side_normal);
+        data.push_back(0);
+        data.push_back(0);
+        data.push_back(t_terrain || tl_terrain);
+        data.push_back(0);
+        data.push_back(material);
+
+        add_vec3({x, max.y - edge, min.x});
+        add_vec3(side_normal);
+        data.push_back(0);
+        data.push_back(0);
+        data.push_back(b_terrain || bl_terrain);
+        data.push_back(0);
+        data.push_back(material);
+
+        add_vec3({x, max.y - edge, max.x});
+        add_vec3(side_normal);
+        data.push_back(0);
+        data.push_back(0);
+        data.push_back(t_terrain || tl_terrain);
+        data.push_back(0);
+        data.push_back(material);
+
+        add_tri(1, 0, 4);
+        add_tri(1, 4, 5);
+        add_tri(7, 6, 2);
+        add_tri(7, 2, 3);
+        add_tri(5, 4, 6);
+        add_tri(5, 6, 7);
+        index += 8;
       }
     }
   }
@@ -300,6 +380,8 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
   // Vertex normals.
   result.enable_attribute(1, 3, 11, 3);
   // Vertex geometry (up edge, down edge, terrain edge, protrusion).
+  // TODO: terrain edge values for walls are a bit odd right now, since they don't take height into
+  // account. If necessary, we'll need to split up the walls into tile-height chunks to fix it.
   result.enable_attribute(2, 4, 11, 6);
   // Material parameters.
   result.enable_attribute(3, 1, 11, 10);
