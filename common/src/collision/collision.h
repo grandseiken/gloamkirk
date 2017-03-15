@@ -10,7 +10,7 @@ namespace collision {
 
 class Collision {
 public:
-  void update(const std::unordered_map<glm::ivec2, schema::Tile>& tile_data);
+  void update(const std::unordered_map<glm::ivec2, schema::Tile>& tile_map);
 };
 
 }  // ::collision
