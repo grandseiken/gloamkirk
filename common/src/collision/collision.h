@@ -23,7 +23,11 @@ private:
 
   // Layers of world geometry.
   struct LayerData {
+    // All the edges in this layer.
     std::vector<Edge> edges;
+    // Acceleration structure: map from tile coordinate to buckets of indexes into edge map, giving
+    // all edges incident to the tile.
+    std::unordered_map<glm::ivec2, std::vector<std::size_t>> tile_lookup;
   };
 
   std::unordered_map<std::uint32_t, LayerData> layers_;

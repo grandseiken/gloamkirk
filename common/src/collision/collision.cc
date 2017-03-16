@@ -20,7 +20,7 @@ void Collision::update(const std::unordered_map<glm::ivec2, schema::Tile>& tile_
     max = glm::max(max, coords);
   }
 
-  auto has_edge = [&](std::uint32_t height, const glm::ivec2& from, const glm::ivec2& to) {
+  auto has_edge = [&](std::int32_t height, const glm::ivec2& from, const glm::ivec2& to) {
     auto from_it = tile_map.find(from);
     auto to_it = tile_map.find(to);
     return from_it != tile_map.end() && height >= from_it->second.height() &&
@@ -28,6 +28,8 @@ void Collision::update(const std::unordered_map<glm::ivec2, schema::Tile>& tile_
   };
 
   for (auto height = min.z; height < max.z; ++height) {
+    auto& layer = layers_[height];
+
     // X-axis-aligned edges.
     for (auto y = min.y; y <= max.y; ++y) {
       std::int32_t scan_start = 0;
@@ -38,9 +40,11 @@ void Collision::update(const std::unordered_map<glm::ivec2, schema::Tile>& tile_
         if (edge && !scanning) {
           scan_start = x;
         } else if (!edge && scanning) {
-          layers_[height].edges.push_back({{scan_start, y}, {x, y}});
+          layer.edges.push_back({{scan_start, y}, {x, y}});
         }
-        scanning = edge;
+        if ((scanning = edge)) {
+          layer.tile_lookup[{x, y}].push_back(layer.edges.size());
+        }
       }
 
       for (auto x = max.x; 1 + x >= min.x; --x) {
@@ -48,9 +52,11 @@ void Collision::update(const std::unordered_map<glm::ivec2, schema::Tile>& tile_
         if (edge && !scanning) {
           scan_start = x;
         } else if (!edge && scanning) {
-          layers_[height].edges.push_back({{1 + scan_start, 1 + y}, {1 + x, 1 + y}});
+          layer.edges.push_back({{1 + scan_start, 1 + y}, {1 + x, 1 + y}});
         }
-        scanning = edge;
+        if ((scanning = edge)) {
+          layer.tile_lookup[{x, y}].push_back(layer.edges.size());
+        }
       }
     }
 
@@ -64,9 +70,11 @@ void Collision::update(const std::unordered_map<glm::ivec2, schema::Tile>& tile_
         if (edge && !scanning) {
           scan_start = y;
         } else if (!edge && scanning) {
-          layers_[height].edges.push_back({{1 + x, scan_start}, {1 + x, y}});
+          layer.edges.push_back({{1 + x, scan_start}, {1 + x, y}});
         }
-        scanning = edge;
+        if ((scanning = edge)) {
+          layer.tile_lookup[{x, y}].push_back(layer.edges.size());
+        }
       }
 
       for (auto y = max.y; 1 + y >= min.y; --y) {
@@ -74,9 +82,11 @@ void Collision::update(const std::unordered_map<glm::ivec2, schema::Tile>& tile_
         if (edge && !scanning) {
           scan_start = y;
         } else if (!edge && scanning) {
-          layers_[height].edges.push_back({{x, 1 + scan_start}, {x, 1 + y}});
+          layer.edges.push_back({{x, 1 + scan_start}, {x, 1 + y}});
         }
-        scanning = edge;
+        if ((scanning = edge)) {
+          layer.tile_lookup[{x, y}].push_back(layer.edges.size());
+        }
       }
     }
   }
