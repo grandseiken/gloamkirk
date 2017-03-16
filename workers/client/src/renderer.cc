@@ -143,6 +143,7 @@ void Renderer::resize(const glm::ivec2& dimensions) {
   }
   viewport_dimensions_ = dimensions;
 
+  // TODO: this is still a bit odd. Rethink it.
   static const int target_width = native_resolution.x;
   static const int min_height = (native_resolution.y * 2) / 3;
   static const int max_height = (native_resolution.y * 4) / 3;

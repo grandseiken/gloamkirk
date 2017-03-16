@@ -660,6 +660,7 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera_in,
   } else {
     render_lit_scene();
   }
+  // Rendering of unlit but anti-aliased objects (shadows, perhaps?) would go here.
 
   // Finally, downsample into the output buffer and render final / transparent effects which don't
   // need to be anti-aliased. If there's no composition buffer, we're already in the final buffer
@@ -669,7 +670,7 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera_in,
     glBlitFramebuffer(0, 0, aa_dimensions.x, aa_dimensions.y, 0, 0, dimensions.x, dimensions.y,
                       GL_COLOR_BUFFER_BIT, GL_LINEAR);
     glBlitFramebuffer(0, 0, aa_dimensions.x, aa_dimensions.y, 0, 0, dimensions.x, dimensions.y,
-                      GL_DEPTH_BUFFER_BIT, GL_LINEAR);
+                      GL_DEPTH_BUFFER_BIT, GL_NEAREST);
   }
 
   glViewport(0, 0, dimensions.x, dimensions.y);
