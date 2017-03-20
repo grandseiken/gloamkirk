@@ -21,7 +21,7 @@ glm::vec2 outward_normal(const Edge& edge) {
   return {-edge_v.y, edge_v.x};
 }
 
-// Whether clockwise edge could possible impede the given projection.
+// Whether clockwise edge could possibly impede the given projection.
 bool can_collide(const Edge& edge, const glm::vec2& projection) {
   return glm::dot(outward_normal(edge), projection) < 0.f;
 }
@@ -30,7 +30,7 @@ float cross_2d(const glm::vec2& a, const glm::vec2& b) {
   return a.x * b.y - a.y * b.x;
 }
 
-float project(const Edge& edge, const glm::vec2& position, const glm::vec2& projection) {
+float project(const Edge& edge, const glm::vec2& origin, const glm::vec2& projection) {
   // Given v(t) = position + t * projection and w(u) = edge.a + u * (edge.b - edge.a),
   // finds t and u with v(t) = w(u).
   auto edge_v = edge.b - edge.a;
@@ -38,8 +38,8 @@ float project(const Edge& edge, const glm::vec2& position, const glm::vec2& proj
   if (!d) {
     return 1.f;
   }
-  auto t = cross_2d(edge_v, edge.a - position) / d;
-  auto u = cross_2d(projection, edge.a - position) / d;
+  auto t = cross_2d(edge_v, edge.a - origin) / d;
+  auto u = cross_2d(projection, edge.a - origin) / d;
   if (u < 0 || u > 1 || t < -kTolerance) {
     return 1.f;
   }
@@ -61,7 +61,7 @@ void Collision::update(const std::unordered_map<glm::ivec2, schema::Tile>& tile_
     }
     min = glm::min(min, coords);
     max = glm::max(max, coords);
-    height_map_[pair.first] = coords.z;
+    height_map_[pair.first] = static_cast<float>(coords.z);
     first = false;
   }
 
@@ -87,7 +87,8 @@ void Collision::update(const std::unordered_map<glm::ivec2, schema::Tile>& tile_
         } else if (!edge && scanning) {
           layer.edges.push_back({{scan_start, y}, {x, y}});
         }
-        if ((scanning = edge)) {
+        scanning = edge;
+        if (scanning) {
           layer.tile_lookup[{x, y}].push_back(layer.edges.size());
         }
       }
@@ -99,7 +100,8 @@ void Collision::update(const std::unordered_map<glm::ivec2, schema::Tile>& tile_
         } else if (!edge && scanning) {
           layer.edges.push_back({{1 + scan_start, 1 + y}, {1 + x, 1 + y}});
         }
-        if ((scanning = edge)) {
+        scanning = edge;
+        if (scanning) {
           layer.tile_lookup[{x, y}].push_back(layer.edges.size());
         }
       }
@@ -117,7 +119,8 @@ void Collision::update(const std::unordered_map<glm::ivec2, schema::Tile>& tile_
         } else if (!edge && scanning) {
           layer.edges.push_back({{1 + x, scan_start}, {1 + x, y}});
         }
-        if ((scanning = edge)) {
+        scanning = edge;
+        if (scanning) {
           layer.tile_lookup[{x, y}].push_back(layer.edges.size());
         }
       }
@@ -129,7 +132,8 @@ void Collision::update(const std::unordered_map<glm::ivec2, schema::Tile>& tile_
         } else if (!edge && scanning) {
           layer.edges.push_back({{x, 1 + scan_start}, {x, 1 + y}});
         }
-        if ((scanning = edge)) {
+        scanning = edge;
+        if (scanning) {
           layer.tile_lookup[{x, y}].push_back(layer.edges.size());
         }
       }
@@ -173,12 +177,17 @@ float Collision::project_xz(const Box& box, const glm::vec3& position,
     }
   }
 
+  float fraction = 1.f;
   for (const auto& edge_index : edges) {
     const auto& edge = layer.edges[edge_index];
     if (!can_collide(edge, projection)) {
       continue;
     }
+    for (std::size_t i = 0; i < kCorners; ++i) {
+      fraction = std::min(fraction, project(edge, corners[i], projection));
+    }
   }
+  return fraction;
 }
 
 }  // ::collision

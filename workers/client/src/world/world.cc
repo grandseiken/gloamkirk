@@ -81,12 +81,15 @@ void World::update(const Input& input) {
     direction += glm::vec3{-1.f, 0.f, 1.f};
   }
   if (direction != glm::vec3{}) {
-    entity_positions_[player_id_] += (1.5f / 32.f) * glm::normalize(direction);
+    auto movement = (1.5f / 32.f) * glm::normalize(direction);
+    auto& position = entity_positions_[player_id_];
+    collision::Box box{1.f / 8};
+    position += movement * collision_.project_xz(box, position, movement);
+
+    // TODO: temporary client-side authority.
+    connection_.SendComponentUpdate<schema::Position>(
+        player_id_, schema::Position::Update{}.set_coords(common::coords(position)));
   }
-  // TODO: temporary client-side authority.
-  connection_.SendComponentUpdate<schema::Position>(
-      player_id_,
-      schema::Position::Update{}.set_coords(common::coords(entity_positions_[player_id_])));
 }
 
 void World::render(const Renderer& renderer) const {
