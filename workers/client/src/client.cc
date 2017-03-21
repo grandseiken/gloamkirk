@@ -14,6 +14,7 @@ const std::string kProjectName = "alpha_zebra_pizza_956";
 const std::string kTitle = "Gloamkirk";
 const std::string kWorkerType = "client";
 constexpr const std::uint64_t kFramesPerSecond = 60;
+constexpr const auto kMillisPerFrame = static_cast<std::uint32_t>(1000.f / kFramesPerSecond);
 
 std::unique_ptr<sf::RenderWindow> create_window(bool fullscreen) {
   sf::ContextSettings settings;
@@ -75,21 +76,35 @@ gloam::ModeAction run(bool fullscreen, bool first_run, bool local, const std::st
   std::unique_ptr<gloam::Mode> mode{make_title(first_run)};
   first_run = false;
 
+  sf::Clock frame_clock;
+  std::int32_t frames_behind = 0;
+  std::uint32_t millis_behind = 0;
   while (window->isOpen()) {
-    input.update();
-    sf::Event event;
-    while (window->pollEvent(event)) {
-      if (event.type == sf::Event::Closed) {
-        return gloam::ModeAction::kExitApplication;
-      } else if (event.type == sf::Event::Resized) {
-        renderer.resize({window->getSize().x, window->getSize().y});
-      } else {
-        input.handle(event);
-      }
+    millis_behind += frame_clock.getElapsedTime().asMilliseconds();
+    frame_clock.restart();
+    while (millis_behind >= kMillisPerFrame) {
+      millis_behind -= kMillisPerFrame;
+      ++frames_behind;
     }
-    auto mode_result = mode->update(input);
 
-    // TODO: need to drop frames when rendering too slowly!
+    gloam::ModeResult mode_result;
+    do {
+      --frames_behind;
+      input.update();
+      sf::Event event;
+      while (window->pollEvent(event)) {
+        if (event.type == sf::Event::Closed) {
+          return gloam::ModeAction::kExitApplication;
+        } else if (event.type == sf::Event::Resized) {
+          renderer.resize({window->getSize().x, window->getSize().y});
+        } else {
+          input.handle(event);
+        }
+      }
+      mode_result = mode->update(input);
+    } while (mode_result.action == gloam::ModeAction::kNone && !mode_result.new_mode &&
+             frames_behind > 0);
+
     renderer.begin_frame();
     renderer.set_default_render_states();
     mode->render(renderer);

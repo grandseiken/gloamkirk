@@ -84,7 +84,7 @@ void World::update(const Input& input) {
     collision::Box box{1.f / 8};
     auto& position = entity_positions_[player_id_];
     auto projection_xz =
-        collision_.project_xz(box, position, (1.5f / 32.f) * glm::normalize(direction));
+        collision_.project_xz(box, position, (2.f / 32.f) * glm::normalize(direction));
     position += glm::vec3{projection_xz.x, 0.f, projection_xz.y};
 
     // TODO: temporary client-side authority.
