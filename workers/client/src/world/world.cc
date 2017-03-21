@@ -67,24 +67,25 @@ void World::set_player_id(worker::EntityId player_id) {
 }
 
 void World::update(const Input& input) {
-  glm::vec3 direction;
+  glm::vec2 direction;
   if (input.held(Button::kLeft)) {
-    direction += glm::vec3{-1.f, 0.f, -1.f};
+    direction += glm::vec2{-1.f, -1.f};
   }
   if (input.held(Button::kRight)) {
-    direction += glm::vec3{1.f, 0.f, 1.f};
+    direction += glm::vec2{1.f, 1.f};
   }
   if (input.held(Button::kDown)) {
-    direction += glm::vec3{1.f, 0.f, -1.f};
+    direction += glm::vec2{1.f, -1.f};
   }
   if (input.held(Button::kUp)) {
-    direction += glm::vec3{-1.f, 0.f, 1.f};
+    direction += glm::vec2{-1.f, 1.f};
   }
-  if (direction != glm::vec3{}) {
+  if (direction != glm::vec2{}) {
     auto movement = (1.5f / 32.f) * glm::normalize(direction);
     auto& position = entity_positions_[player_id_];
     collision::Box box{1.f / 8};
-    position += movement * collision_.project_xz(box, position, movement);
+    position +=
+        glm::vec3{movement.x, 0.f, movement.y} * collision_.project_xz(box, position, movement);
 
     // TODO: temporary client-side authority.
     connection_.SendComponentUpdate<schema::Position>(

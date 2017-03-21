@@ -142,7 +142,7 @@ void Collision::update(const std::unordered_map<glm::ivec2, schema::Tile>& tile_
 }
 
 float Collision::project_xz(const Box& box, const glm::vec3& position,
-                            const glm::vec2& projection) const {
+                            const glm::vec2& projection_xz) const {
   auto layer_it = layers_.find(coords(position.y));
   if (layer_it == layers_.end()) {
     return 1.f;
@@ -162,8 +162,8 @@ float Collision::project_xz(const Box& box, const glm::vec3& position,
     }
     min = glm::min(min, coords(corners[i] - kTolerance));
     max = glm::max(max, coords(corners[i] + kTolerance));
-    min = glm::min(min, coords(corners[i] + projection - kTolerance));
-    max = glm::max(max, coords(corners[i] + projection + kTolerance));
+    min = glm::min(min, coords(corners[i] + projection_xz - kTolerance));
+    max = glm::max(max, coords(corners[i] + projection_xz + kTolerance));
     first = false;
   }
 
@@ -180,11 +180,11 @@ float Collision::project_xz(const Box& box, const glm::vec3& position,
   float fraction = 1.f;
   for (const auto& edge_index : edges) {
     const auto& edge = layer.edges[edge_index];
-    if (!can_collide(edge, projection)) {
+    if (!can_collide(edge, projection_xz)) {
       continue;
     }
     for (std::size_t i = 0; i < kCorners; ++i) {
-      fraction = std::min(fraction, project(edge, corners[i], projection));
+      fraction = std::min(fraction, project(edge, corners[i], projection_xz));
     }
   }
   return fraction;
