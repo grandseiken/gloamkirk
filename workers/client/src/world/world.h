@@ -41,6 +41,7 @@ private:
   std::unordered_map<glm::ivec2, schema::Tile> tile_map_;
   collision::Collision collision_;
   WorldRenderer world_renderer_;
+  bool tile_map_changed_ = false;
 };
 
 }  // ::world

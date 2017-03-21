@@ -67,6 +67,11 @@ void World::set_player_id(worker::EntityId player_id) {
 }
 
 void World::update(const Input& input) {
+  if (tile_map_changed_) {
+    collision_.update(tile_map_);
+    tile_map_changed_ = false;
+  }
+
   glm::vec2 direction;
   if (input.held(Button::kLeft)) {
     direction += glm::vec2{-1.f, -1.f};
@@ -115,12 +120,12 @@ void World::render(const Renderer& renderer) const {
 
 void World::update_chunk(const schema::ChunkData& data) {
   common::update_chunk(tile_map_, data);
-  collision_.update(tile_map_);
+  tile_map_changed_ = true;
 }
 
 void World::clear_chunk(const schema::ChunkData& data) {
   common::clear_chunk(tile_map_, data);
-  collision_.update(tile_map_);
+  tile_map_changed_ = true;
 }
 
 }  // ::world
