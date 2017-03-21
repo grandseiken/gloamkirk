@@ -29,8 +29,9 @@ public:
   void update(const std::unordered_map<glm::ivec2, schema::Tile>& tile_map);
 
   // Project a collision box at position along the given XZ projection vector, and return the
-  // unimpeded fraction of the projection.
-  float project_xz(const Box& box, const glm::vec3& position, const glm::vec2& projection) const;
+  // modified, unimpeded projection.
+  glm::vec2 project_xz(const Box& box, const glm::vec3& position,
+                       const glm::vec2& projection) const;
 
 private:
   // Layers of world geometry.

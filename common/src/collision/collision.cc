@@ -6,6 +6,7 @@ namespace gloam {
 namespace collision {
 namespace {
 const float kTolerance = 1.f / 256;
+const float kToleranceSq = kTolerance * kTolerance;
 
 std::uint32_t coords(float v) {
   return static_cast<std::uint32_t>(glm::floor(v));
@@ -40,7 +41,7 @@ float project(const Edge& edge, const glm::vec2& origin, const glm::vec2& projec
   }
   auto t = cross_2d(edge_v, edge.a - origin) / d;
   auto u = cross_2d(projection, edge.a - origin) / d;
-  if (u < 0 || u > 1 || t < -kTolerance) {
+  if (u < 0 || u > 1 || t * glm::dot(projection, projection) < -kToleranceSq) {
     return 1.f;
   }
   return std::max(0.f, std::min(1.f, t));
@@ -141,18 +142,22 @@ void Collision::update(const std::unordered_map<glm::ivec2, schema::Tile>& tile_
   }
 }
 
-float Collision::project_xz(const Box& box, const glm::vec3& position,
-                            const glm::vec2& projection_xz) const {
+glm::vec2 Collision::project_xz(const Box& box, const glm::vec3& position,
+                                const glm::vec2& projection_xz) const {
+  static const std::size_t kCorners = 4;
+  static const std::uint32_t kMaxIterations = 8;
+
   auto layer_it = layers_.find(coords(position.y));
   if (layer_it == layers_.end()) {
-    return 1.f;
+    return projection_xz;
   }
   const auto& layer = layer_it->second;
 
-  static const std::size_t kCorners = 4;
+  glm::vec2 corners[kCorners] = {glm::vec2{-box.radius, 0.f}, glm::vec2{box.radius, 0.f},
+                                 glm::vec2{0.f, -box.radius}, glm::vec2{0.f, box.radius}};
+
+  // Find bounding box of projection volume.
   glm::vec2 xz = {position.x, position.z};
-  glm::vec2 corners[kCorners] = {xz + glm::vec2{-box.radius, 0.f}, xz + glm::vec2{box.radius, 0.f},
-                                 xz + glm::vec2{0.f, -box.radius}, xz + glm::vec2{0.f, box.radius}};
   glm::ivec2 min;
   glm::ivec2 max;
   bool first = true;
@@ -160,13 +165,14 @@ float Collision::project_xz(const Box& box, const glm::vec3& position,
     if (first) {
       min = max = glm::ivec2{corners[i]};
     }
-    min = glm::min(min, coords(corners[i] - kTolerance));
-    max = glm::max(max, coords(corners[i] + kTolerance));
-    min = glm::min(min, coords(corners[i] + projection_xz - kTolerance));
-    max = glm::max(max, coords(corners[i] + projection_xz + kTolerance));
+    min = glm::min(min, coords(corners[i] + xz - kTolerance));
+    max = glm::max(max, coords(corners[i] + xz + kTolerance));
+    min = glm::min(min, coords(corners[i] + xz + projection_xz - kTolerance));
+    max = glm::max(max, coords(corners[i] + xz + projection_xz + kTolerance));
     first = false;
   }
 
+  // Look up all edges we might intersect.
   std::unordered_set<std::size_t> edges;
   for (std::int32_t y = min.y; y <= max.y; ++y) {
     for (std::int32_t x = min.x; x <= max.x; ++x) {
@@ -177,17 +183,44 @@ float Collision::project_xz(const Box& box, const glm::vec3& position,
     }
   }
 
-  float fraction = 1.f;
-  for (const auto& edge_index : edges) {
-    const auto& edge = layer.edges[edge_index];
-    if (!can_collide(edge, projection_xz)) {
-      continue;
+  // Test projection.
+  float total_remaining = 1.f;
+  std::uint32_t iteration = 0;
+  glm::vec2 result_vector;
+  glm::vec2 current_projection = projection_xz;
+  while (true) {
+    float collision_point = 1.f;
+    const Edge* collision_edge = nullptr;
+    for (const auto& edge_index : edges) {
+      const auto& edge = layer.edges[edge_index];
+      if (!can_collide(edge, current_projection)) {
+        continue;
+      }
+      for (std::size_t i = 0; i < kCorners; ++i) {
+        auto t = project(edge, corners[i] + xz + result_vector, current_projection);
+        if (t < collision_point) {
+          collision_point = t;
+          collision_edge = &edge;
+        }
+      }
     }
-    for (std::size_t i = 0; i < kCorners; ++i) {
-      fraction = std::min(fraction, project(edge, corners[i], projection_xz));
+
+    result_vector += collision_point * current_projection;
+    if ((1.f - collision_point) * glm::dot(current_projection, current_projection) < kToleranceSq) {
+      break;
     }
+    // Project remaining portion of projection onto edge and continue.
+    total_remaining *= (1.f - collision_point);
+    auto remaining = total_remaining * projection_xz;
+    auto edge = glm::normalize(collision_edge->b - collision_edge->a);
+    auto new_projection = glm::dot(edge, remaining) * edge;
+    if (++iteration == kMaxIterations || new_projection == glm::vec2{} ||
+        new_projection == current_projection) {
+      break;
+    }
+    current_projection = new_projection;
   }
-  return fraction;
+  return result_vector;
 }
 
 }  // ::collision

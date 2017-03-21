@@ -81,11 +81,11 @@ void World::update(const Input& input) {
     direction += glm::vec2{-1.f, 1.f};
   }
   if (direction != glm::vec2{}) {
-    auto movement = (1.5f / 32.f) * glm::normalize(direction);
-    auto& position = entity_positions_[player_id_];
     collision::Box box{1.f / 8};
-    position +=
-        glm::vec3{movement.x, 0.f, movement.y} * collision_.project_xz(box, position, movement);
+    auto& position = entity_positions_[player_id_];
+    auto projection_xz =
+        collision_.project_xz(box, position, (1.5f / 32.f) * glm::normalize(direction));
+    position += glm::vec3{projection_xz.x, 0.f, projection_xz.y};
 
     // TODO: temporary client-side authority.
     connection_.SendComponentUpdate<schema::Position>(
