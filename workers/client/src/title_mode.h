@@ -11,29 +11,18 @@ namespace gloam {
 
 class TitleMode : public Mode {
 public:
-  TitleMode(bool first_run, bool fade_in, bool local,
+  TitleMode(ModeState& mode_state, bool fade_in,
             const worker::ConnectionParameters& connection_params,
             const worker::LocatorParameters& locator_params);
-  ModeResult update(const Input& input) override;
+  void update(const Input& input) override;
   void render(const Renderer& renderer) const override;
 
 private:
-  enum MenuItem {
-    kConnect,
-    kToggleFullscreen,
-    kExitApplication,
-    kMenuItemCount,
-  };
-
-  TextureImage title_;
-  glo::Program title_program_;
-
+  ModeState& mode_state_;
   std::uint64_t fade_in_ = 0;
   std::uint64_t connect_frame_ = 0;
   std::uint64_t finish_connect_frame_ = 0;
-  std::int32_t menu_item_ = MenuItem::kConnect;
 
-  bool connection_local_;
   bool connection_cancel_ = false;
   worker::ConnectionParameters connection_params_;
   worker::Locator locator_;
@@ -52,6 +41,9 @@ private:
 
   std::unique_ptr<LocatorFutureWrapper> locator_future_;
   std::unique_ptr<ConnectionFutureWrapper> connection_future_;
+
+  TextureImage title_;
+  glo::Program title_program_;
 };
 
 }  // ::gloam

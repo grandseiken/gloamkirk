@@ -14,12 +14,13 @@ class World;
 
 class ConnectMode : public Mode {
 public:
-  ConnectMode(const std::string& disconnect_reason);
-  ConnectMode(worker::Connection&& connection);
-  ModeResult update(const Input& input) override;
+  ConnectMode(ModeState& mode_state, const std::string& disconnect_reason);
+  ConnectMode(ModeState& mode_state, worker::Connection&& connection);
+  void update(const Input& input) override;
   void render(const Renderer& renderer) const override;
 
 private:
+  ModeState& mode_state_;
   bool connected_ = true;
   bool disconnect_ack_ = false;
   std::string disconnect_reason_;

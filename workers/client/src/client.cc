@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <iostream>
 #include <memory>
+#include <random>
 #include <string>
 
 namespace {
@@ -61,7 +62,8 @@ worker::LocatorParameters locator_params(const std::string& login_token) {
   return params;
 }
 
-gloam::ModeAction run(bool fullscreen, bool first_run, bool local, const std::string& login_token) {
+void run(gloam::ModeState& mode_state, bool fade_in) {
+  const bool fullscreen = mode_state.fullscreen;
   auto window = create_window(fullscreen);
   glo::Init();
   gloam::Input input{reinterpret_cast<std::size_t>(window->getSystemHandle())};
@@ -69,12 +71,10 @@ gloam::ModeAction run(bool fullscreen, bool first_run, bool local, const std::st
   renderer.resize({window->getSize().x, window->getSize().y});
 
   auto make_title = [&](bool fade_in) {
-    auto title_mode = new gloam::TitleMode{first_run, fade_in, local, connection_params(local),
-                                           locator_params(login_token)};
-    return title_mode;
+    return new gloam::TitleMode{mode_state, fade_in, connection_params(mode_state.connect_local),
+                                locator_params(mode_state.login_token)};
   };
-  std::unique_ptr<gloam::Mode> mode{make_title(first_run)};
-  first_run = false;
+  std::unique_ptr<gloam::Mode> mode{make_title(fade_in)};
 
   sf::Clock frame_clock;
   std::int32_t frames_behind = 0;
@@ -87,23 +87,22 @@ gloam::ModeAction run(bool fullscreen, bool first_run, bool local, const std::st
       ++frames_behind;
     }
 
-    gloam::ModeResult mode_result;
     do {
       --frames_behind;
       input.update();
       sf::Event event;
       while (window->pollEvent(event)) {
         if (event.type == sf::Event::Closed) {
-          return gloam::ModeAction::kExitApplication;
+          mode_state.exit_application = true;
+          return;
         } else if (event.type == sf::Event::Resized) {
           renderer.resize({window->getSize().x, window->getSize().y});
         } else {
           input.handle(event);
         }
       }
-      mode_result = mode->update(input);
-    } while (mode_result.action == gloam::ModeAction::kNone && !mode_result.new_mode &&
-             frames_behind > 0);
+      mode->update(input);
+    } while (!mode_state.new_mode && frames_behind > 0);
 
     renderer.begin_frame();
     renderer.set_default_render_states();
@@ -111,49 +110,53 @@ gloam::ModeAction run(bool fullscreen, bool first_run, bool local, const std::st
     renderer.end_frame();
     window->display();
 
-    if (mode_result.action == gloam::ModeAction::kExitApplication ||
-        mode_result.action == gloam::ModeAction::kToggleFullscreen) {
-      return mode_result.action;
-    } else if (mode_result.action == gloam::ModeAction::kExitToTitle) {
+    if (mode_state.exit_application || mode_state.fullscreen != fullscreen) {
+      return;
+    } else if (mode_state.exit_to_title) {
+      mode_state.exit_to_title = false;
       mode.reset(make_title(true));
-    } else if (mode_result.new_mode) {
-      mode.swap(mode_result.new_mode);
+    } else if (mode_state.new_mode) {
+      mode.swap(mode_state.new_mode);
+      mode_state.new_mode.reset();
     }
   }
-  return gloam::ModeAction::kExitApplication;
 }
 
 }  // anonymous
 
 int main(int argc, const char** argv) {
-  bool local = false;
-  std::string login_token;
+  gloam::ModeState mode_state;
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
     if (arg == "--local" || arg == "-l") {
       std::cout << "[warning] Connecting to local deployment." << std::endl;
-      local = true;
+      mode_state.connect_local = true;
     } else if (arg == "--login_token" || arg == "-t") {
-      login_token = argv[++i];
+      mode_state.login_token = argv[++i];
     } else {
       std::cerr << "[warning] Unknown flag '" << argv[i] << "'." << std::endl;
     }
   }
-  if (!local && login_token.empty()) {
+  if (!mode_state.connect_local && mode_state.login_token.empty()) {
     std::cerr << "[warning] Connecting to cloud deployment, but no --login_token provided."
               << std::endl;
   }
 
-  bool fullscreen = false;
-  bool first_run = true;
+  auto now = std::chrono::system_clock::now().time_since_epoch();
+  std::mt19937 generator{static_cast<unsigned int>(
+      std::chrono::duration_cast<std::chrono::milliseconds>(now).count())};
+  std::uniform_int_distribution<std::int32_t> distribution(0, 1 << 16);
+
+  mode_state.random_seed = distribution(generator);
+  mode_state.frame = 0;
+
+  bool fade_in = true;
   while (true) {
-    auto mode_action = run(fullscreen, first_run, local, login_token);
-    if (mode_action == gloam::ModeAction::kToggleFullscreen) {
-      fullscreen = !fullscreen;
-    } else if (mode_action == gloam::ModeAction::kExitApplication) {
+    run(mode_state, fade_in);
+    if (mode_state.exit_application) {
       break;
     }
-    first_run = false;
+    fade_in = false;
   }
   return 0;
 }

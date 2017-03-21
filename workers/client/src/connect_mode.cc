@@ -10,11 +10,11 @@
 
 namespace gloam {
 
-ConnectMode::ConnectMode(const std::string& disconnect_reason)
-: connected_{false}, disconnect_reason_{disconnect_reason} {}
+ConnectMode::ConnectMode(ModeState& mode_state, const std::string& disconnect_reason)
+: mode_state_{mode_state}, connected_{false}, disconnect_reason_{disconnect_reason} {}
 
-ConnectMode::ConnectMode(worker::Connection&& connection)
-: connection_{new worker::Connection{std::move(connection)}} {
+ConnectMode::ConnectMode(ModeState& mode_state, worker::Connection&& connection)
+: mode_state_{mode_state}, connection_{new worker::Connection{std::move(connection)}} {
   dispatcher_.OnDisconnect([this](const worker::DisconnectOp& op) {
     std::cerr << "[disconnected] " << op.Reason << std::endl;
     connected_ = false;
@@ -73,7 +73,7 @@ ConnectMode::ConnectMode(worker::Connection&& connection)
   world_.reset(new world::World{*connection_, dispatcher_});
 }
 
-ModeResult ConnectMode::update(const Input& input) {
+void ConnectMode::update(const Input& input) {
   if (!connected_ && input.pressed(Button::kAnyKey)) {
     disconnect_ack_ = true;
   }
@@ -97,9 +97,8 @@ ModeResult ConnectMode::update(const Input& input) {
       disconnect_reason_ = "Lost player entity.";
     }
   } else if (disconnect_reason_.empty() || disconnect_ack_) {
-    return {ModeAction::kExitToTitle, {}};
+    mode_state_.exit_to_title = true;
   }
-  return {{}, {}};
 }
 
 void ConnectMode::render(const Renderer& renderer) const {

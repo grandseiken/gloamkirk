@@ -15,10 +15,9 @@ float distance_factor(vec3 a, vec3 b)
 
 float cutoff_factor(vec3 a, vec3 b, float spread)
 {
-  float cutoff = 128.;
-  float cutoff_sq = cutoff * cutoff;
+  float cutoff = 128. * 128.;
   vec3 d = b - a;
-  return 1. - clamp((dot(d, d) - spread * cutoff_sq / 2.) / (spread * cutoff_sq), 0., 1.);
+  return 1. - clamp((dot(d, d) - spread * cutoff / 2.) / (2. * spread * cutoff), 0., 1.);
 }
 
 float angle_factor(vec3 direction, vec3 normal)

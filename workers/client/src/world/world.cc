@@ -89,7 +89,7 @@ void World::update(const Input& input) {
     collision::Box box{1.f / 8};
     auto& position = entity_positions_[player_id_];
     auto projection_xz =
-        collision_.project_xz(box, position, (2.f / 32.f) * glm::normalize(direction));
+        collision_.project_xz(box, position, (1.5f / 32.f) * glm::normalize(direction));
     position += glm::vec3{projection_xz.x, 0.f, projection_xz.y};
 
     // TODO: temporary client-side authority.
@@ -106,12 +106,12 @@ void World::render(const Renderer& renderer) const {
   std::vector<Light> lights;
   std::vector<glm::vec3> positions;
 
-  lights.push_back({it->second + glm::vec3{0.f, 1.f, 0.f}, 2.f, 4.f});
+  lights.push_back({it->second + glm::vec3{0.f, 1.f, 0.f}, 2.f, 2.f});
   for (worker::EntityId entity_id : player_entities_) {
     auto jt = entity_positions_.find(entity_id);
     positions.push_back(jt->second);
     if (entity_id != player_id_ && jt != entity_positions_.end()) {
-      lights.push_back({jt->second + glm::vec3{0.f, 1.f, 0.f}, 2.f, 4.f});
+      lights.push_back({jt->second + glm::vec3{0.f, 1.f, 0.f}, 2.f, 2.f});
     }
   }
 
