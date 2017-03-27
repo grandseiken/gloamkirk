@@ -35,4 +35,4 @@ source_group(src\\world "src/world/[^/]*")
 add_executable(client ${CLIENT_SOURCE_FILES})
 target_include_directories(client PRIVATE "${PROJECT_ROOT}")
 target_link_libraries(client
-  schema collision worker_sdk glew glm sfml ois)
+  schema core worker_sdk glew glm sfml ois)

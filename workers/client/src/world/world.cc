@@ -86,7 +86,7 @@ void World::update(const Input& input) {
     direction += glm::vec2{-1.f, 1.f};
   }
   if (direction != glm::vec2{}) {
-    collision::Box box{1.f / 8};
+    core::Box box{1.f / 8};
     auto& position = entity_positions_[player_id_];
     auto projection_xz =
         collision_.project_xz(box, position, (1.5f / 32.f) * glm::normalize(direction));

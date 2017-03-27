@@ -1,5 +1,5 @@
-#ifndef GLOAM_COMMON_SRC_COLLISION_COLLISION_H
-#define GLOAM_COMMON_SRC_COLLISION_COLLISION_H
+#ifndef GLOAM_COMMON_SRC_CORE_COLLISION_H
+#define GLOAM_COMMON_SRC_CORE_COLLISION_H
 #include "common/src/common/hashes.h"
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace gloam {
-namespace collision {
+namespace core {
 
 // Diagonal-axis-aligned collision box, with origin at centre-bottom.
 struct Box {
@@ -47,7 +47,7 @@ private:
   std::unordered_map<glm::ivec2, float> height_map_;
 };
 
-}  // ::collision
+}  // ::core
 }  // ::gloam
 
 #endif

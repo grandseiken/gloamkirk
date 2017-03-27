@@ -1,9 +1,9 @@
-#include "common/src/collision/collision.h"
+#include "common/src/core/collision.h"
 #include <glm/common.hpp>
 #include <glm/geometric.hpp>
 
 namespace gloam {
-namespace collision {
+namespace core {
 namespace {
 const float kTolerance = 1.f / 256;
 const float kToleranceSq = kTolerance * kTolerance;
@@ -223,5 +223,5 @@ glm::vec2 Collision::project_xz(const Box& box, const glm::vec3& position,
   return result_vector;
 }
 
-}  // ::collision
+}  // ::core
 }  // ::gloam
