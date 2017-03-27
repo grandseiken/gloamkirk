@@ -8,12 +8,17 @@ namespace gloam {
 namespace common {
 namespace {
 
+const std::string kAmbientAtom = "ambient";
 const std::string kClientAtom = "client";
 const std::string kMasterAtom = "master";
+const improbable::WorkerAttribute kAmbientAttribute = {{kAmbientAtom}};
 const improbable::WorkerAttribute kClientAttribute = {{kClientAtom}};
 const improbable::WorkerAttribute kMasterAttribute = {{kMasterAtom}};
+const improbable::WorkerRequirementSet kAmbientOnlySet = {{{{kAmbientAttribute}}}};
+const improbable::WorkerRequirementSet kClientOnlySet = {{{{kClientAttribute}}}};
 const improbable::WorkerRequirementSet kMasterOnlySet = {{{{kMasterAttribute}}}};
-const improbable::WorkerRequirementSet kAllWorkersSet = {{{{kClientAttribute}}}};
+const improbable::WorkerRequirementSet kAllWorkersSet = {
+    {{{kAmbientAttribute}}, {{kClientAttribute}}}};
 
 const std::string kMasterSeedPrefab = "MasterSeed";
 const std::string kChunkPrefab = "Chunk";

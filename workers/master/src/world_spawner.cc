@@ -115,7 +115,7 @@ void WorldSpawner::update() {
 
     auto chunk_size = static_cast<double>(chunk_size_);
     worker::Entity entity;
-    entity.Add<schema::Position>(
+    entity.Add<schema::CanonicalPosition>(
         {{chunk_size / 2 + coords.x * chunk_size, 0., chunk_size / 2 + coords.y * chunk_size}});
     entity.Add<schema::Chunk>(chunk_data);
     entity.Add<improbable::EntityAcl>(entity_acl);

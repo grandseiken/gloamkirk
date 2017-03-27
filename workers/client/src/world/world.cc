@@ -11,22 +11,22 @@ namespace world {
 World::World(worker::Connection& connection, worker::Dispatcher& dispatcher)
 : connection_{connection}, dispatcher_{dispatcher}, player_id_{-1} {
   dispatcher_.OnAddEntity([&](const worker::AddEntityOp& op) {
-    connection_.SendInterestedComponents<schema::Position, schema::Player, schema::Chunk>(
+    connection_.SendInterestedComponents<schema::CanonicalPosition, schema::Player, schema::Chunk>(
         op.EntityId);
   });
 
-  dispatcher_.OnAddComponent<schema::Position>(
-      [&](const worker::AddComponentOp<schema::Position>& op) {
+  dispatcher_.OnAddComponent<schema::CanonicalPosition>(
+      [&](const worker::AddComponentOp<schema::CanonicalPosition>& op) {
         entity_positions_.erase(op.EntityId);
         entity_positions_.insert(std::make_pair(op.EntityId, common::coords(op.Data.coords())));
       });
 
-  dispatcher_.OnRemoveComponent<schema::Position>(
+  dispatcher_.OnRemoveComponent<schema::CanonicalPosition>(
       [&](const worker::RemoveComponentOp& op) { entity_positions_.erase(op.EntityId); });
 
-  dispatcher_.OnComponentUpdate<schema::Position>([&](
-      const worker::ComponentUpdateOp<schema::Position>& op) {
-    if (op.Update.coords()) {
+  dispatcher_.OnComponentUpdate<schema::CanonicalPosition>([&](
+      const worker::ComponentUpdateOp<schema::CanonicalPosition>& op) {
+    if (op.EntityId != player_id_ && op.Update.coords()) {
       entity_positions_.erase(op.EntityId);
       entity_positions_.insert(std::make_pair(op.EntityId, common::coords(*op.Update.coords())));
     }
@@ -93,8 +93,8 @@ void World::update(const Input& input) {
     position += glm::vec3{projection_xz.x, 0.f, projection_xz.y};
 
     // TODO: temporary client-side authority.
-    connection_.SendComponentUpdate<schema::Position>(
-        player_id_, schema::Position::Update{}.set_coords(common::coords(position)));
+    connection_.SendComponentUpdate<schema::Player>(
+        player_id_, schema::Player::Update{}.set_position(common::coords(position)));
   }
 }
 

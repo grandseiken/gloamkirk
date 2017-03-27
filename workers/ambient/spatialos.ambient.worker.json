@@ -1,0 +1,40 @@
+{
+  "build": {
+    "tasks_filename": "build.json"
+  },
+  "bridge": {
+    "worker_attribute_set": {
+      "attributes": [
+        "ambient"
+      ]
+    },
+    "entity_interest": {
+      "range_entity_interest": {
+        "radius": 16
+      }
+    },
+    "component_delivery": {
+      "default": "RELIABLE_ORDERED"
+    }
+  },
+  "managed": {
+    "linux": {
+      "artifact_name": "ambient@Linux.zip",
+      "command": "ambient",
+      "arguments": [
+        "${IMPROBABLE_WORKER_ID}",
+        "${IMPROBABLE_RECEPTIONIST_IP}",
+        "${IMPROBABLE_RECEPTIONIST_PORT}"
+      ]
+    },
+    "windows": {
+      "artifact_name": "ambient@Windows.zip",
+      "command": "ambient.exe",
+      "arguments": [
+        "${IMPROBABLE_WORKER_ID}",
+        "${IMPROBABLE_RECEPTIONIST_IP}",
+        "${IMPROBABLE_RECEPTIONIST_PORT}"
+      ]
+    }
+  }
+}

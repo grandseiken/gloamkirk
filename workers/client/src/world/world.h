@@ -1,7 +1,7 @@
 #ifndef GLOAM_WORKERS_CLIENT_SRC_WORLD_WORLD_H
 #define GLOAM_WORKERS_CLIENT_SRC_WORLD_WORLD_H
-#include "common/src/core/collision.h"
 #include "common/src/common/hashes.h"
+#include "common/src/core/collision.h"
 #include "workers/client/src/world/world_renderer.h"
 #include <glm/vec3.hpp>
 #include <improbable/worker.h>

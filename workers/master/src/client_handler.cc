@@ -152,13 +152,12 @@ void ClientHandler::update() {
   auto create_player_entity = [&](const Client& client, worker::EntityId entity_id) {
     worker::Map<worker::ComponentId, improbable::WorkerRequirementSet> acl_map = {
         {schema::Player::ComponentId, client_acl(client)},
-        // TODO: temporary client-side authority.
-        {schema::Position::ComponentId, client_acl(client)}};
+        {schema::CanonicalPosition::ComponentId, common::kAmbientOnlySet}};
     improbable::EntityAclData entity_acl{common::kAllWorkersSet, {acl_map}};
 
     worker::Entity entity;
-    entity.Add<schema::Player>({});
-    entity.Add<schema::Position>({{0., 0., 0.}});
+    entity.Add<schema::Player>({{0., 0., 0.}});
+    entity.Add<schema::CanonicalPosition>({{0., 0., 0.}});
     entity.Add<improbable::EntityAcl>(entity_acl);
     return c_->connection.SendCreateEntityRequest(entity, {common::kPlayerPrefab}, {entity_id}, {});
   };

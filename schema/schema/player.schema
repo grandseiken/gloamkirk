@@ -3,4 +3,8 @@ package gloam.schema;
 // Component exclusive to player entities, authoritative on the client worker.
 component Player {
   id = 832;
+
+  // Local input determined by client worker.
+  Coordinates position = 1;
 }
+

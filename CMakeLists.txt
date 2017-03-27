@@ -43,5 +43,6 @@ add_subdirectory(common)
 add_subdirectory(snapshot)
 
 # Add the builds for each workers.
+add_subdirectory(workers/ambient)
 add_subdirectory(workers/client)
 add_subdirectory(workers/master)

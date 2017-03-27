@@ -9,7 +9,7 @@ namespace master {
 namespace {
 const std::string kWorkerType = "master";
 
-class MasterData : public gloam::managed::WorkerLogic {
+class MasterData : public managed::WorkerLogic {
 public:
   MasterData() : data_{false, {}} {}
 

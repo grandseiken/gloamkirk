@@ -20,6 +20,14 @@
       "permissions": []
     },
     {
+      "worker_type": "ambient",
+      "load_balancing": {
+        "auto_hex_grid": {
+          "num_workers": 4
+        }
+      }
+    },
+    {
       "worker_type": "master",
       "flags": [
         {

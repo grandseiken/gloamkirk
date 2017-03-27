@@ -175,9 +175,8 @@ void TitleMode::render(const Renderer& renderer) const {
       fade = std::max(0.f, std::min(1.f, 1.f - static_cast<float>(fade_in_) / 32.f));
     } else if (finish_connect_frame_) {
       fade = std::max(
-          0.f,
-          std::min(1.f,
-                   1.f - static_cast<float>(mode_state_.frame - finish_connect_frame_) / 32.f));
+          0.f, std::min(1.f, 1.f -
+                            static_cast<float>(mode_state_.frame - finish_connect_frame_) / 32.f));
     }
 
     auto program = title_program_.use();
@@ -249,8 +248,8 @@ void TitleMode::render(const Renderer& renderer) const {
   if ((connection_future_ || locator_future_) && !finish_connect_frame_) {
     auto alpha = static_cast<float>((mode_state_.frame - connect_frame_) % 64) / 64.f;
 
-    auto text = !connection_future_ ? "SEARCHING..."
-                                    : queue_status_.empty() ? "CONNECTING..." : queue_status_;
+    auto text = !connection_future_ ? "SEARCHING..." : queue_status_.empty() ? "CONNECTING..."
+                                                                             : queue_status_;
     auto text_width = renderer.text_width(text);
     renderer.draw_text(text, {dimensions.x / 2 - text_width / 2, dimensions.y / 2},
                        glm::vec4{.75f, .75f, .75f, alpha});

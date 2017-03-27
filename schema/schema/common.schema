@@ -2,8 +2,10 @@ package gloam.schema;
 
 type Unit {}
 
-// Position component for all entities.
-component Position {
+// Canonical position component. Required for all entities. Used for load-balancing, spatial finds,
+// the inspector, and so on.
+component CanonicalPosition {
   id = 830;
   EntityPosition coords = 1;
 }
+
