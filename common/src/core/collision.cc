@@ -41,7 +41,9 @@ float project(const Edge& edge, const glm::vec2& origin, const glm::vec2& projec
   }
   auto t = cross_2d(edge_v, edge.a - origin) / d;
   auto u = cross_2d(projection, edge.a - origin) / d;
-  if (u < 0 || u > 1 || t * glm::dot(projection, projection) < -kToleranceSq) {
+  auto edge_tolerance = kToleranceSq / glm::dot(edge_v, edge_v);
+  if (u < edge_tolerance || u > 1 - edge_tolerance ||
+      t * glm::dot(projection, projection) < -kToleranceSq) {
     return 1.f;
   }
   return std::max(0.f, std::min(1.f, t));
@@ -153,8 +155,8 @@ glm::vec2 Collision::project_xz(const Box& box, const glm::vec3& position,
   }
   const auto& layer = layer_it->second;
 
-  glm::vec2 corners[kCorners] = {glm::vec2{-box.radius, 0.f}, glm::vec2{box.radius, 0.f},
-                                 glm::vec2{0.f, -box.radius}, glm::vec2{0.f, box.radius}};
+  glm::vec2 corners[kCorners] = {glm::vec2{-box.radius, 0.f}, glm::vec2{0.f, box.radius},
+                                 glm::vec2{box.radius, 0.f}, glm::vec2{0.f, -box.radius}};
 
   // Find bounding box of projection volume.
   glm::vec2 xz = {position.x, position.z};
@@ -188,20 +190,29 @@ glm::vec2 Collision::project_xz(const Box& box, const glm::vec3& position,
   std::uint32_t iteration = 0;
   glm::vec2 result_vector;
   glm::vec2 current_projection = projection_xz;
+
   while (true) {
     float collision_point = 1.f;
-    const Edge* collision_edge = nullptr;
+    Edge collision_edge;
+    auto resolve_projection = [&](const Edge& edge, float t) {
+      if (t < collision_point) {
+        collision_point = t;
+        collision_edge = edge;
+      }
+    };
+
     for (const auto& edge_index : edges) {
       const auto& edge = layer.edges[edge_index];
       if (!can_collide(edge, current_projection)) {
         continue;
       }
       for (std::size_t i = 0; i < kCorners; ++i) {
-        auto t = project(edge, corners[i] + xz + result_vector, current_projection);
-        if (t < collision_point) {
-          collision_point = t;
-          collision_edge = &edge;
-        }
+        auto offset = xz + result_vector;
+
+        Edge box_edge{corners[i] + offset, corners[(1 + i) % kCorners] + offset};
+        resolve_projection(edge, project(edge, corners[i] + offset, current_projection));
+        resolve_projection(box_edge, project(box_edge, edge.a, -current_projection));
+        resolve_projection(box_edge, project(box_edge, edge.b, -current_projection));
       }
     }
 
@@ -212,7 +223,7 @@ glm::vec2 Collision::project_xz(const Box& box, const glm::vec3& position,
     // Project remaining portion of projection onto edge and continue.
     total_remaining *= (1.f - collision_point);
     auto remaining = total_remaining * projection_xz;
-    auto edge = glm::normalize(collision_edge->b - collision_edge->a);
+    auto edge = glm::normalize(collision_edge.b - collision_edge.a);
     auto new_projection = glm::dot(edge, remaining) * edge;
     if (++iteration == kMaxIterations || new_projection == glm::vec2{} ||
         new_projection == current_projection) {

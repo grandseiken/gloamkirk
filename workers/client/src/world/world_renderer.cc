@@ -15,9 +15,7 @@ namespace world {
 namespace {
 // Tile size in pixels.
 const std::int32_t kTileSize = 32;
-// TODO: should these be graphics quality settings?
 const std::int32_t kPixelLayers = 8;
-const glm::ivec2 kAntialiasLevel = {1, 2};
 
 bool is_visible(const glm::mat4& camera_matrix, const std::vector<glm::vec3>& vertices) {
   bool xlo = false;
@@ -49,7 +47,7 @@ float tile_material(const schema::Tile& tile) {
 // TODO: should see if we can cache this between frames.
 glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema::Tile>& tile_map,
                                     const glm::mat4& camera_matrix, bool world_pass,
-                                    float pixel_height) {
+                                    float pixel_height, const glm::ivec2& antialias_level) {
   std::vector<float> data;
   std::vector<GLuint> indices;
   GLuint index = 0;
@@ -109,11 +107,11 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
     auto all_vertices = vertices;
     for (const auto& v : vertices) {
       all_vertices.emplace_back(
-          v + glm::vec3{0.f, kPixelLayers * kAntialiasLevel.y * pixel_height, 0.f});
+          v + glm::vec3{0.f, kPixelLayers * antialias_level.y * pixel_height, 0.f});
     }
 
     bool visible = is_visible(camera_matrix, all_vertices);
-    auto max_layer = world_pass ? kPixelLayers * kAntialiasLevel.y : 1;
+    auto max_layer = world_pass ? kPixelLayers * antialias_level.y : 1;
     for (std::int32_t pixel_layer = 0; visible && pixel_layer < max_layer; ++pixel_layer) {
       auto world_height = pixel_layer * pixel_height;
       auto world_offset = glm::vec3{0.f, world_height, 0.f};
@@ -504,8 +502,9 @@ glm::mat4 camera_matrix(const glm::vec3& camera, const glm::ivec2& dimensions) {
 
 }  // anonymous
 
-WorldRenderer::WorldRenderer()
-: protrusion_program_{"protrusion",
+WorldRenderer::WorldRenderer(const ModeState& mode_state)
+: antialias_level_{1, mode_state.antialiasing ? 2 : 1}
+, protrusion_program_{"protrusion",
                       {"world_vertex", GL_VERTEX_SHADER, shaders::world_vertex},
                       {"protrusion_fragment", GL_FRAGMENT_SHADER, shaders::protrusion_fragment}}
 , world_program_{"world",
@@ -524,8 +523,8 @@ WorldRenderer::WorldRenderer()
                {"fog_vertex", GL_VERTEX_SHADER, shaders::fog_vertex},
                {"fog_fragment", GL_FRAGMENT_SHADER, shaders::fog_fragment}} {}
 
-void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera_in,
-                           const std::vector<Light>& lights_in,
+void WorldRenderer::render(const Renderer& renderer, std::uint64_t frame,
+                           const glm::vec3& camera_in, const std::vector<Light>& lights_in,
                            const std::vector<glm::vec3>& positions_in,
                            const std::unordered_map<glm::ivec2, schema::Tile>& tile_map) const {
   auto camera = static_cast<float>(kTileSize) * camera_in;
@@ -539,15 +538,15 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera_in,
   }
 
   auto dimensions = renderer.framebuffer_dimensions();
-  auto aa_dimensions = kAntialiasLevel * dimensions;
+  auto aa_dimensions = antialias_level_ * dimensions;
   auto protrusion_dimensions = dimensions + 2 * glm::ivec2{kPixelLayers};
-  auto protrusion_aa_dimensions = kAntialiasLevel * protrusion_dimensions;
+  auto protrusion_aa_dimensions = antialias_level_ * protrusion_dimensions;
 
   if (!world_buffer_ || world_buffer_->dimensions() != dimensions) {
     create_framebuffers(aa_dimensions, protrusion_aa_dimensions);
   }
   renderer.set_dither_translation(-glm::ivec2{screen_space_translation(camera)});
-  auto pixel_height = 1.f / look_at_matrix()[1][1] / kAntialiasLevel.y;
+  auto pixel_height = 1.f / look_at_matrix()[1][1] / antialias_level_.y;
 
   renderer.set_default_render_states();
   glEnable(GL_DEPTH_TEST);
@@ -563,9 +562,10 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera_in,
     auto program = protrusion_program_.use();
     glUniformMatrix4fv(program.uniform("camera_matrix"), 1, false,
                        glm::value_ptr(camera_matrix(camera, protrusion_dimensions)));
-    glUniform1f(program.uniform("frame"), static_cast<float>(renderer.frame()));
+    glUniform1f(program.uniform("frame"), static_cast<float>(frame));
     renderer.set_simplex3_uniforms(program);
-    generate_world_data(tile_map, camera_matrix(camera, protrusion_dimensions), false, pixel_height)
+    generate_world_data(tile_map, camera_matrix(camera, protrusion_dimensions), false, pixel_height,
+                        antialias_level_)
         .draw();
   }
 
@@ -581,7 +581,9 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera_in,
     glUniform2fv(program.uniform("protrusion_buffer_dimensions"), 1,
                  glm::value_ptr(glm::vec2{protrusion_aa_dimensions}));
     glUniform2fv(program.uniform("dimensions"), 1, glm::value_ptr(glm::vec2{aa_dimensions}));
-    generate_world_data(tile_map, camera_matrix(camera, dimensions), true, pixel_height).draw();
+    generate_world_data(tile_map, camera_matrix(camera, dimensions), true, pixel_height,
+                        antialias_level_)
+        .draw();
   }
 
   renderer.set_default_render_states();
@@ -598,7 +600,7 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera_in,
       program.uniform_texture("world_buffer_geometry", world_buffer_->colour_textures()[2]);
       program.uniform_texture("world_buffer_material", world_buffer_->colour_textures()[3]);
       glUniform2fv(program.uniform("dimensions"), 1, glm::value_ptr(glm::vec2{aa_dimensions}));
-      glUniform1f(program.uniform("frame"), static_cast<float>(renderer.frame()));
+      glUniform1f(program.uniform("frame"), static_cast<float>(frame));
       renderer.set_simplex3_uniforms(program);
       renderer.draw_quad();
     }
@@ -688,7 +690,7 @@ void WorldRenderer::render(const Renderer& renderer, const glm::vec3& camera_in,
     glUniform4fv(program.uniform("fog_colour"), 1, glm::value_ptr(fog_colour));
     glUniform3fv(program.uniform("light_world"), 1, glm::value_ptr(lights.front().world));
     glUniform1f(program.uniform("light_intensity"), lights.front().intensity);
-    glUniform1f(program.uniform("frame"), static_cast<float>(renderer.frame()));
+    glUniform1f(program.uniform("frame"), static_cast<float>(frame));
     renderer.set_simplex3_uniforms(program);
     generate_fog_data(camera, 2 * dimensions, height).draw();
   };
@@ -741,7 +743,7 @@ void WorldRenderer::create_framebuffers(const glm::ivec2& aa_dimensions,
   // Finally the composition buffer renders the scene with lighting. After the composition stage
   // we downsample into the final output buffer and render effects like fog that don't benefit
   // from anti-aliasing. If anti-aliasing is disabled, there's no need for it.
-  if (kAntialiasLevel.x > 1 || kAntialiasLevel.y > 1) {
+  if (antialias_level_.x > 1 || antialias_level_.y > 1) {
     composition_buffer_.reset(new glo::Framebuffer{aa_dimensions});
     composition_buffer_->add_colour_buffer(/* RGBA */ false);
     composition_buffer_->add_depth_stencil_buffer();

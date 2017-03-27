@@ -8,8 +8,9 @@
 namespace gloam {
 namespace world {
 
-World::World(worker::Connection& connection, worker::Dispatcher& dispatcher)
-: connection_{connection}, dispatcher_{dispatcher}, player_id_{-1} {
+World::World(worker::Connection& connection, worker::Dispatcher& dispatcher,
+             const ModeState& mode_state)
+: connection_{connection}, dispatcher_{dispatcher}, player_id_{-1}, world_renderer_{mode_state} {
   dispatcher_.OnAddEntity([&](const worker::AddEntityOp& op) {
     connection_.SendInterestedComponents<schema::CanonicalPosition, schema::Player, schema::Chunk>(
         op.EntityId);
@@ -66,6 +67,8 @@ void World::set_player_id(worker::EntityId player_id) {
   player_id_ = player_id;
 }
 
+void World::sync() {}
+
 void World::update(const Input& input) {
   if (tile_map_changed_) {
     collision_.update(tile_map_);
@@ -98,7 +101,7 @@ void World::update(const Input& input) {
   }
 }
 
-void World::render(const Renderer& renderer) const {
+void World::render(const Renderer& renderer, std::uint64_t frame) const {
   auto it = entity_positions_.find(player_id_);
   if (it == entity_positions_.end()) {
     return;
@@ -115,7 +118,7 @@ void World::render(const Renderer& renderer) const {
     }
   }
 
-  world_renderer_.render(renderer, it->second, lights, positions, tile_map_);
+  world_renderer_.render(renderer, frame, it->second, lights, positions, tile_map_);
 }
 
 void World::update_chunk(const schema::ChunkData& data) {

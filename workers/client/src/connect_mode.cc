@@ -70,10 +70,10 @@ ConnectMode::ConnectMode(ModeState& mode_state, worker::Connection&& connection)
     return;
   }
   connection_->SendLogMessage(worker::LogLevel::kInfo, "client", "Connected.");
-  world_.reset(new world::World{*connection_, dispatcher_});
+  world_.reset(new world::World{*connection_, dispatcher_, mode_state_});
 }
 
-void ConnectMode::update(const Input& input) {
+void ConnectMode::update(const Input& input, bool sync) {
   if (!connected_ && input.pressed(Button::kAnyKey)) {
     disconnect_ack_ = true;
   }
@@ -90,6 +90,9 @@ void ConnectMode::update(const Input& input) {
       enter_frame_ = frame_;
     }
     if (player_id_ >= 0) {
+      if (sync) {
+        world_->sync();
+      }
       world_->update(input);
     }
     if (logged_in_ && player_id_ < 0) {
@@ -115,11 +118,13 @@ void ConnectMode::render(const Renderer& renderer) const {
     renderer.draw_text(text, {dimensions.x / 2 - text_width / 2, dimensions.y / 2},
                        glm::vec4{.75f, .75f, .75f, fade});
   } else {
-    world_->render(renderer);
+    world_->render(renderer, mode_state_.frame);
 
     auto fade =
         std::max(0.f, std::min(1.f, 1.f - static_cast<float>(frame_ - enter_frame_) / 128.f));
-    renderer.draw_quad_colour({0.f, 0.f, 0.f, fade});
+    if (fade > 0.f) {
+      renderer.draw_quad_colour({0.f, 0.f, 0.f, fade});
+    }
   }
 }
 

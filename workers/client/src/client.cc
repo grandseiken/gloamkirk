@@ -14,10 +14,11 @@ namespace {
 const std::string kProjectName = "alpha_zebra_pizza_956";
 const std::string kTitle = "Gloamkirk";
 const std::string kWorkerType = "client";
-constexpr const std::uint64_t kFramesPerSecond = 60;
-constexpr const auto kMillisPerFrame = static_cast<std::uint32_t>(1000.f / kFramesPerSecond);
+const std::uint32_t kFramesPerSecond = 60;
+const std::uint32_t kSyncFramesPerSecond = 20;
+const auto kMillisPerFrame = static_cast<std::uint32_t>(1000.f / kFramesPerSecond);
 
-std::unique_ptr<sf::RenderWindow> create_window(bool fullscreen) {
+std::unique_ptr<sf::RenderWindow> create_window(const gloam::ModeState& mode_state) {
   sf::ContextSettings settings;
   settings.depthBits = 0;
   settings.stencilBits = 0;
@@ -27,7 +28,7 @@ std::unique_ptr<sf::RenderWindow> create_window(bool fullscreen) {
   settings.attributeFlags = sf::ContextSettings::Core;
 
   std::unique_ptr<sf::RenderWindow> window{
-      fullscreen
+      mode_state.fullscreen
           ? new sf::RenderWindow{sf::VideoMode::getDesktopMode(), kTitle, sf::Style::None, settings}
           : new sf::RenderWindow{
                 sf::VideoMode(gloam::native_resolution.x, gloam::native_resolution.y), kTitle,
@@ -64,7 +65,8 @@ worker::LocatorParameters locator_params(const std::string& login_token) {
 
 void run(gloam::ModeState& mode_state, bool fade_in) {
   const bool fullscreen = mode_state.fullscreen;
-  auto window = create_window(fullscreen);
+  auto window = create_window(mode_state);
+
   glo::Init();
   gloam::Input input{reinterpret_cast<std::size_t>(window->getSystemHandle())};
   gloam::Renderer renderer;
@@ -79,6 +81,7 @@ void run(gloam::ModeState& mode_state, bool fade_in) {
   sf::Clock frame_clock;
   std::int32_t frames_behind = 0;
   std::uint32_t millis_behind = 0;
+  // TODO: this loop is still awkward as fuck because of SFML's window blocking.
   while (window->isOpen()) {
     millis_behind += frame_clock.getElapsedTime().asMilliseconds();
     frame_clock.restart();
@@ -89,6 +92,7 @@ void run(gloam::ModeState& mode_state, bool fade_in) {
 
     do {
       --frames_behind;
+      ++mode_state.frame;
       input.update();
       sf::Event event;
       while (window->pollEvent(event)) {
@@ -101,7 +105,7 @@ void run(gloam::ModeState& mode_state, bool fade_in) {
           input.handle(event);
         }
       }
-      mode->update(input);
+      mode->update(input, mode_state.frame % (kFramesPerSecond / kSyncFramesPerSecond) == 0);
     } while (!mode_state.new_mode && frames_behind > 0);
 
     renderer.begin_frame();

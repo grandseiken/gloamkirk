@@ -48,7 +48,7 @@ TitleMode::TitleMode(ModeState& mode_state, bool fade_in,
   }
 }
 
-void TitleMode::update(const Input& input) {
+void TitleMode::update(const Input& input, bool) {
   if (connection_future_) {
     if (input.pressed(Button::kCancel)) {
       // Doesn't seem to work most of the time, can't cancel once we're past the locator.
@@ -87,6 +87,7 @@ void TitleMode::update(const Input& input) {
       if (mode_state_.settings_item == SettingsItem::kToggleFullscreen) {
         mode_state_.fullscreen = !mode_state_.fullscreen;
       } else if (mode_state_.settings_item == SettingsItem::kAntialiasLevel) {
+        mode_state_.antialiasing = !mode_state_.antialiasing;
       } else if (mode_state_.settings_item == SettingsItem::kBack) {
         mode_state_.settings_menu = false;
       }
@@ -120,7 +121,6 @@ void TitleMode::update(const Input& input) {
   if (fade_in_) {
     --fade_in_;
   }
-  ++mode_state_.frame;
   bool connection_poll =
       mode_state_.frame - connect_frame_ > 0 && (mode_state_.frame - connect_frame_) % 64 == 0;
   if (finish_connect_frame_ && mode_state_.frame - finish_connect_frame_ >= 32) {
@@ -210,7 +210,8 @@ void TitleMode::render(const Renderer& renderer) const {
       draw_menu_item("TOGGLE FULLSCREEN",
                      static_cast<std::int32_t>(SettingsItem::kToggleFullscreen),
                      static_cast<std::int32_t>(mode_state_.settings_item));
-      draw_menu_item("ANTIALIAS LEVEL", static_cast<std::int32_t>(SettingsItem::kAntialiasLevel),
+      draw_menu_item("ANTIALIASING: " + std::string{mode_state_.antialiasing ? "ON" : "OFF"},
+                     static_cast<std::int32_t>(SettingsItem::kAntialiasLevel),
                      static_cast<std::int32_t>(mode_state_.settings_item));
       draw_menu_item("BACK", static_cast<std::int32_t>(SettingsItem::kBack),
                      static_cast<std::int32_t>(mode_state_.settings_item));

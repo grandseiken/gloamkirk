@@ -44,7 +44,6 @@ public:
                  const glm::vec4& colour) const;
 
 private:
-  mutable std::uint64_t frame_;
   mutable glm::ivec2 dither_translation_;
   mutable std::unique_ptr<glo::ActiveFramebuffer> draw_;
 

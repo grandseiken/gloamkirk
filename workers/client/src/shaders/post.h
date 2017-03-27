@@ -17,35 +17,18 @@ uniform sampler2D source_framebuffer;
 uniform sampler2D dither_matrix;
 uniform vec2 dimensions;
 uniform vec2 translation;
-uniform float frame;
 
 out vec4 output_colour;
 
-// Whether dithering moves around (based on directions above), and
-// whether it is separated by colour.
-const bool dither_monochrome = true;
 // How much to mix in dithering versus true colouring.
 const float dither_mix = 1.;
 // How many quantization levels per colour.
 const int colours_per_channel = 16;
 const float quantize_div = 1. / (colours_per_channel - 1);
 
-// Make sure no direction aligns exactly with an axis.
-const float base_dir = .2;
-const float pi = 3.1415926536;
-const vec2 r_dir = vec2(sin(base_dir), cos(base_dir));
-const vec2 g_dir = vec2(sin(base_dir + 2. * pi / 3.), cos(base_dir + 2. * pi / 3.));
-const vec2 b_dir = vec2(sin(base_dir + 4. * pi / 3.), cos(base_dir + 4. * pi / 3.));
-
-vec2 make_coord(vec2 coord, vec2 offset)
+vec3 matrix_lookup(vec2 coord)
 {
-  return (coord + (dither_monochrome ? vec2(0.) : offset)) / a_dither_res;
-}
-
-vec3 matrix_lookup(vec2 coord, vec2 r, vec2 g, vec2 b)
-{
-  return vec3(
-      texture(dither_matrix, make_coord(coord, r)));
+  return vec3(texture(dither_matrix, coord / a_dither_res));
 }
 
 vec3 floor_div(vec3 v)
@@ -70,14 +53,8 @@ vec3 gamma_correct_dither(vec3 value, vec3 dither)
 
 void main()
 {
-  vec2 r_off = .05 * r_dir * frame;
-  vec2 g_off = .07 * g_dir * frame;
-  vec2 b_off = .11 * b_dir * frame;
-
   vec3 value = vec3(texture(source_framebuffer, gl_FragCoord.xy / dimensions));
-  vec3 dither = matrix_lookup(
-      gl_FragCoord.xy + translation,
-      r_off / 4., g_off / 4., b_off / 4.);
+  vec3 dither = matrix_lookup(gl_FragCoord.xy + translation);
 
   output_colour = vec4(mix(value, gamma_correct_dither(value, dither), dither_mix), 1.);
 }

@@ -48,8 +48,7 @@ TextureImage load_texture(const std::string& path) {
 }
 
 Renderer::Renderer()
-: frame_{0}
-, target_upscale_{1}
+: target_upscale_{1}
 , max_texture_size_{0}
 , quad_data_{quad_vertices, quad_indices, GL_STATIC_DRAW}
 , text_program_{"text",
@@ -133,10 +132,6 @@ glm::ivec2 Renderer::framebuffer_dimensions() const {
   return framebuffer_->dimensions();
 }
 
-std::uint64_t Renderer::frame() const {
-  return frame_;
-}
-
 void Renderer::resize(const glm::ivec2& dimensions) {
   if (dimensions == viewport_dimensions_) {
     return;
@@ -163,7 +158,6 @@ void Renderer::resize(const glm::ivec2& dimensions) {
 }
 
 void Renderer::begin_frame() const {
-  ++frame_;
   dither_translation_ = {};
   set_default_render_states();
   draw_.reset(new glo::ActiveFramebuffer{framebuffer_->draw()});
@@ -179,7 +173,6 @@ void Renderer::end_frame() const {
     glViewport(0, 0, framebuffer_dimensions().x, framebuffer_dimensions().y);
 
     auto program = post_program_.use();
-    glUniform1f(program.uniform("frame"), static_cast<float>(frame_));
     glUniform2fv(program.uniform("dimensions"), 1,
                  glm::value_ptr(glm::vec2{framebuffer_->dimensions()}));
     glUniform2fv(program.uniform("translation"), 1,

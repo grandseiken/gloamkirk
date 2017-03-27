@@ -2,6 +2,7 @@
 #define GLOAM_WORKERS_CLIENT_SRC_WORLD_WORLD_H
 #include "common/src/common/hashes.h"
 #include "common/src/core/collision.h"
+#include "workers/client/src/mode.h"
 #include "workers/client/src/world/world_renderer.h"
 #include <glm/vec3.hpp>
 #include <improbable/worker.h>
@@ -22,10 +23,15 @@ namespace world {
 
 class World {
 public:
-  World(worker::Connection& connection_, worker::Dispatcher& dispatcher_);
+  World(worker::Connection& connection_, worker::Dispatcher& dispatcher_,
+        const ModeState& mode_state);
   void set_player_id(worker::EntityId player_id);
+
+  // Game loop functions: sync() is called at the network frame-rate; update() is called at the
+  // client rendering frame-rate.
+  void sync();
   void update(const Input& input);
-  void render(const Renderer& renderer) const;
+  void render(const Renderer& renderer, std::uint64_t frame) const;
 
 private:
   void update_chunk(const schema::ChunkData& data);

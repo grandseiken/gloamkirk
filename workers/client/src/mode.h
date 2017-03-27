@@ -1,5 +1,6 @@
 #ifndef GLOAM_WORKERS_CLIENT_SRC_MODE_H
 #define GLOAM_WORKERS_CLIENT_SRC_MODE_H
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -51,7 +52,7 @@ struct ModeState {
 class Mode {
 public:
   virtual ~Mode() = default;
-  virtual void update(const Input& input) = 0;
+  virtual void update(const Input& input, bool sync) = 0;
   virtual void render(const Renderer& renderer) const = 0;
 };
 
