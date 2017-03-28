@@ -14,7 +14,8 @@ class WorldSpawner : public gloam::managed::WorkerLogic {
 public:
   WorldSpawner(const schema::MasterData& master_data);
   void init(managed::ManagedConnection& c) override;
-  void update() override;
+  void tick() override {}
+  void sync() override;
 
 private:
   struct ChunkInfo {

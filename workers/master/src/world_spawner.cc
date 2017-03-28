@@ -90,7 +90,7 @@ void WorldSpawner::init(managed::ManagedConnection& c) {
   });
 }
 
-void WorldSpawner::update() {
+void WorldSpawner::sync() {
   std::unordered_set<glm::ivec2> chunks_stored;
   for (const auto& info : master_data_.chunks()) {
     glm::ivec2 coord = {info.x(), info.y()};

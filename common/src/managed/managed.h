@@ -30,7 +30,10 @@ class WorkerLogic {
 public:
   virtual ~WorkerLogic() = default;
   virtual void init(ManagedConnection& connection) = 0;
-  virtual void update() = 0;
+  // Called every tick (60 times per second).
+  virtual void tick() = 0;
+  // Called every sync (20 times per second).
+  virtual void sync() = 0;
 };
 
 // Parse standard command-line and connect.

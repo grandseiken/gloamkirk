@@ -21,6 +21,7 @@ enum class MenuItem {
 
 enum class SettingsItem {
   kToggleFullscreen,
+  kFramerate,
   kAntialiasLevel,
   kBack,
   kCount,
@@ -47,12 +48,14 @@ struct ModeState {
   // Settings.
   bool fullscreen = false;
   bool antialiasing = true;
+  bool fps_60 = true;
 };
 
 class Mode {
 public:
   virtual ~Mode() = default;
-  virtual void update(const Input& input, bool sync) = 0;
+  virtual void tick(const Input& input) = 0;
+  virtual void sync() = 0;
   virtual void render(const Renderer& renderer) const = 0;
 };
 

@@ -16,7 +16,8 @@ public:
   ClientHandler(const schema::MasterData& master_data);
 
   void init(managed::ManagedConnection& c) override;
-  void update() override;
+  void tick() override {}
+  void sync() override;
 
 private:
   struct ClientInfo {

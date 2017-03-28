@@ -1,22 +1,22 @@
+#include "common/src/common/timing.h"
 #include "workers/client/src/input.h"
 #include "workers/client/src/renderer.h"
 #include "workers/client/src/title_mode.h"
 #include <SFML/Graphics.hpp>
 #include <improbable/worker.h>
+#include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <iostream>
 #include <memory>
 #include <random>
 #include <string>
+#include <thread>
 
 namespace {
 const std::string kProjectName = "alpha_zebra_pizza_956";
 const std::string kTitle = "Gloamkirk";
 const std::string kWorkerType = "client";
-const std::uint32_t kFramesPerSecond = 60;
-const std::uint32_t kSyncFramesPerSecond = 20;
-const auto kMillisPerFrame = static_cast<std::uint32_t>(1000.f / kFramesPerSecond);
 
 std::unique_ptr<sf::RenderWindow> create_window(const gloam::ModeState& mode_state) {
   sf::ContextSettings settings;
@@ -33,9 +33,10 @@ std::unique_ptr<sf::RenderWindow> create_window(const gloam::ModeState& mode_sta
           : new sf::RenderWindow{
                 sf::VideoMode(gloam::native_resolution.x, gloam::native_resolution.y), kTitle,
                 sf::Style::Default, settings}};
-  // Note: vsync implicitly limits framerate to 60.
+  // TODO: 30 FPS is still somehow jerky. Not sure how the framerate limit interacts with this.
+  // Is std::chrono inaccurate or something?
   window->setVerticalSyncEnabled(true);
-  window->setFramerateLimit(kFramesPerSecond);
+  window->setFramerateLimit(60);
   window->setVisible(true);
   window->display();
   return window;
@@ -78,41 +79,28 @@ void run(gloam::ModeState& mode_state, bool fade_in) {
   };
   std::unique_ptr<gloam::Mode> mode{make_title(fade_in)};
 
-  sf::Clock frame_clock;
-  std::int32_t frames_behind = 0;
-  std::uint32_t millis_behind = 0;
-  // TODO: this loop is still awkward as fuck because of SFML's window blocking.
+  std::uint32_t sync = 0;
+  bool render = false;
+  auto next_update = std::chrono::steady_clock::now();
   while (window->isOpen()) {
-    millis_behind += frame_clock.getElapsedTime().asMilliseconds();
-    frame_clock.restart();
-    while (millis_behind >= kMillisPerFrame) {
-      millis_behind -= kMillisPerFrame;
-      ++frames_behind;
+    input.update();
+    sf::Event event;
+    while (window->pollEvent(event)) {
+      if (event.type == sf::Event::Closed) {
+        mode_state.exit_application = true;
+        return;
+      } else if (event.type == sf::Event::Resized) {
+        renderer.resize({window->getSize().x, window->getSize().y});
+      } else {
+        input.handle(event);
+      }
     }
 
-    do {
-      --frames_behind;
-      ++mode_state.frame;
-      input.update();
-      sf::Event event;
-      while (window->pollEvent(event)) {
-        if (event.type == sf::Event::Closed) {
-          mode_state.exit_application = true;
-          return;
-        } else if (event.type == sf::Event::Resized) {
-          renderer.resize({window->getSize().x, window->getSize().y});
-        } else {
-          input.handle(event);
-        }
-      }
-      mode->update(input, mode_state.frame % (kFramesPerSecond / kSyncFramesPerSecond) == 0);
-    } while (!mode_state.new_mode && frames_behind > 0);
-
-    renderer.begin_frame();
-    renderer.set_default_render_states();
-    mode->render(renderer);
-    renderer.end_frame();
-    window->display();
+    ++mode_state.frame;
+    mode->tick(input);
+    if (!sync) {
+      mode->sync();
+    }
 
     if (mode_state.exit_application || mode_state.fullscreen != fullscreen) {
       return;
@@ -123,6 +111,20 @@ void run(gloam::ModeState& mode_state, bool fade_in) {
       mode.swap(mode_state.new_mode);
       mode_state.new_mode.reset();
     }
+
+    auto now = std::chrono::steady_clock::now();
+    bool frameskip = now - next_update > 2 * gloam::common::kTickDuration;
+    if (!frameskip && (render || mode_state.fps_60)) {
+      renderer.begin_frame();
+      mode->render(renderer);
+      renderer.end_frame();
+      window->display();
+    }
+
+    next_update += sync ? gloam::common::kTickDuration : gloam::common::kSyncTickDuration;
+    std::this_thread::sleep_until(next_update);
+    sync = (1 + sync) % gloam::common::kTicksPerSync;
+    render = !render;
   }
 }
 

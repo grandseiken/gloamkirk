@@ -48,7 +48,7 @@ TitleMode::TitleMode(ModeState& mode_state, bool fade_in,
   }
 }
 
-void TitleMode::update(const Input& input, bool) {
+void TitleMode::tick(const Input& input) {
   if (connection_future_) {
     if (input.pressed(Button::kCancel)) {
       // Doesn't seem to work most of the time, can't cancel once we're past the locator.
@@ -86,6 +86,8 @@ void TitleMode::update(const Input& input, bool) {
     if (input.pressed(Button::kConfirm)) {
       if (mode_state_.settings_item == SettingsItem::kToggleFullscreen) {
         mode_state_.fullscreen = !mode_state_.fullscreen;
+      } else if (mode_state_.settings_item == SettingsItem::kFramerate) {
+        mode_state_.fps_60 = !mode_state_.fps_60;
       } else if (mode_state_.settings_item == SettingsItem::kAntialiasLevel) {
         mode_state_.antialiasing = !mode_state_.antialiasing;
       } else if (mode_state_.settings_item == SettingsItem::kBack) {
@@ -175,8 +177,9 @@ void TitleMode::render(const Renderer& renderer) const {
       fade = std::max(0.f, std::min(1.f, 1.f - static_cast<float>(fade_in_) / 32.f));
     } else if (finish_connect_frame_) {
       fade = std::max(
-          0.f, std::min(1.f, 1.f -
-                            static_cast<float>(mode_state_.frame - finish_connect_frame_) / 32.f));
+          0.f,
+          std::min(1.f,
+                   1.f - static_cast<float>(mode_state_.frame - finish_connect_frame_) / 32.f));
     }
 
     auto program = title_program_.use();
@@ -212,6 +215,9 @@ void TitleMode::render(const Renderer& renderer) const {
                      static_cast<std::int32_t>(mode_state_.settings_item));
       draw_menu_item("ANTIALIASING: " + std::string{mode_state_.antialiasing ? "ON" : "OFF"},
                      static_cast<std::int32_t>(SettingsItem::kAntialiasLevel),
+                     static_cast<std::int32_t>(mode_state_.settings_item));
+      draw_menu_item("FRAMERATE: " + std::string{mode_state_.fps_60 ? "60 FPS" : "30 FPS"},
+                     static_cast<std::int32_t>(SettingsItem::kFramerate),
                      static_cast<std::int32_t>(mode_state_.settings_item));
       draw_menu_item("BACK", static_cast<std::int32_t>(SettingsItem::kBack),
                      static_cast<std::int32_t>(mode_state_.settings_item));
@@ -249,8 +255,8 @@ void TitleMode::render(const Renderer& renderer) const {
   if ((connection_future_ || locator_future_) && !finish_connect_frame_) {
     auto alpha = static_cast<float>((mode_state_.frame - connect_frame_) % 64) / 64.f;
 
-    auto text = !connection_future_ ? "SEARCHING..." : queue_status_.empty() ? "CONNECTING..."
-                                                                             : queue_status_;
+    auto text = !connection_future_ ? "SEARCHING..."
+                                    : queue_status_.empty() ? "CONNECTING..." : queue_status_;
     auto text_width = renderer.text_width(text);
     renderer.draw_text(text, {dimensions.x / 2 - text_width / 2, dimensions.y / 2},
                        glm::vec4{.75f, .75f, .75f, alpha});

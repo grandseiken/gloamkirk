@@ -67,9 +67,7 @@ void World::set_player_id(worker::EntityId player_id) {
   player_id_ = player_id;
 }
 
-void World::sync() {}
-
-void World::update(const Input& input) {
+void World::tick(const Input& input) {
   if (tile_map_changed_) {
     collision_.update(tile_map_);
     tile_map_changed_ = false;
@@ -100,6 +98,8 @@ void World::update(const Input& input) {
         player_id_, schema::Player::Update{}.set_position(common::coords(position)));
   }
 }
+
+void World::sync() {}
 
 void World::render(const Renderer& renderer, std::uint64_t frame) const {
   auto it = entity_positions_.find(player_id_);

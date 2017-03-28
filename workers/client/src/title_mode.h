@@ -14,7 +14,8 @@ public:
   TitleMode(ModeState& mode_state, bool fade_in,
             const worker::ConnectionParameters& connection_params,
             const worker::LocatorParameters& locator_params);
-  void update(const Input& input, bool sync) override;
+  void tick(const Input& input) override;
+  void sync() override {}
   void render(const Renderer& renderer) const override;
 
 private:

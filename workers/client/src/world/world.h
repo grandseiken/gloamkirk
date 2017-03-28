@@ -29,8 +29,8 @@ public:
 
   // Game loop functions: sync() is called at the network frame-rate; update() is called at the
   // client rendering frame-rate.
+  void tick(const Input& input);
   void sync();
-  void update(const Input& input);
   void render(const Renderer& renderer, std::uint64_t frame) const;
 
 private:

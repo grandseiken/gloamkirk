@@ -1,4 +1,5 @@
 #include "common/src/managed/managed.h"
+#include "common/src/common/timing.h"
 #include <improbable/worker.h>
 #include <chrono>
 #include <iostream>
@@ -7,7 +8,6 @@
 namespace gloam {
 namespace managed {
 namespace {
-constexpr const std::uint64_t kFramesPerSecond = 20;
 
 worker::Connection connect(const std::string& worker_type, const std::string& worker_id,
                            const std::string& hostname, std::uint16_t port) {
@@ -93,6 +93,7 @@ int connect(const std::string& worker_type, const std::vector<WorkerLogic*>& log
     connection.SendMetrics(metrics);
   });
 
+  std::uint32_t sync = 0;
   auto next_update = std::chrono::steady_clock::now();
   if (connection.IsConnected()) {
     for (const auto& worker_logic : logic) {
@@ -101,15 +102,20 @@ int connect(const std::string& worker_type, const std::vector<WorkerLogic*>& log
   }
   while (connected) {
     dispatcher.Process(connection.GetOpList(/* millis */ 0));
-    if (connected) {
-      for (const auto& worker_logic : logic) {
-        worker_logic->update();
+    if (!connected) {
+      break;
+    }
+    for (const auto& worker_logic : logic) {
+      worker_logic->tick();
+      if (!sync) {
+        worker_logic->sync();
       }
     }
 
     // TODO: report load based on how much time out of the frame was used.
-    next_update += std::chrono::duration<std::uint64_t, std::ratio<1, kFramesPerSecond>>{1};
+    next_update += sync ? common::kTickDuration : common::kSyncTickDuration;
     std::this_thread::sleep_until(next_update);
+    sync = (1 + sync) % common::kTicksPerSync;
   }
   return 1;
 }

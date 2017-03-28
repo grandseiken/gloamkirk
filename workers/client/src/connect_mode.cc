@@ -73,7 +73,7 @@ ConnectMode::ConnectMode(ModeState& mode_state, worker::Connection&& connection)
   world_.reset(new world::World{*connection_, dispatcher_, mode_state_});
 }
 
-void ConnectMode::update(const Input& input, bool sync) {
+void ConnectMode::tick(const Input& input) {
   if (!connected_ && input.pressed(Button::kAnyKey)) {
     disconnect_ack_ = true;
   }
@@ -90,10 +90,7 @@ void ConnectMode::update(const Input& input, bool sync) {
       enter_frame_ = frame_;
     }
     if (player_id_ >= 0) {
-      if (sync) {
-        world_->sync();
-      }
-      world_->update(input);
+      world_->tick(input);
     }
     if (logged_in_ && player_id_ < 0) {
       connected_ = false;
@@ -101,6 +98,12 @@ void ConnectMode::update(const Input& input, bool sync) {
     }
   } else if (disconnect_reason_.empty() || disconnect_ack_) {
     mode_state_.exit_to_title = true;
+  }
+}
+
+void ConnectMode::sync() {
+  if (connected_ && player_id_ >= 0) {
+    world_->sync();
   }
 }
 

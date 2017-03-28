@@ -33,7 +33,8 @@ public:
         });
   }
 
-  void update() override {}
+  void tick() override {}
+  void sync() override {}
 
 private:
   std::unordered_set<worker::EntityId> authority_;

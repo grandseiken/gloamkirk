@@ -25,7 +25,8 @@ public:
         [&](const worker::ComponentUpdateOp<schema::Master>& op) { op.Update.ApplyTo(data_); });
   }
 
-  void update() override {}
+  void tick() override {}
+  void sync() override {}
 
 private:
   schema::MasterData data_;

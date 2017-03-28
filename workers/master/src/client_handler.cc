@@ -143,7 +143,7 @@ void ClientHandler::init(managed::ManagedConnection& c) {
   });
 }
 
-void ClientHandler::update() {
+void ClientHandler::sync() {
   if (!master_data_.world_spawned()) {
     return;
   }
