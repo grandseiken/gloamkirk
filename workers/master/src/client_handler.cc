@@ -156,7 +156,7 @@ void ClientHandler::sync() {
     improbable::EntityAclData entity_acl{common::kAllWorkersSet, {acl_map}};
 
     worker::Entity entity;
-    entity.Add<schema::Player>({{0., 0., 0.}});
+    entity.Add<schema::Player>({0, 0.f, 0.f});
     entity.Add<schema::CanonicalPosition>({{0., 0., 0.}});
     entity.Add<improbable::EntityAcl>(entity_acl);
     return c_->connection.SendCreateEntityRequest(entity, {common::kPlayerPrefab}, {entity_id}, {});

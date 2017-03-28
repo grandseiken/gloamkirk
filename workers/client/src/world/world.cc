@@ -1,5 +1,6 @@
 #include "workers/client/src/world/world.h"
 #include "common/src/common/conversions.h"
+#include "common/src/common/timing.h"
 #include "workers/client/src/input.h"
 #include <glm/glm.hpp>
 #include <schema/common.h>
@@ -12,8 +13,9 @@ World::World(worker::Connection& connection, worker::Dispatcher& dispatcher,
              const ModeState& mode_state)
 : connection_{connection}, dispatcher_{dispatcher}, player_id_{-1}, world_renderer_{mode_state} {
   dispatcher_.OnAddEntity([&](const worker::AddEntityOp& op) {
-    connection_.SendInterestedComponents<schema::CanonicalPosition, schema::Player, schema::Chunk>(
-        op.EntityId);
+    connection_.SendInterestedComponents<schema::CanonicalPosition,
+                                         /* TODO: replace with common component. */ schema::Player,
+                                         schema::Chunk>(op.EntityId);
   });
 
   dispatcher_.OnAddComponent<schema::CanonicalPosition>(
@@ -87,19 +89,26 @@ void World::tick(const Input& input) {
     direction += glm::vec2{-1.f, 1.f};
   }
   if (direction != glm::vec2{}) {
+    direction = glm::normalize(direction);
     core::Box box{1.f / 8};
     auto& position = entity_positions_[player_id_];
-    auto projection_xz =
-        collision_.project_xz(box, position, (1.5f / 32.f) * glm::normalize(direction));
-    position += glm::vec3{projection_xz.x, 0.f, projection_xz.y};
 
-    // TODO: temporary client-side authority.
-    connection_.SendComponentUpdate<schema::Player>(
-        player_id_, schema::Player::Update{}.set_position(common::coords(position)));
+    auto speed_per_tick = common::kPlayerSpeed / common::kTicksPerSync;
+    auto projection_xz = collision_.project_xz(box, position, speed_per_tick * direction);
+    position += glm::vec3{projection_xz.x, 0.f, projection_xz.y};
+    player_tick_dv_ += projection_xz / common::kPlayerSpeed;
   }
 }
 
-void World::sync() {}
+void World::sync() {
+  ++sync_tick_;
+  auto update = schema::Player::Update{}
+                    .set_sync_tick(sync_tick_)
+                    .set_dx(player_tick_dv_.x)
+                    .set_dz(player_tick_dv_.y);
+  connection_.SendComponentUpdate<schema::Player>(player_id_, update);
+  player_tick_dv_ = {};
+}
 
 void World::render(const Renderer& renderer, std::uint64_t frame) const {
   auto it = entity_positions_.find(player_id_);

@@ -5,6 +5,8 @@ component Player {
   id = 832;
 
   // Local input determined by client worker.
-  Coordinates position = 1;
+  uint32 sync_tick = 1;
+  float dx = 2;
+  float dz = 3;
 }
 

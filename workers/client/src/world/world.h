@@ -4,9 +4,11 @@
 #include "common/src/core/collision.h"
 #include "workers/client/src/mode.h"
 #include "workers/client/src/world/world_renderer.h"
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <improbable/worker.h>
 #include <schema/chunk.h>
+#include <cstdint>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -40,6 +42,8 @@ private:
   worker::Connection& connection_;
   worker::Dispatcher& dispatcher_;
   worker::EntityId player_id_;
+  std::uint32_t sync_tick_ = 0;
+  glm::vec2 player_tick_dv_;
   std::unordered_set<worker::EntityId> player_entities_;
 
   std::unordered_map<worker::EntityId, glm::vec3> entity_positions_;
