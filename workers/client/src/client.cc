@@ -6,9 +6,12 @@
 #include <improbable/worker.h>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstdint>
+#include <deque>
 #include <iostream>
 #include <memory>
+#include <mutex>
 #include <random>
 #include <string>
 #include <thread>
@@ -33,10 +36,8 @@ std::unique_ptr<sf::RenderWindow> create_window(const gloam::ModeState& mode_sta
           : new sf::RenderWindow{
                 sf::VideoMode(gloam::native_resolution.x, gloam::native_resolution.y), kTitle,
                 sf::Style::Default, settings}};
-  // TODO: 30 FPS is still somehow jerky. Not sure how the framerate limit interacts with this.
-  // Is std::chrono inaccurate or something?
   window->setVerticalSyncEnabled(true);
-  window->setFramerateLimit(60);
+  window->setFramerateLimit(0);
   window->setVisible(true);
   window->display();
   return window;
@@ -79,30 +80,37 @@ void run(gloam::ModeState& mode_state, bool fade_in) {
   };
   std::unique_ptr<gloam::Mode> mode{make_title(fade_in)};
 
-  std::uint32_t sync = 0;
-  bool render = false;
-  auto next_update = std::chrono::steady_clock::now();
-  while (window->isOpen()) {
+  // Synchronization data.
+  std::atomic<bool> running{true};
+  std::mutex render_mutex;
+  std::mutex window_mutex;
+  bool render_signal = false;
+  std::condition_variable render_cv;
+  std::deque<sf::Event> event_queue;
+
+  window->setActive(false);
+
+  auto tick = [&](bool sync_tick, bool render_tick) {
     input.update();
-    sf::Event event;
-    while (window->pollEvent(event)) {
+    for (const auto& event : event_queue) {
       if (event.type == sf::Event::Closed) {
         mode_state.exit_application = true;
-        return;
       } else if (event.type == sf::Event::Resized) {
-        renderer.resize({window->getSize().x, window->getSize().y});
+        renderer.resize({event.size.width, event.size.height});
       } else {
         input.handle(event);
       }
     }
+    event_queue.clear();
 
     ++mode_state.frame;
     mode->tick(input);
-    if (!sync) {
+    if (sync_tick) {
       mode->sync();
     }
 
     if (mode_state.exit_application || mode_state.fullscreen != fullscreen) {
+      running = false;
       return;
     } else if (mode_state.exit_to_title) {
       mode_state.exit_to_title = false;
@@ -112,20 +120,97 @@ void run(gloam::ModeState& mode_state, bool fade_in) {
       mode_state.new_mode.reset();
     }
 
-    auto now = std::chrono::steady_clock::now();
-    bool frameskip = now - next_update > 2 * gloam::common::kTickDuration;
-    if (!frameskip && (render || mode_state.fps_60)) {
+    if (render_tick) {
       renderer.begin_frame();
       mode->render(renderer);
       renderer.end_frame();
-      window->display();
     }
+  };
 
-    next_update += sync ? gloam::common::kTickDuration : gloam::common::kSyncTickDuration;
-    std::this_thread::sleep_until(next_update);
-    sync = (1 + sync) % gloam::common::kTicksPerSync;
-    render = !render;
+  std::thread tick_thread{[&] {
+    std::uint32_t sync = 0;
+    bool render = false;
+    auto next_update = std::chrono::steady_clock::now();
+
+    while (running) {
+      {
+        std::unique_lock<std::mutex> lock{render_mutex};
+        render_cv.wait(lock, [&] { return !render_signal || !running; });
+      }
+      if (!running) {
+        return;
+      }
+
+      bool render_tick = (render || mode_state.fps_60) &&
+          std::chrono::steady_clock::now() - next_update < gloam::common::kTickDuration;
+      {
+        std::lock_guard<std::mutex> lock{window_mutex};
+        window->setActive(true);
+        tick(!sync, render_tick);
+        window->setActive(false);
+      }
+
+      if (render_tick) {
+        {
+          std::lock_guard<std::mutex> lock{render_mutex};
+          render_signal = true;
+        }
+        render_cv.notify_one();
+      }
+
+      next_update += sync ? gloam::common::kTickDuration : gloam::common::kSyncTickDuration;
+      std::this_thread::sleep_until(next_update);
+      sync = (1 + sync) % gloam::common::kTicksPerSync;
+      render = !render;
+    }
+  }};
+
+  std::thread render_thread{[&] {
+    while (running) {
+      {
+        std::unique_lock<std::mutex> lock{render_mutex};
+        render_cv.wait(lock, [&] { return render_signal || !running; });
+      }
+      if (!running) {
+        return;
+      }
+
+      // We're barely actually multithreading at all, here: only one thread is really doing
+      // meaningful work at any one time. Nevertheless, running a dedicated thread just for calling
+      // window->display() seems to make a lot of awkward timing issues go away.
+      {
+        std::lock_guard<std::mutex> lock{window_mutex};
+        window->setActive(true);
+        window->display();
+        window->setActive(false);
+      }
+      {
+        std::unique_lock<std::mutex> lock{render_mutex};
+        render_signal = false;
+      }
+      render_cv.notify_one();
+    }
+  }};
+
+  while (running) {
+    // Process SFML window events. This must happen on the main thread.
+    {
+      std::lock_guard<std::mutex> lock{window_mutex};
+      sf::Event event;
+      while (window->pollEvent(event)) {
+        event_queue.emplace_back(event);
+      }
+    }
+    // Try to process at least once per tick.
+    std::this_thread::sleep_for(gloam::common::kTickDuration / 2);
   }
+
+  running = false;
+  render_cv.notify_all();
+  render_thread.join();
+  tick_thread.join();
+  // For OpenGL destruction!
+  window->setActive(true);
 }
 
 }  // anonymous

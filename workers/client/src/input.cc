@@ -30,6 +30,7 @@ Button key_code_to_button(sf::Keyboard::Key code) {
 
 }  // anonymous
 
+// TODO: it's possible the input manager can only be used on the main thread.
 Input::Input(std::size_t window_handle)
 : manager_{OIS::InputManager::createInputSystem(window_handle),
            &OIS::InputManager::destroyInputSystem} {}
