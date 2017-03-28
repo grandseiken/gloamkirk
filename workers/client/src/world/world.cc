@@ -13,9 +13,17 @@ World::World(worker::Connection& connection, worker::Dispatcher& dispatcher,
              const ModeState& mode_state)
 : connection_{connection}, dispatcher_{dispatcher}, player_id_{-1}, world_renderer_{mode_state} {
   dispatcher_.OnAddEntity([&](const worker::AddEntityOp& op) {
-    connection_.SendInterestedComponents<schema::CanonicalPosition,
-                                         /* TODO: replace with common component. */ schema::Player,
-                                         schema::Chunk>(op.EntityId);
+    connection_
+        .SendInterestedComponents<schema::CanonicalPosition,
+                                  /* TODO: replace with common component. */ schema::PlayerClient,
+                                  schema::Chunk>(op.EntityId);
+  });
+
+  dispatcher_.OnAuthorityChange<schema::PlayerClient>([&](const worker::AuthorityChangeOp& op) {
+    if (op.HasAuthority) {
+      connection_.SendInterestedComponents<schema::CanonicalPosition, schema::PlayerClient,
+                                           schema::PlayerServer>(op.EntityId);
+    }
   });
 
   dispatcher_.OnAddComponent<schema::CanonicalPosition>(
@@ -35,11 +43,12 @@ World::World(worker::Connection& connection, worker::Dispatcher& dispatcher,
     }
   });
 
-  dispatcher_.OnAddComponent<schema::Player>([&](const worker::AddComponentOp<schema::Player>& op) {
-    player_entities_.insert(op.EntityId);
-  });
+  dispatcher_.OnAddComponent<schema::PlayerClient>(
+      [&](const worker::AddComponentOp<schema::PlayerClient>& op) {
+        player_entities_.insert(op.EntityId);
+      });
 
-  dispatcher_.OnRemoveComponent<schema::Player>(
+  dispatcher_.OnRemoveComponent<schema::PlayerClient>(
       [&](const worker::RemoveComponentOp& op) { player_entities_.erase(op.EntityId); });
 
   dispatcher_.OnAddComponent<schema::Chunk>([&](const worker::AddComponentOp<schema::Chunk>& op) {
@@ -102,11 +111,10 @@ void World::tick(const Input& input) {
 
 void World::sync() {
   ++sync_tick_;
-  auto update = schema::Player::Update{}
-                    .set_sync_tick(sync_tick_)
-                    .set_dx(player_tick_dv_.x)
-                    .set_dz(player_tick_dv_.y);
-  connection_.SendComponentUpdate<schema::Player>(player_id_, update);
+  connection_.SendComponentUpdate<schema::PlayerClient>(
+      player_id_,
+      schema::PlayerClient::Update{}.add_sync_input(
+          {sync_tick_, player_tick_dv_.x, player_tick_dv_.y}));
   player_tick_dv_ = {};
 }
 

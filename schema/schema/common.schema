@@ -5,7 +5,7 @@ type Unit {}
 // Canonical position component. Required for all entities. Used for load-balancing, spatial finds,
 // the inspector, and so on.
 component CanonicalPosition {
-  id = 830;
+  id = 101;
   EntityPosition coords = 1;
 }
 

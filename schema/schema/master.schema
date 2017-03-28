@@ -9,7 +9,7 @@ type ChunkInfo {
 
 // Component exclusive to the master entity with ID 0, authoritative on the master worker.
 component Master {
-  id = 831;
+  id = 100;
 
   bool world_spawned = 1;
   list<ChunkInfo> chunks = 2;

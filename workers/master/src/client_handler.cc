@@ -151,12 +151,14 @@ void ClientHandler::sync() {
 
   auto create_player_entity = [&](const Client& client, worker::EntityId entity_id) {
     worker::Map<worker::ComponentId, improbable::WorkerRequirementSet> acl_map = {
-        {schema::Player::ComponentId, client_acl(client)},
+        {schema::PlayerClient::ComponentId, client_acl(client)},
+        {schema::PlayerServer::ComponentId, common::kAmbientOnlySet},
         {schema::CanonicalPosition::ComponentId, common::kAmbientOnlySet}};
     improbable::EntityAclData entity_acl{common::kAllWorkersSet, {acl_map}};
 
     worker::Entity entity;
-    entity.Add<schema::Player>({0, 0.f, 0.f});
+    entity.Add<schema::PlayerClient>({});
+    entity.Add<schema::PlayerServer>({});
     entity.Add<schema::CanonicalPosition>({{0., 0., 0.}});
     entity.Add<improbable::EntityAcl>(entity_acl);
     return c_->connection.SendCreateEntityRequest(entity, {common::kPlayerPrefab}, {entity_id}, {});

@@ -11,7 +11,7 @@ type Tile {
 
 // Component exclusive to chunk entities.
 component Chunk {
-  id = 833;
+  id = 120;
 
   // The size of the chunk. All chunks should have the same size.
   int32 chunk_size = 1;

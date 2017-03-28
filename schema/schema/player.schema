@@ -1,12 +1,36 @@
 package gloam.schema;
 
-// Component exclusive to player entities, authoritative on the client worker.
-component Player {
-  id = 832;
-
-  // Local input determined by client worker.
+type PlayerInput {
+  // Client-side tick number.
   uint32 sync_tick = 1;
+
+  // Normalized XZ-direction vector.
   float dx = 2;
   float dz = 3;
 }
 
+type PlayerState {
+  // Echoed tick number from the PlayerInput event.
+  uint32 sync_tick = 1;
+
+  // Current coordinates.
+  float x = 2;
+  float y = 3;
+  float z = 4;
+}
+
+// Component exclusive to player entities, authoritative on the client worker.
+component PlayerClient {
+  id = 110;
+
+  // Local input determined by client worker.
+  event PlayerInput sync_input;
+}
+
+// Exclusive to player entities, authoritative on the server.
+component PlayerServer {
+  id = 111;
+
+  // Authoritative position determined by the server.
+  event PlayerState sync_state;
+}

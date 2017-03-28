@@ -28,7 +28,7 @@ public:
           auto& position = entity_positions_[op.EntityId];
           position.missed_syncs = 0;
           position.current = common::coords(op.Data.coords());
-          c.connection.SendInterestedComponents<schema::Player>(op.EntityId);
+          c.connection.SendInterestedComponents<schema::PlayerClient>(op.EntityId);
         });
 
     c.dispatcher.OnComponentUpdate<schema::CanonicalPosition>(
@@ -48,15 +48,16 @@ public:
           entity_positions_[op.EntityId].has_authority = op.HasAuthority;
         });
 
-    c.dispatcher.OnComponentUpdate<schema::Player>(
-        [&](const worker::ComponentUpdateOp<schema::Player>& op) {
+    c.dispatcher.OnComponentUpdate<schema::PlayerClient>(
+        [&](const worker::ComponentUpdateOp<schema::PlayerClient>& op) {
           auto it = entity_positions_.find(op.EntityId);
-          if (it == entity_positions_.end() || !op.Update.sync_tick()) {
+          if (it == entity_positions_.end() || op.Update.sync_input().empty()) {
             return;
           }
+          const auto& input = op.Update.sync_input().front();
           PositionSync sync;
-          sync.tick = *op.Update.sync_tick();
-          sync.xz = {op.Update.dx().value_or(0), op.Update.dz().value_or(0)};
+          sync.tick = input.sync_tick();
+          sync.xz = {input.dx(), input.dz()};
           if (glm::dot(sync.xz, sync.xz) > 1.f) {
             sync.xz = glm::normalize(sync.xz);
           }
@@ -71,20 +72,28 @@ public:
   void tick() override {}
   void sync() override {
     for (auto& pair : entity_positions_) {
-      pair.second.missed_syncs = std::max(kSyncBufferCount, 1 + pair.second.missed_syncs);
-      if (pair.second.ticks.empty()) {
+      auto& position = pair.second;
+      position.missed_syncs = std::max(kSyncBufferCount, 1 + position.missed_syncs);
+      if (position.ticks.empty()) {
         continue;
       }
 
-      while (pair.second.missed_syncs && !pair.second.ticks.empty()) {
-        const auto& tick = pair.second.ticks.front();
-        pair.second.current += common::kPlayerSpeed * glm::vec3{tick.xz.x, 0.f, tick.xz.y};
-        pair.second.ticks.pop_front();
+      std::uint32_t sync_tick = 0;
+      while (position.missed_syncs && !position.ticks.empty()) {
+        const auto& tick = position.ticks.front();
+        sync_tick = tick.tick;
+        position.current += common::kPlayerSpeed * glm::vec3{tick.xz.x, 0.f, tick.xz.y};
+        position.ticks.pop_front();
         --pair.second.missed_syncs;
       }
+      const auto& current = position.current;
       c_->connection.SendComponentUpdate<schema::CanonicalPosition>(
+          pair.first, schema::CanonicalPosition::Update{}.set_coords(common::coords(current)));
+      // Bounce back only to client for this player.
+      c_->connection.SendComponentUpdate<schema::PlayerServer>(
           pair.first,
-          schema::CanonicalPosition::Update{}.set_coords(common::coords(pair.second.current)));
+          schema::PlayerServer::Update{}.add_sync_state(
+              {sync_tick, current.x, current.y, current.z}));
     }
   }
 

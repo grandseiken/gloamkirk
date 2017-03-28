@@ -55,7 +55,7 @@ ConnectMode::ConnectMode(ModeState& mode_state, worker::Connection&& connection)
         }
       });
 
-  dispatcher_.OnAuthorityChange<schema::Player>([&](const worker::AuthorityChangeOp& op) {
+  dispatcher_.OnAuthorityChange<schema::PlayerClient>([&](const worker::AuthorityChangeOp& op) {
     if (op.HasAuthority) {
       player_id_ = op.EntityId;
     } else if (op.EntityId == player_id_) {

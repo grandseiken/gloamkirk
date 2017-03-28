@@ -141,8 +141,9 @@ void run(gloam::ModeState& mode_state, bool fade_in) {
         return;
       }
 
-      bool render_tick =
-          !render && std::chrono::steady_clock::now() - next_update < gloam::common::kTickDuration;
+      auto now = std::chrono::steady_clock::now();
+      bool delayed = now - next_update >= gloam::common::kTickDuration;
+      bool render_tick = !render && !delayed;
       {
         std::lock_guard<std::mutex> lock{window_mutex};
         window->setActive(true);
