@@ -129,7 +129,7 @@ void run(gloam::ModeState& mode_state, bool fade_in) {
 
   std::thread tick_thread{[&] {
     std::uint32_t sync = 0;
-    bool render = false;
+    std::uint32_t render = 0;
     auto next_update = std::chrono::steady_clock::now();
 
     while (running) {
@@ -141,8 +141,8 @@ void run(gloam::ModeState& mode_state, bool fade_in) {
         return;
       }
 
-      bool render_tick = (render || mode_state.fps_60) &&
-          std::chrono::steady_clock::now() - next_update < gloam::common::kTickDuration;
+      bool render_tick =
+          !render && std::chrono::steady_clock::now() - next_update < gloam::common::kTickDuration;
       {
         std::lock_guard<std::mutex> lock{window_mutex};
         window->setActive(true);
@@ -161,7 +161,7 @@ void run(gloam::ModeState& mode_state, bool fade_in) {
       next_update += sync ? gloam::common::kTickDuration : gloam::common::kSyncTickDuration;
       std::this_thread::sleep_until(next_update);
       sync = (1 + sync) % gloam::common::kTicksPerSync;
-      render = !render;
+      render = (1 + render) % (mode_state.framerate == gloam::Framerate::k30Fps ? 2 : 1);
     }
   }};
 

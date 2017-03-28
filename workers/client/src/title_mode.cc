@@ -87,7 +87,7 @@ void TitleMode::tick(const Input& input) {
       if (mode_state_.settings_item == SettingsItem::kToggleFullscreen) {
         mode_state_.fullscreen = !mode_state_.fullscreen;
       } else if (mode_state_.settings_item == SettingsItem::kFramerate) {
-        mode_state_.fps_60 = !mode_state_.fps_60;
+        select_menu(mode_state_.framerate, Framerate::kCount, 1);
       } else if (mode_state_.settings_item == SettingsItem::kAntialiasLevel) {
         mode_state_.antialiasing = !mode_state_.antialiasing;
       } else if (mode_state_.settings_item == SettingsItem::kBack) {
@@ -209,13 +209,14 @@ void TitleMode::render(const Renderer& renderer) const {
 
   if (!connection_future_ && !locator_future_ && !deployment_list_) {
     if (mode_state_.settings_menu) {
+      auto framerate_string = mode_state_.framerate == Framerate::k60Fps ? "60 FPS" : "30 FPS";
       draw_menu_item("TOGGLE FULLSCREEN",
                      static_cast<std::int32_t>(SettingsItem::kToggleFullscreen),
                      static_cast<std::int32_t>(mode_state_.settings_item));
       draw_menu_item("ANTIALIASING: " + std::string{mode_state_.antialiasing ? "ON" : "OFF"},
                      static_cast<std::int32_t>(SettingsItem::kAntialiasLevel),
                      static_cast<std::int32_t>(mode_state_.settings_item));
-      draw_menu_item("FRAMERATE: " + std::string{mode_state_.fps_60 ? "60 FPS" : "30 FPS"},
+      draw_menu_item("FRAMERATE: " + std::string{framerate_string},
                      static_cast<std::int32_t>(SettingsItem::kFramerate),
                      static_cast<std::int32_t>(mode_state_.settings_item));
       draw_menu_item("BACK", static_cast<std::int32_t>(SettingsItem::kBack),

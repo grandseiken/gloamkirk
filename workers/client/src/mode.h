@@ -27,6 +27,12 @@ enum class SettingsItem {
   kCount,
 };
 
+enum class Framerate {
+  k30Fps,
+  k60Fps,
+  kCount,
+};
+
 class Mode;
 struct ModeState {
   std::unique_ptr<Mode> new_mode;
@@ -48,7 +54,7 @@ struct ModeState {
   // Settings.
   bool fullscreen = false;
   bool antialiasing = true;
-  bool fps_60 = true;
+  Framerate framerate = Framerate::k60Fps;
 };
 
 class Mode {
