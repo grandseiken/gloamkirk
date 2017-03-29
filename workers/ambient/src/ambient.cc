@@ -91,9 +91,8 @@ public:
           pair.first, schema::CanonicalPosition::Update{}.set_coords(common::coords(current)));
       // Bounce back only to client for this player.
       c_->connection.SendComponentUpdate<schema::PlayerServer>(
-          pair.first,
-          schema::PlayerServer::Update{}.add_sync_state(
-              {sync_tick, current.x, current.y, current.z}));
+          pair.first, schema::PlayerServer::Update{}.add_sync_state(
+                          {sync_tick, current.x, current.y, current.z}));
     }
   }
 

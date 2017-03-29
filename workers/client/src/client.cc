@@ -36,7 +36,7 @@ std::unique_ptr<sf::RenderWindow> create_window(const gloam::ModeState& mode_sta
           : new sf::RenderWindow{
                 sf::VideoMode(gloam::native_resolution.x, gloam::native_resolution.y), kTitle,
                 sf::Style::Default, settings}};
-  window->setVerticalSyncEnabled(true);
+  window->setVerticalSyncEnabled(mode_state.framerate == gloam::Framerate::k60Fps);
   window->setFramerateLimit(0);
   window->setVisible(true);
   window->display();
@@ -133,14 +133,6 @@ void run(gloam::ModeState& mode_state, bool fade_in) {
     auto next_update = std::chrono::steady_clock::now();
 
     while (running) {
-      {
-        std::unique_lock<std::mutex> lock{render_mutex};
-        render_cv.wait(lock, [&] { return !render_signal || !running; });
-      }
-      if (!running) {
-        return;
-      }
-
       auto now = std::chrono::steady_clock::now();
       bool delayed = now - next_update >= gloam::common::kTickDuration;
       bool render_tick = !render && !delayed;
@@ -151,12 +143,15 @@ void run(gloam::ModeState& mode_state, bool fade_in) {
         window->setActive(false);
       }
 
+      // Signal display thread and wait for it to have finished.
       if (render_tick) {
         {
           std::lock_guard<std::mutex> lock{render_mutex};
           render_signal = true;
         }
         render_cv.notify_one();
+        std::unique_lock<std::mutex> lock{render_mutex};
+        render_cv.wait(lock, [&] { return !render_signal || !running; });
       }
 
       next_update += sync ? gloam::common::kTickDuration : gloam::common::kSyncTickDuration;
