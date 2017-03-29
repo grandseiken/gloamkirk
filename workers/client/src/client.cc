@@ -36,7 +36,6 @@ std::unique_ptr<sf::RenderWindow> create_window(const gloam::ModeState& mode_sta
           : new sf::RenderWindow{
                 sf::VideoMode(gloam::native_resolution.x, gloam::native_resolution.y), kTitle,
                 sf::Style::Default, settings}};
-  window->setVerticalSyncEnabled(mode_state.framerate == gloam::Framerate::k60Fps);
   window->setFramerateLimit(0);
   window->setVisible(true);
   window->display();
@@ -177,6 +176,7 @@ void run(gloam::ModeState& mode_state, bool fade_in) {
       {
         std::lock_guard<std::mutex> lock{window_mutex};
         window->setActive(true);
+        window->setVerticalSyncEnabled(mode_state.framerate == gloam::Framerate::k60Fps);
         window->display();
         window->setActive(false);
       }
