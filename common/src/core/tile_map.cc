@@ -5,7 +5,11 @@
 namespace gloam {
 namespace core {
 
-void TileMap::register_callbacks(worker::Dispatcher& dispatcher) {
+void TileMap::register_callbacks(worker::Connection& connection, worker::Dispatcher& dispatcher) {
+  dispatcher.OnAddEntity([&](const worker::AddEntityOp& op) {
+    connection.SendComponentInterest(op.EntityId, {{schema::Chunk::ComponentId, {true}}});
+  });
+
   dispatcher.OnAddComponent<schema::Chunk>([&](const worker::AddComponentOp<schema::Chunk>& op) {
     chunk_map_.emplace(op.EntityId, op.Data);
     update_chunk(op.Data);

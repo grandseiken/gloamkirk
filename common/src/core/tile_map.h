@@ -6,6 +6,7 @@
 #include <unordered_map>
 
 namespace worker {
+class Connection;
 class Dispatcher;
 }  // ::worker
 
@@ -15,7 +16,7 @@ namespace core {
 class TileMap {
 public:
   // Update the collision map based on callbacks from the dispatcher.
-  void register_callbacks(worker::Dispatcher& dispatcher);
+  void register_callbacks(worker::Connection& connection, worker::Dispatcher& dispatcher);
 
   bool has_changed() const;
   const std::unordered_map<glm::ivec2, schema::Tile>& get() const;

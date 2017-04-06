@@ -24,10 +24,11 @@ public:
     c_ = &c;
 
     c.dispatcher.OnAddEntity([&](const worker::AddEntityOp& op) {
-      c.connection
-          .SendInterestedComponents<schema::PlayerClient, schema::PlayerServer,
-                                    /* TODO: move into TileMap on new interest */ schema::Chunk>(
-              op.EntityId);
+      c.connection.SendComponentInterest(op.EntityId,
+                                         {
+                                             {schema::PlayerClient::ComponentId, {true}},
+                                             {schema::PlayerServer::ComponentId, {true}},
+                                         });
     });
 
     c.dispatcher.OnRemoveEntity(
@@ -71,7 +72,7 @@ public:
           }
         });
 
-    tile_map_.register_callbacks(c.dispatcher);
+    tile_map_.register_callbacks(c.connection, c.dispatcher);
   }
 
   void tick() override {

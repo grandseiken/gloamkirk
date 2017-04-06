@@ -13,17 +13,20 @@ World::World(worker::Connection& connection, worker::Dispatcher& dispatcher,
              const ModeState& mode_state)
 : connection_{connection}, dispatcher_{dispatcher}, player_id_{-1}, world_renderer_{mode_state} {
   dispatcher_.OnAddEntity([&](const worker::AddEntityOp& op) {
-    connection_
-        .SendInterestedComponents<schema::CanonicalPosition,
-                                  /* TODO: replace with common component. */ schema::PlayerClient,
-                                  schema::Chunk>(op.EntityId);
+    connection_.SendComponentInterest(op.EntityId,
+                                      {
+                                          // TODO: replace with interpolation component.
+                                          {schema::CanonicalPosition::ComponentId, {true}},
+                                          // TODO: replace with common component.
+                                          {schema::PlayerClient::ComponentId, {true}},
+                                      });
   });
 
   dispatcher_.OnAuthorityChange<schema::PlayerClient>([&](const worker::AuthorityChangeOp& op) {
-    if (op.HasAuthority) {
-      connection_.SendInterestedComponents<schema::CanonicalPosition, schema::PlayerClient,
-                                           schema::PlayerServer>(op.EntityId);
-    }
+    connection.SendComponentInterest(op.EntityId,
+                                     {
+                                         {schema::PlayerServer::ComponentId, {op.HasAuthority}},
+                                     });
   });
 
   dispatcher_.OnAddComponent<schema::CanonicalPosition>(
@@ -51,7 +54,7 @@ World::World(worker::Connection& connection, worker::Dispatcher& dispatcher,
   dispatcher_.OnRemoveComponent<schema::PlayerClient>(
       [&](const worker::RemoveComponentOp& op) { player_entities_.erase(op.EntityId); });
 
-  tile_map_.register_callbacks(dispatcher_);
+  tile_map_.register_callbacks(connection_, dispatcher_);
 }
 
 void World::set_player_id(worker::EntityId player_id) {
