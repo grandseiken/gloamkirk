@@ -90,11 +90,12 @@ public:
       }
       position.missed_syncs = std::max(kSyncBufferCount, 1 + position.missed_syncs);
       if (position.ticks.empty()) {
+        position.hit_syncs = 0;
         continue;
       }
 
       std::uint32_t sync_tick = 0;
-      // TODO: missed syncs logic is a bit iffy - should time out after a while.
+      // Allow some smoothing out of incoming ticks.
       while (position.missed_syncs && !position.ticks.empty()) {
         const auto& tick = position.ticks.front();
         sync_tick = tick.tick;
@@ -102,14 +103,21 @@ public:
         position.ticks.pop_front();
         --pair.second.missed_syncs;
       }
+      // But don't let them stack up forever.
+      if (position.hit_syncs < kSyncBufferCount) {
+        ++position.hit_syncs;
+      } else if (position.missed_syncs) {
+        --position.missed_syncs;
+      }
+
+      // Update the canonical position.
       const auto& current = position.current;
       c_->connection.SendComponentUpdate<schema::CanonicalPosition>(
           pair.first, schema::CanonicalPosition::Update{}.set_coords(common::coords(current)));
       // Bounce back only to client for this player.
       c_->connection.SendComponentUpdate<schema::PlayerServer>(
-          pair.first,
-          schema::PlayerServer::Update{}.add_sync_state(
-              {sync_tick, current.x, current.y, current.z}));
+          pair.first, schema::PlayerServer::Update{}.add_sync_state(
+                          {sync_tick, current.x, current.y, current.z}));
     }
   }
 
@@ -124,6 +132,7 @@ private:
     bool has_authority = false;
     glm::vec3 current;
 
+    std::uint32_t hit_syncs = 0;
     std::uint32_t missed_syncs = 0;
     std::deque<PositionSync> ticks;
   };
