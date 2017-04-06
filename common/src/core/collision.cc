@@ -1,6 +1,8 @@
 #include "common/src/core/collision.h"
+#include "common/src/core/tile_map.h"
 #include <glm/common.hpp>
 #include <glm/geometric.hpp>
+#include <improbable/worker.h>
 
 namespace gloam {
 namespace core {
@@ -51,13 +53,13 @@ float project(const Edge& edge, const glm::vec2& origin, const glm::vec2& projec
 
 }  // anonymous
 
-void Collision::update(const std::unordered_map<glm::ivec2, schema::Tile>& tile_map) {
+void Collision::update(const TileMap& tile_map) {
   layers_.clear();
   glm::ivec3 min;
   glm::ivec3 max;
 
   bool first = true;
-  for (const auto& pair : tile_map) {
+  for (const auto& pair : tile_map.get()) {
     glm::ivec3 coords = {pair.first.x, pair.first.y, pair.second.height()};
     if (first) {
       min = max = coords;
@@ -69,10 +71,10 @@ void Collision::update(const std::unordered_map<glm::ivec2, schema::Tile>& tile_
   }
 
   auto has_edge = [&](std::int32_t height, const glm::ivec2& from, const glm::ivec2& to) {
-    auto from_it = tile_map.find(from);
-    auto to_it = tile_map.find(to);
-    return from_it != tile_map.end() && height >= from_it->second.height() &&
-        (to_it == tile_map.end() || height < to_it->second.height());
+    auto from_it = tile_map.get().find(from);
+    auto to_it = tile_map.get().find(to);
+    return from_it != tile_map.get().end() && height >= from_it->second.height() &&
+        (to_it == tile_map.get().end() || height < to_it->second.height());
   };
 
   for (auto height = min.z; height < max.z; ++height) {

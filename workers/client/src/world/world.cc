@@ -51,27 +51,7 @@ World::World(worker::Connection& connection, worker::Dispatcher& dispatcher,
   dispatcher_.OnRemoveComponent<schema::PlayerClient>(
       [&](const worker::RemoveComponentOp& op) { player_entities_.erase(op.EntityId); });
 
-  dispatcher_.OnAddComponent<schema::Chunk>([&](const worker::AddComponentOp<schema::Chunk>& op) {
-    chunk_map_.emplace(op.EntityId, op.Data);
-    update_chunk(op.Data);
-  });
-
-  dispatcher_.OnRemoveComponent<schema::Chunk>([&](const worker::RemoveComponentOp& op) {
-    auto it = chunk_map_.find(op.EntityId);
-    if (it != chunk_map_.end()) {
-      clear_chunk(it->second);
-      chunk_map_.erase(op.EntityId);
-    }
-  });
-
-  dispatcher_.OnComponentUpdate<schema::Chunk>(
-      [&](const worker::ComponentUpdateOp<schema::Chunk>& op) {
-        auto it = chunk_map_.find(op.EntityId);
-        if (it != chunk_map_.end()) {
-          op.Update.ApplyTo(it->second);
-          update_chunk(it->second);
-        }
-      });
+  tile_map_.register_callbacks(dispatcher_);
 }
 
 void World::set_player_id(worker::EntityId player_id) {
@@ -79,9 +59,8 @@ void World::set_player_id(worker::EntityId player_id) {
 }
 
 void World::tick(const Input& input) {
-  if (tile_map_changed_) {
+  if (tile_map_.has_changed()) {
     collision_.update(tile_map_);
-    tile_map_changed_ = false;
   }
 
   glm::vec2 direction;
@@ -134,17 +113,7 @@ void World::render(const Renderer& renderer, std::uint64_t frame) const {
     }
   }
 
-  world_renderer_.render(renderer, frame, it->second, lights, positions, tile_map_);
-}
-
-void World::update_chunk(const schema::ChunkData& data) {
-  common::update_chunk(tile_map_, data);
-  tile_map_changed_ = true;
-}
-
-void World::clear_chunk(const schema::ChunkData& data) {
-  common::clear_chunk(tile_map_, data);
-  tile_map_changed_ = true;
+  world_renderer_.render(renderer, frame, it->second, lights, positions, tile_map_.get());
 }
 
 }  // ::world

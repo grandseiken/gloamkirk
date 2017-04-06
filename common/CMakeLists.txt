@@ -3,7 +3,9 @@ project(common)
 
 set(CORE_SOURCE_FILES
   "src/core/collision.cc"
-  "src/core/collision.h")
+  "src/core/collision.h"
+  "src/core/tile_map.cc"
+  "src/core/tile_map.h")
 
 set(MANAGED_SOURCE_FILES
   "src/managed/managed.cc"

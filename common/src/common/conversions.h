@@ -24,26 +24,6 @@ inline glm::ivec2 tile_coords(const schema::ChunkData& data, std::size_t tile_in
   return {size * data.chunk_x() + index % size, size * data.chunk_y() + index / size};
 }
 
-inline void update_chunk(std::unordered_map<glm::ivec2, schema::Tile>& tile_map,
-                         const schema::ChunkData& chunk_data) {
-  for (std::size_t i = 0; i < chunk_data.tiles().size(); ++i) {
-    auto key = tile_coords(chunk_data, i);
-    auto it = tile_map.find(key);
-    if (it == tile_map.end()) {
-      tile_map.emplace(key, chunk_data.tiles()[i]);
-    } else {
-      tile_map.emplace_hint(tile_map.erase(it), key, chunk_data.tiles()[i]);
-    }
-  }
-}
-
-inline void clear_chunk(std::unordered_map<glm::ivec2, schema::Tile>& tile_map,
-                        const schema::ChunkData& chunk_data) {
-  for (std::size_t i = 0; i < chunk_data.tiles().size(); ++i) {
-    tile_map.erase(tile_coords(chunk_data, i));
-  }
-}
-
 }  // ::common
 }  // ::gloam
 

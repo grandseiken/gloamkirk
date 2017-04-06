@@ -10,6 +10,7 @@
 
 namespace gloam {
 namespace core {
+class TileMap;
 
 // Diagonal-axis-aligned collision box, with origin at centre-bottom.
 struct Box {
@@ -26,7 +27,7 @@ struct Edge {
 class Collision {
 public:
   // Recalculate terrain geometry from the tile map.
-  void update(const std::unordered_map<glm::ivec2, schema::Tile>& tile_map);
+  void update(const TileMap& tile_map);
 
   // Project a collision box at position along the given XZ projection vector, and return the
   // modified, unimpeded projection.
