@@ -1,5 +1,7 @@
 #include "common/src/common/conversions.h"
 #include "common/src/common/timing.h"
+#include "common/src/core/collision.h"
+#include "common/src/core/tile_map.h"
 #include "common/src/managed/managed.h"
 #include <glm/glm.hpp>
 #include <glm/vec2.hpp>
@@ -8,9 +10,7 @@
 #include <schema/common.h>
 #include <schema/player.h>
 #include <cstdint>
-#include <deque>
 #include <unordered_map>
-#include <unordered_set>
 
 namespace gloam {
 namespace ambient {
@@ -24,8 +24,10 @@ public:
     c_ = &c;
 
     c.dispatcher.OnAddEntity([&](const worker::AddEntityOp& op) {
-      c.connection.SendInterestedComponents<schema::PlayerClient, schema::PlayerServer>(
-          op.EntityId);
+      c.connection
+          .SendInterestedComponents<schema::PlayerClient, schema::PlayerServer,
+                                    /* TODO: move into TileMap on new interest */ schema::Chunk>(
+              op.EntityId);
     });
 
     c.dispatcher.OnRemoveEntity(
@@ -34,7 +36,8 @@ public:
     c.dispatcher.OnAddComponent<schema::CanonicalPosition>(
         [&](const worker::AddComponentOp<schema::CanonicalPosition>& op) {
           // We only get the position when we're authoritative.
-          entity_positions_[op.EntityId].current = common::coords(op.Data.coords());
+          auto& position = entity_positions_[op.EntityId];
+          position.last = position.current = common::coords(op.Data.coords());
         });
 
     c.dispatcher.OnComponentUpdate<schema::PlayerServer>(
@@ -43,22 +46,15 @@ public:
           if (!position.has_authority && !op.Update.sync_state().empty()) {
             auto& sync = op.Update.sync_state().front();
 
-            // Cosimulation: discard ticks that the other worker has dealt with.
+            // Cosimulation.
+            position.last = position.current;
             position.current = {sync.x(), sync.y(), sync.z()};
-            while (!position.ticks.empty() && position.ticks.front().tick != sync.sync_tick()) {
-              position.ticks.pop_front();
-            }
-            if (!position.ticks.empty()) {
-              position.ticks.pop_front();
-            }
           }
         });
 
     c.dispatcher.OnAuthorityChange<schema::CanonicalPosition>(
         [&](const worker::AuthorityChangeOp& op) {
-          auto& position = entity_positions_[op.EntityId];
-          position.has_authority = op.HasAuthority;
-          position.missed_syncs = 0;
+          entity_positions_[op.EntityId].has_authority = op.HasAuthority;
         });
 
     c.dispatcher.OnComponentUpdate<schema::PlayerClient>(
@@ -66,48 +62,42 @@ public:
           auto& position = entity_positions_[op.EntityId];
           if (!op.Update.sync_input().empty()) {
             const auto& input = op.Update.sync_input().front();
-            PositionSync sync;
-            sync.tick = input.sync_tick();
-            sync.xz = {input.dx(), input.dz()};
-            if (glm::dot(sync.xz, sync.xz) > 1.f) {
-              sync.xz = glm::normalize(sync.xz);
-            }
 
-            position.ticks.push_back(sync);
-            if (position.ticks.size() > kSyncBufferCount) {
-              position.ticks.pop_front();
+            position.player_tick = input.sync_tick();
+            position.xz_dv = {input.dx(), input.dz()};
+            if (glm::dot(position.xz_dv, position.xz_dv) > 1.f) {
+              position.xz_dv = glm::normalize(position.xz_dv);
             }
           }
         });
+
+    tile_map_.register_callbacks(c.dispatcher);
   }
 
-  void tick() override {}
+  void tick() override {
+    if (tile_map_.has_changed()) {
+      collision_.update(tile_map_);
+    }
+
+    for (auto& pair : entity_positions_) {
+      auto& position = pair.second;
+      if (position.xz_dv == glm::vec2{}) {
+        continue;
+      }
+
+      core::Box box{1.f / 8};
+      auto speed_per_tick = common::kPlayerSpeed / common::kTicksPerSync;
+      auto projection_xz =
+          collision_.project_xz(box, position.current, speed_per_tick * position.xz_dv);
+      position.current += glm::vec3{projection_xz.x, 0.f, projection_xz.y};
+    }
+  }
+
   void sync() override {
     for (auto& pair : entity_positions_) {
       auto& position = pair.second;
-      if (!position.has_authority) {
+      if (!position.has_authority || position.current == position.last) {
         continue;
-      }
-      position.missed_syncs = std::max(kSyncBufferCount, 1 + position.missed_syncs);
-      if (position.ticks.empty()) {
-        position.hit_syncs = 0;
-        continue;
-      }
-
-      std::uint32_t sync_tick = 0;
-      // Allow some smoothing out of incoming ticks.
-      while (position.missed_syncs && !position.ticks.empty()) {
-        const auto& tick = position.ticks.front();
-        sync_tick = tick.tick;
-        position.current += common::kPlayerSpeed * glm::vec3{tick.xz.x, 0.f, tick.xz.y};
-        position.ticks.pop_front();
-        --pair.second.missed_syncs;
-      }
-      // But don't let them stack up forever.
-      if (position.hit_syncs < kSyncBufferCount) {
-        ++position.hit_syncs;
-      } else if (position.missed_syncs) {
-        --position.missed_syncs;
       }
 
       // Update the canonical position.
@@ -117,7 +107,9 @@ public:
       // Bounce back only to client for this player.
       c_->connection.SendComponentUpdate<schema::PlayerServer>(
           pair.first, schema::PlayerServer::Update{}.add_sync_state(
-                          {sync_tick, current.x, current.y, current.z}));
+                          {position.player_tick, current.x, current.y, current.z}));
+      position.last = current;
+      ++position.player_tick;
     }
   }
 
@@ -130,14 +122,15 @@ private:
 
   struct Position {
     bool has_authority = false;
+    glm::vec2 xz_dv;
+    glm::vec3 last;
     glm::vec3 current;
-
-    std::uint32_t hit_syncs = 0;
-    std::uint32_t missed_syncs = 0;
-    std::deque<PositionSync> ticks;
+    std::uint32_t player_tick;
   };
 
   managed::ManagedConnection* c_ = nullptr;
+  core::TileMap tile_map_;
+  core::Collision collision_;
   std::unordered_map<worker::EntityId, Position> entity_positions_;
 };
 

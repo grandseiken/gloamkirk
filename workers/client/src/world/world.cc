@@ -90,9 +90,12 @@ void World::tick(const Input& input) {
 
 void World::sync() {
   ++sync_tick_;
-  connection_.SendComponentUpdate<schema::PlayerClient>(
-      player_id_, schema::PlayerClient::Update{}.add_sync_input(
-                      {sync_tick_, player_tick_dv_.x, player_tick_dv_.y}));
+  if (player_tick_dv_ != player_last_dv_) {
+    connection_.SendComponentUpdate<schema::PlayerClient>(
+        player_id_, schema::PlayerClient::Update{}.add_sync_input(
+                        {sync_tick_, player_tick_dv_.x, player_tick_dv_.y}));
+  }
+  player_last_dv_ = player_tick_dv_;
   player_tick_dv_ = {};
 }
 
