@@ -2,7 +2,7 @@
 #include "workers/client/src/input.h"
 #include "workers/client/src/renderer.h"
 #include "workers/client/src/shaders/common.h"
-#include "workers/client/src/world/world.h"
+#include "workers/client/src/world/player_controller.h"
 #include <glm/vec4.hpp>
 #include <schema/master.h>
 #include <schema/player.h>
@@ -70,7 +70,7 @@ ConnectMode::ConnectMode(ModeState& mode_state, worker::Connection&& connection)
     return;
   }
   connection_->SendLogMessage(worker::LogLevel::kInfo, "client", "Connected.");
-  world_.reset(new world::World{*connection_, dispatcher_, mode_state_});
+  world_.reset(new world::PlayerController{*connection_, dispatcher_, mode_state_});
 }
 
 void ConnectMode::tick(const Input& input) {

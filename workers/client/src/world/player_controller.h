@@ -1,5 +1,5 @@
-#ifndef GLOAM_WORKERS_CLIENT_SRC_WORLD_WORLD_H
-#define GLOAM_WORKERS_CLIENT_SRC_WORLD_WORLD_H
+#ifndef GLOAM_WORKERS_CLIENT_SRC_WORLD_PLAYER_CONTROLLER_H
+#define GLOAM_WORKERS_CLIENT_SRC_WORLD_PLAYER_CONTROLLER_H
 #include "common/src/common/hashes.h"
 #include "common/src/core/collision.h"
 #include "common/src/core/tile_map.h"
@@ -10,6 +10,7 @@
 #include <improbable/worker.h>
 #include <schema/chunk.h>
 #include <cstdint>
+#include <deque>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -24,10 +25,10 @@ class Renderer;
 
 namespace world {
 
-class World {
+class PlayerController {
 public:
-  World(worker::Connection& connection_, worker::Dispatcher& dispatcher_,
-        const ModeState& mode_state);
+  PlayerController(worker::Connection& connection_, worker::Dispatcher& dispatcher_,
+                   const ModeState& mode_state);
   void set_player_id(worker::EntityId player_id);
 
   // Game loop functions: sync() is called at the network frame-rate; update() is called at the
@@ -37,18 +38,29 @@ public:
   void render(const Renderer& renderer, std::uint64_t frame) const;
 
 private:
-  void update_chunk(const schema::ChunkData& data);
-  void clear_chunk(const schema::ChunkData& data);
+  void reconcile(std::uint32_t sync_tick, const glm::vec3& coordinates);
 
   worker::Connection& connection_;
   worker::Dispatcher& dispatcher_;
+
+  // Player status.
   worker::EntityId player_id_;
+  glm::vec3 canonical_position_;
   std::uint32_t sync_tick_ = 0;
   glm::vec2 player_tick_dv_;
   glm::vec2 player_last_dv_;
-  std::unordered_set<worker::EntityId> player_entities_;
 
+  // History for reconciliation.
+  struct InputHistory {
+    std::uint32_t sync_tick;
+    glm::vec2 xz_dv;
+  };
+  std::deque<InputHistory> input_history_;
+
+  // Other entity data.
+  std::unordered_set<worker::EntityId> player_entities_;
   std::unordered_map<worker::EntityId, glm::vec3> entity_positions_;
+
   core::TileMap tile_map_;
   core::Collision collision_;
   WorldRenderer world_renderer_;

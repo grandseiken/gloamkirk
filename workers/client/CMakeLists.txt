@@ -23,8 +23,8 @@ set(CLIENT_SOURCE_FILES
   "src/shaders/text.h"
   "src/shaders/title.h"
   "src/shaders/world.h"
-  "src/world/world.cc"
-  "src/world/world.h"
+  "src/world/player_controller.cc"
+  "src/world/player_controller.h"
   "src/world/world_renderer.cc"
   "src/world/world_renderer.h")
 

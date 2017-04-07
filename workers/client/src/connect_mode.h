@@ -9,7 +9,7 @@
 namespace gloam {
 class Renderer;
 namespace world {
-class World;
+class PlayerController;
 }  // ::world
 
 class ConnectMode : public Mode {
@@ -30,7 +30,7 @@ private:
   worker::Dispatcher dispatcher_;
 
   bool logged_in_ = false;
-  std::unique_ptr<world::World> world_;
+  std::unique_ptr<world::PlayerController> world_;
   worker::EntityId player_id_ = -1;
 
   std::uint64_t frame_ = 0;

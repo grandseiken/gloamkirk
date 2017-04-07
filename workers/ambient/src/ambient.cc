@@ -79,33 +79,29 @@ public:
     if (tile_map_.has_changed()) {
       collision_.update(tile_map_);
     }
-
-    for (auto& pair : entity_positions_) {
-      auto& position = pair.second;
-      if (position.xz_dv == glm::vec2{}) {
-        continue;
-      }
-
-      core::Box box{1.f / 8};
-      auto speed_per_tick = common::kPlayerSpeed / common::kTicksPerSync;
-      auto projection_xz =
-          collision_.project_xz(box, position.current, speed_per_tick * position.xz_dv);
-      position.current += glm::vec3{projection_xz.x, 0.f, projection_xz.y};
-    }
   }
 
   void sync() override {
     for (auto& pair : entity_positions_) {
       auto& position = pair.second;
-      if (!position.has_authority || position.current == position.last) {
+      if (!position.has_authority) {
         continue;
       }
 
+      auto& current = position.current;
+      if (position.xz_dv != glm::vec2{}) {
+        core::Box box{1.f / 8};
+        auto projection_xz =
+            collision_.project_xz(box, current, common::kPlayerSpeed * position.xz_dv);
+        current += glm::vec3{projection_xz.x, 0.f, projection_xz.y};
+      }
+
       // Update the canonical position.
-      const auto& current = position.current;
-      c_->connection.SendComponentUpdate<schema::CanonicalPosition>(
-          pair.first, schema::CanonicalPosition::Update{}.set_coords(common::coords(current)));
-      // Bounce back only to client for this player.
+      if (current != position.last) {
+        c_->connection.SendComponentUpdate<schema::CanonicalPosition>(
+            pair.first, schema::CanonicalPosition::Update{}.set_coords(common::coords(current)));
+      }
+      // Bounce back to client (and cosimulators) for this player.
       c_->connection.SendComponentUpdate<schema::PlayerServer>(
           pair.first, schema::PlayerServer::Update{}.add_sync_state(
                           {position.player_tick, current.x, current.y, current.z}));
