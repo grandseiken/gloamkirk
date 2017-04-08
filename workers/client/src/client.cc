@@ -51,7 +51,7 @@ worker::ConnectionParameters connection_params(bool local) {
   params.WorkerId = kWorkerType + "-" + std::to_string(time_millis);
   params.WorkerType = kWorkerType;
   params.Network.UseExternalIp = !local;
-  params.Network.ConnectionType = worker::NetworkConnectionType::kRaknet;
+  params.Network.ConnectionType = worker::NetworkConnectionType::kTcp;
   params.Network.RakNet.HeartbeatTimeoutMillis = 16000;
   return params;
 }

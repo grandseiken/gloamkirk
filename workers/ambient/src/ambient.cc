@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <unordered_map>
 
+#include <iostream>
 namespace gloam {
 namespace ambient {
 namespace {
@@ -77,6 +78,7 @@ public:
 
   void tick() override {
     if (tile_map_.has_changed()) {
+      std::cerr << "updating tilemap\n";
       collision_.update(tile_map_);
     }
   }
