@@ -121,7 +121,7 @@ int connect(const std::string& worker_type, const std::vector<WorkerLogic*>& log
       }
     }
 
-    next_update += sync ? common::kTickDuration : common::kSyncTickDuration;
+    next_update += common::kTickDuration;
     std::this_thread::sleep_until(next_update);
     sync = (1 + sync) % common::kTicksPerSync;
   }

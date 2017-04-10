@@ -33,10 +33,10 @@ std::unique_ptr<sf::RenderWindow> create_window(const gloam::ModeState& mode_sta
   std::unique_ptr<sf::RenderWindow> window{
       mode_state.fullscreen
           ? new sf::RenderWindow{sf::VideoMode::getDesktopMode(), kTitle, sf::Style::None, settings}
-          : new sf::RenderWindow{
-                sf::VideoMode(gloam::native_resolution.x, gloam::native_resolution.y), kTitle,
-                sf::Style::Default, settings}};
+          : new sf::RenderWindow{sf::VideoMode(gloam::max_resolution.x, gloam::max_resolution.y),
+                                 kTitle, sf::Style::Default, settings}};
   window->setFramerateLimit(0);
+  window->setVerticalSyncEnabled(true);
   window->setVisible(true);
   window->display();
   return window;
@@ -51,7 +51,8 @@ worker::ConnectionParameters connection_params(bool local) {
   params.WorkerId = kWorkerType + "-" + std::to_string(time_millis);
   params.WorkerType = kWorkerType;
   params.Network.UseExternalIp = !local;
-  params.Network.ConnectionType = worker::NetworkConnectionType::kRaknet;
+  // TODO: use RakNet again when connection issue is fixed.
+  params.Network.ConnectionType = worker::NetworkConnectionType::kTcp;
   params.Network.RakNet.HeartbeatTimeoutMillis = 16000;
   return params;
 }
@@ -81,13 +82,8 @@ void run(gloam::ModeState& mode_state, bool fade_in) {
 
   // Synchronization data.
   std::atomic<bool> running{true};
-  std::mutex render_mutex;
   std::mutex window_mutex;
-  bool render_signal = false;
-  std::condition_variable render_cv;
   std::deque<sf::Event> event_queue;
-
-  window->setActive(false);
 
   auto tick = [&](bool sync_tick, bool render_tick) {
     input.update();
@@ -126,65 +122,42 @@ void run(gloam::ModeState& mode_state, bool fade_in) {
     }
   };
 
+  window->setActive(false);
   std::thread tick_thread{[&] {
     std::uint32_t sync = 0;
     std::uint32_t render = 0;
-    auto next_update = std::chrono::steady_clock::now();
 
-    while (running) {
-      auto now = std::chrono::steady_clock::now();
-      bool delayed = now - next_update >= gloam::common::kTickDuration;
-      bool render_tick = !render && !delayed;
-      {
-        std::lock_guard<std::mutex> lock{window_mutex};
-        window->setActive(true);
-        tick(!sync, render_tick);
-        window->setActive(false);
-      }
-
-      // Signal display thread and wait for it to have finished.
-      if (render_tick) {
-        {
-          std::lock_guard<std::mutex> lock{render_mutex};
-          render_signal = true;
-        }
-        render_cv.notify_one();
-        std::unique_lock<std::mutex> lock{render_mutex};
-        render_cv.wait(lock, [&] { return !render_signal || !running; });
-      }
-
-      next_update += sync ? gloam::common::kTickDuration : gloam::common::kSyncTickDuration;
-      std::this_thread::sleep_until(next_update);
+    auto advance_tick = [&] {
       sync = (1 + sync) % gloam::common::kTicksPerSync;
       render = (1 + render) % (mode_state.framerate == gloam::Framerate::k30Fps ? 2 : 1);
-    }
-  }};
+    };
 
-  std::thread render_thread{[&] {
+    window->setActive(true);
+    window->display();
+    auto next_update = std::chrono::high_resolution_clock::now();
+
     while (running) {
-      {
-        std::unique_lock<std::mutex> lock{render_mutex};
-        render_cv.wait(lock, [&] { return render_signal || !running; });
-      }
-      if (!running) {
-        return;
-      }
-
-      // We're barely actually multithreading at all, here: only one thread is really doing
-      // meaningful work at any one time. Nevertheless, running a dedicated thread just for calling
-      // window->display() seems to make a lot of awkward timing issues go away.
+      auto now = std::chrono::high_resolution_clock::now();
+      bool sync_tick = !sync;
+      bool render_tick = !render;
       {
         std::lock_guard<std::mutex> lock{window_mutex};
-        window->setActive(true);
-        window->setVerticalSyncEnabled(mode_state.framerate == gloam::Framerate::k60Fps);
+        while (now > next_update && now - next_update >= gloam::common::kTickDuration) {
+          tick(false, false);
+          advance_tick();
+          next_update += gloam::common::kTickDuration;
+        }
+        tick(sync_tick, render_tick);
+      }
+      if (render_tick) {
         window->display();
-        window->setActive(false);
       }
-      {
-        std::unique_lock<std::mutex> lock{render_mutex};
-        render_signal = false;
+
+      next_update += gloam::common::kTickDuration;
+      if (next_update > std::chrono::high_resolution_clock::now()) {
+        std::this_thread::sleep_until(next_update);
       }
-      render_cv.notify_one();
+      advance_tick();
     }
   }};
 
@@ -202,8 +175,6 @@ void run(gloam::ModeState& mode_state, bool fade_in) {
   }
 
   running = false;
-  render_cv.notify_all();
-  render_thread.join();
   tick_thread.join();
   // For OpenGL destruction!
   window->setActive(true);

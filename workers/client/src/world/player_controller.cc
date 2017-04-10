@@ -56,7 +56,7 @@ PlayerController::PlayerController(worker::Connection& connection, worker::Dispa
 
   dispatcher_.OnComponentUpdate<schema::PlayerServer>(
       [&](const worker::ComponentUpdateOp<schema::PlayerServer>& op) {
-        if (!op.Update.sync_state().empty()) {
+        if (op.EntityId == player_id_ && !op.Update.sync_state().empty()) {
           const auto& sync_state = op.Update.sync_state().front();
           reconcile(sync_state.sync_tick(), {sync_state.x(), sync_state.y(), sync_state.z()});
         }
@@ -129,8 +129,9 @@ void PlayerController::sync() {
   ++sync_tick_;
   if (player_tick_dv_ != player_last_dv_) {
     connection_.SendComponentUpdate<schema::PlayerClient>(
-        player_id_, schema::PlayerClient::Update{}.add_sync_input(
-                        {sync_tick_, player_tick_dv_.x, player_tick_dv_.y}));
+        player_id_,
+        schema::PlayerClient::Update{}.add_sync_input(
+            {sync_tick_, player_tick_dv_.x, player_tick_dv_.y}));
   }
   input_history_.push_back({sync_tick_, player_tick_dv_});
   if (input_history_.size() > kMaxHistorySize) {
