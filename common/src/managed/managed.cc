@@ -106,13 +106,21 @@ int connect(const std::string& worker_type, const std::vector<WorkerLogic*>& log
       break;
     }
     for (const auto& worker_logic : logic) {
+      auto start_point = std::chrono::steady_clock::now();
       worker_logic->tick();
       if (!sync) {
         worker_logic->sync();
+        auto update_time = std::chrono::steady_clock::now() - start_point;
+        auto load =
+            static_cast<float>(
+                std::chrono::duration_cast<std::chrono::microseconds>(update_time).count()) /
+            std::chrono::duration_cast<std::chrono::microseconds>(common::kTickDuration).count();
+        worker::Metrics load_report;
+        load_report.Load = load;
+        connection.SendMetrics(load_report);
       }
     }
 
-    // TODO: report load based on how much time out of the frame was used.
     next_update += sync ? common::kTickDuration : common::kSyncTickDuration;
     std::this_thread::sleep_until(next_update);
     sync = (1 + sync) % common::kTicksPerSync;

@@ -9,7 +9,8 @@
 
 namespace gloam {
 namespace {
-const glm::ivec2 native_resolution = {720, 480};
+const glm::ivec2 max_resolution = {720, 480};
+const glm::ivec2 native_resolution = {640, 360};
 }  // anonymous
 
 struct TextureImage {

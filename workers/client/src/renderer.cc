@@ -138,15 +138,16 @@ void Renderer::resize(const glm::ivec2& dimensions) {
   }
   viewport_dimensions_ = dimensions;
 
-  // TODO: this is still a bit odd. Rethink it.
-  static const int target_width = native_resolution.x;
-  static const int min_height = (native_resolution.y * 2) / 3;
-  static const int max_height = (native_resolution.y * 4) / 3;
-  target_upscale_ = std::max(
-      static_cast<int>(std::ceil(dimensions.y / static_cast<float>(max_height))),
-      std::min(static_cast<int>(dimensions.y / static_cast<float>(min_height)),
-               static_cast<int>(std::round(dimensions.x / static_cast<float>(target_width)))));
-  auto framebuffer_dimensions = dimensions / glm::ivec2{target_upscale_};
+  target_upscale_ = 1;
+  glm::ivec2 framebuffer_dimensions;
+  while (target_upscale_ < 256) {
+    framebuffer_dimensions = dimensions / glm::ivec2{target_upscale_};
+    if (framebuffer_dimensions.x <= max_resolution.x &&
+        framebuffer_dimensions.y <= max_resolution.y) {
+      break;
+    }
+    ++target_upscale_;
+  }
 
   framebuffer_.reset(new glo::Framebuffer{framebuffer_dimensions});
   framebuffer_->add_colour_buffer(false);
