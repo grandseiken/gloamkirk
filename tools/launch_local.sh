@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
 set -e -u -x -o pipefail
 
-spatial local launch --snapshot=build/initial.snapshot deploy/default.json
+CONFIG=deploy/default.json
+SNAPSHOT=build/initial.snapshot
+
+spatial local launch --snapshot=${SNAPSHOT} ${CONFIG}
