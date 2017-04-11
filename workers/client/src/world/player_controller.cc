@@ -129,9 +129,8 @@ void PlayerController::sync() {
   ++sync_tick_;
   if (player_tick_dv_ != player_last_dv_) {
     connection_.SendComponentUpdate<schema::PlayerClient>(
-        player_id_,
-        schema::PlayerClient::Update{}.add_sync_input(
-            {sync_tick_, player_tick_dv_.x, player_tick_dv_.y}));
+        player_id_, schema::PlayerClient::Update{}.add_sync_input(
+                        {sync_tick_, player_tick_dv_.x, player_tick_dv_.y}));
   }
   input_history_.push_back({sync_tick_, player_tick_dv_});
   if (input_history_.size() > kMaxHistorySize) {

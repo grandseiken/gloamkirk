@@ -81,7 +81,7 @@ void ConnectMode::tick(const Input& input) {
     dispatcher_.Process(connection_->GetOpList(/* millis */ 0));
 
     // Send heartbeat periodically to master.
-    if (frame_++ % 512 == 0) {
+    if (frame_++ % 256 == 0) {
       connection_->SendCommandRequest<schema::Master::Commands::ClientHeartbeat>(
           /* master entity */ 0, {}, {});
     }
@@ -102,8 +102,14 @@ void ConnectMode::tick(const Input& input) {
 }
 
 void ConnectMode::sync() {
+  static const std::string kClientLoadMetric = "client_load";
+
   if (connected_ && player_id_ >= 0) {
     world_->sync();
+    // Send metrics for the inspector.
+    worker::Metrics client_metrics;
+    client_metrics.GaugeMetrics[kClientLoadMetric] = mode_state_.client_load;
+    connection_->SendMetrics(client_metrics);
   }
 }
 

@@ -41,6 +41,7 @@ struct ModeState {
 
   std::int32_t random_seed = 0;
   std::uint64_t frame = 0;
+  double client_load = 0.;
 
   // Main menu.
   MenuItem menu_item = MenuItem::kConnect;

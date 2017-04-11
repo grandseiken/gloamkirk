@@ -147,7 +147,7 @@ void ClientHandler::sync() {
   if (!master_data_.world_spawned()) {
     return;
   }
-  static const std::uint64_t kDeleteEntityTimeoutMillis = 1 << 15;
+  static const std::uint64_t kDeleteEntityTimeoutMillis = 1 << 14;
 
   auto create_player_entity = [&](const Client& client, worker::EntityId entity_id) {
     worker::Map<worker::ComponentId, improbable::WorkerRequirementSet> acl_map = {

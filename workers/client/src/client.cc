@@ -132,29 +132,42 @@ void run(gloam::ModeState& mode_state, bool fade_in) {
       render = (1 + render) % (mode_state.framerate == gloam::Framerate::k30Fps ? 2 : 1);
     };
 
-    window->setActive(true);
-    window->display();
-    auto next_update = std::chrono::high_resolution_clock::now();
+    {
+      std::lock_guard<std::mutex> lock{window_mutex};
+      window->setActive(true);
+      window->display();
+    }
+    auto next_update = std::chrono::steady_clock::now();
 
     while (running) {
-      auto now = std::chrono::high_resolution_clock::now();
+      auto start_point = std::chrono::steady_clock::now();
       bool sync_tick = !sync;
       bool render_tick = !render;
       {
         std::lock_guard<std::mutex> lock{window_mutex};
-        while (now > next_update && now - next_update >= gloam::common::kTickDuration) {
+        while (start_point > next_update &&
+               start_point - next_update >= gloam::common::kTickDuration) {
           tick(false, false);
           advance_tick();
           next_update += gloam::common::kTickDuration;
         }
         tick(sync_tick, render_tick);
+
+        if (render_tick) {
+          window->display();
+        }
       }
-      if (render_tick) {
-        window->display();
+      if (render_tick && sync_tick) {
+        auto update_time = std::chrono::steady_clock::now() - start_point;
+        mode_state.client_load =
+            static_cast<float>(
+                std::chrono::duration_cast<std::chrono::microseconds>(update_time).count()) /
+            std::chrono::duration_cast<std::chrono::microseconds>(gloam::common::kTickDuration)
+                .count();
       }
 
       next_update += gloam::common::kTickDuration;
-      if (next_update > std::chrono::high_resolution_clock::now()) {
+      if (next_update > std::chrono::steady_clock::now()) {
         std::this_thread::sleep_until(next_update);
       }
       advance_tick();
