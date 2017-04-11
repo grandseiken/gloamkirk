@@ -42,18 +42,18 @@ std::unique_ptr<sf::RenderWindow> create_window(const gloam::ModeState& mode_sta
   return window;
 }
 
-worker::ConnectionParameters connection_params(bool local) {
-  auto time_millis = std::chrono::duration_cast<std::chrono::milliseconds>(
-                         std::chrono::system_clock::now().time_since_epoch())
-                         .count();
-
+worker::ConnectionParameters connection_params(const gloam::ModeState& mode_state) {
   worker::ConnectionParameters params = {};
-  params.WorkerId = kWorkerType + "-" + std::to_string(time_millis);
+  params.WorkerId = kWorkerType + "-" + std::to_string(mode_state.random_seed);
   params.WorkerType = kWorkerType;
-  params.Network.UseExternalIp = !local;
+  params.Network.UseExternalIp = !mode_state.connect_local;
   // TODO: use RakNet again when connection issue is fixed.
   params.Network.ConnectionType = worker::NetworkConnectionType::kTcp;
   params.Network.RakNet.HeartbeatTimeoutMillis = 16000;
+  params.ProtocolLogging.MaxLogFiles = 8;
+  params.ProtocolLogging.MaxLogFileSizeBytes = 1 << 20;
+  params.ProtocolLogging.LogPrefix = params.WorkerId + "-";
+  params.EnableProtocolLoggingAtStartup = mode_state.enable_protocol_logging;
   return params;
 }
 
@@ -75,7 +75,7 @@ void run(gloam::ModeState& mode_state, bool fade_in) {
   renderer.resize({window->getSize().x, window->getSize().y});
 
   auto make_title = [&](bool fade_in) {
-    return new gloam::TitleMode{mode_state, fade_in, connection_params(mode_state.connect_local),
+    return new gloam::TitleMode{mode_state, fade_in, connection_params(mode_state),
                                 locator_params(mode_state.login_token)};
   };
   std::unique_ptr<gloam::Mode> mode{make_title(fade_in)};
@@ -202,6 +202,9 @@ int main(int argc, const char** argv) {
     if (arg == "--local" || arg == "-l") {
       std::cout << "[warning] Connecting to local deployment." << std::endl;
       mode_state.connect_local = true;
+    } else if (arg == "--enable_protocol_logging") {
+      std::cout << "[warning] Enabling protocol logging." << std::endl;
+      mode_state.enable_protocol_logging = true;
     } else if (arg == "--login_token" || arg == "-t") {
       mode_state.login_token = argv[++i];
     } else {

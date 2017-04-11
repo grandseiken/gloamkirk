@@ -50,6 +50,7 @@ struct ModeState {
 
   // Command-line arguments.
   bool connect_local = false;
+  bool enable_protocol_logging = false;
   std::string login_token;
 
   // Settings.

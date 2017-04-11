@@ -138,5 +138,6 @@ private:
 int main(int argc, char** argv) {
   gloam::ambient::PositionLogic position_logic;
   std::vector<gloam::managed::WorkerLogic*> worker_logic{&position_logic};
-  return gloam::managed::connect(gloam::ambient::kWorkerType, worker_logic, argc, argv);
+  return gloam::managed::connect(gloam::ambient::kWorkerType, worker_logic,
+                                 /* enable protocol logging */ false, argc, argv);
 }

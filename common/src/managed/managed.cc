@@ -3,6 +3,7 @@
 #include <improbable/worker.h>
 #include <chrono>
 #include <iostream>
+#include <sstream>
 #include <thread>
 
 namespace gloam {
@@ -10,7 +11,11 @@ namespace managed {
 namespace {
 
 worker::Connection connect(const std::string& worker_type, const std::string& worker_id,
-                           const std::string& hostname, std::uint16_t port) {
+                           const std::string& hostname, std::uint16_t port,
+                           bool enable_protocol_logging) {
+  std::stringstream prefix;
+  prefix << worker_type << "-" << std::this_thread::get_id() << "-";
+
   worker::ConnectionParameters params = {};
   params.WorkerId = worker_id;
   params.WorkerType = worker_type;
@@ -18,6 +23,10 @@ worker::Connection connect(const std::string& worker_type, const std::string& wo
   params.Network.ConnectionType = worker::NetworkConnectionType::kTcp;
   params.Network.Tcp.MultiplexLevel = 8;
   params.Network.Tcp.NoDelay = true;
+  params.ProtocolLogging.MaxLogFiles = 8;
+  params.ProtocolLogging.MaxLogFileSizeBytes = 1 << 20;
+  params.ProtocolLogging.LogPrefix = prefix.str();
+  params.EnableProtocolLoggingAtStartup = enable_protocol_logging;
 
   return worker::Connection::ConnectAsync(hostname, port, params).Get();
 }
@@ -53,8 +62,8 @@ private:
 
 }  // anonymous
 
-int connect(const std::string& worker_type, const std::vector<WorkerLogic*>& logic, int argc,
-            char** argv) {
+int connect(const std::string& worker_type, const std::vector<WorkerLogic*>& logic,
+            bool enable_protocol_logging, int argc, char** argv) {
   if (argc != 4) {
     std::cerr << "[error] Usage: " << argv[0] << " worker_id hostname port" << std::endl;
     return 1;
@@ -64,7 +73,7 @@ int connect(const std::string& worker_type, const std::vector<WorkerLogic*>& log
   std::string hostname = argv[2];
   auto port = static_cast<std::uint16_t>(std::stoul(argv[3]));
 
-  auto connection = connect(worker_type, worker_id, hostname, port);
+  auto connection = connect(worker_type, worker_id, hostname, port, enable_protocol_logging);
   bool connected = true;
   worker::Dispatcher dispatcher;
 
@@ -101,24 +110,26 @@ int connect(const std::string& worker_type, const std::vector<WorkerLogic*>& log
     }
   }
   while (connected) {
+    auto start_point = std::chrono::steady_clock::now();
     dispatcher.Process(connection.GetOpList(/* millis */ 0));
     if (!connected) {
       break;
     }
     for (const auto& worker_logic : logic) {
-      auto start_point = std::chrono::steady_clock::now();
       worker_logic->tick();
       if (!sync) {
         worker_logic->sync();
-        auto update_time = std::chrono::steady_clock::now() - start_point;
-        auto load =
-            static_cast<float>(
-                std::chrono::duration_cast<std::chrono::microseconds>(update_time).count()) /
-            std::chrono::duration_cast<std::chrono::microseconds>(common::kTickDuration).count();
-        worker::Metrics load_report;
-        load_report.Load = load;
-        connection.SendMetrics(load_report);
       }
+    }
+
+    if (!sync) {
+      auto update_time = std::chrono::steady_clock::now() - start_point;
+      auto load = static_cast<float>(
+                      std::chrono::duration_cast<std::chrono::microseconds>(update_time).count()) /
+          std::chrono::duration_cast<std::chrono::microseconds>(common::kTickDuration).count();
+      worker::Metrics load_report;
+      load_report.Load = load;
+      connection.SendMetrics(load_report);
     }
 
     next_update += common::kTickDuration;

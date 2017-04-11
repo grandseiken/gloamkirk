@@ -1,6 +1,6 @@
 build
-spatial.log
 target
 workers/gsim
+*.log
 *.pyc
 *.swp

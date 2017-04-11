@@ -42,5 +42,6 @@ int main(int argc, char** argv) {
   gloam::master::ClientHandler client_handler{master_data.data()};
   std::vector<gloam::managed::WorkerLogic*> worker_logic{&master_data, &world_spawner,
                                                          &client_handler};
-  return gloam::managed::connect(gloam::master::kWorkerType, worker_logic, argc, argv);
+  return gloam::managed::connect(gloam::master::kWorkerType, worker_logic,
+                                 /* enable protocol logging */ false, argc, argv);
 }
