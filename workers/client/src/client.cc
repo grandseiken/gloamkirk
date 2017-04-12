@@ -50,6 +50,7 @@ worker::ConnectionParameters connection_params(const gloam::ModeState& mode_stat
   // TODO: use RakNet again when connection issue is fixed.
   params.Network.ConnectionType = worker::NetworkConnectionType::kTcp;
   params.Network.RakNet.HeartbeatTimeoutMillis = 16000;
+  params.Network.Tcp.NoDelay = true;
   params.ProtocolLogging.MaxLogFiles = 8;
   params.ProtocolLogging.MaxLogFileSizeBytes = 1 << 20;
   params.ProtocolLogging.LogPrefix = params.WorkerId + "-";

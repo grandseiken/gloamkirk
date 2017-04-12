@@ -127,6 +127,8 @@ void PlayerController::sync() {
   static const std::size_t kMaxHistorySize = 256;
 
   ++sync_tick_;
+  // TODO: need to send input every frame even if unchanged to avoid stalls on hard authority
+  // handover. Should only send the sync tick every so often, though.
   if (player_tick_dv_ != player_last_dv_) {
     connection_.SendComponentUpdate<schema::PlayerClient>(
         player_id_, schema::PlayerClient::Update{}.add_sync_input(
