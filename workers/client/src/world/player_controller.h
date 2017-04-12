@@ -48,7 +48,6 @@ private:
   glm::vec3 canonical_position_;
   std::uint32_t sync_tick_ = 0;
   glm::vec2 player_tick_dv_;
-  glm::vec2 player_last_dv_;
 
   // History for reconciliation.
   struct InputHistory {

@@ -64,10 +64,12 @@ public:
           if (!op.Update.sync_input().empty()) {
             const auto& input = op.Update.sync_input().front();
 
-            position.player_tick = input.sync_tick();
             position.xz_dv = {input.dx(), input.dz()};
             if (glm::dot(position.xz_dv, position.xz_dv) > 1.f) {
               position.xz_dv = glm::normalize(position.xz_dv);
+            }
+            if (input.sync_tick()) {
+              position.player_tick = *input.sync_tick();
             }
           }
         });

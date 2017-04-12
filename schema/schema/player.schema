@@ -2,7 +2,7 @@ package gloam.schema;
 
 type PlayerInput {
   // Client-side tick number.
-  uint32 sync_tick = 1;
+  option<uint32> sync_tick = 1;
 
   // Normalized XZ-direction vector.
   float dx = 2;
