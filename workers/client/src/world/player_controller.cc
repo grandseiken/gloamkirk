@@ -11,39 +11,28 @@ namespace world {
 
 PlayerController::PlayerController(worker::Connection& connection, worker::Dispatcher& dispatcher,
                                    const ModeState& mode_state)
-: connection_{connection}, dispatcher_{dispatcher}, player_id_{-1}, world_renderer_{mode_state} {
+: connection_{connection}, dispatcher_{dispatcher}, world_renderer_{mode_state} {
   dispatcher_.OnAddEntity([&](const worker::AddEntityOp& op) {
     connection_.SendComponentInterest(op.EntityId,
                                       {
-                                          // TODO: replace with interpolation component.
-                                          {schema::CanonicalPosition::ComponentId, {true}},
+                                          {schema::InterpolatedPosition::ComponentId, {true}},
                                           // TODO: replace with common component.
                                           {schema::PlayerClient::ComponentId, {true}},
                                       });
   });
 
+  dispatcher.OnRemoveEntity(
+      [&](const worker::RemoveEntityOp& op) { interpolation_.erase(op.EntityId); });
+
   dispatcher_.OnAuthorityChange<schema::PlayerClient>([&](const worker::AuthorityChangeOp& op) {
-    connection.SendComponentInterest(op.EntityId,
-                                     {
-                                         {schema::PlayerServer::ComponentId, {op.HasAuthority}},
-                                     });
-  });
-
-  dispatcher_.OnAddComponent<schema::CanonicalPosition>(
-      [&](const worker::AddComponentOp<schema::CanonicalPosition>& op) {
-        entity_positions_.erase(op.EntityId);
-        entity_positions_.insert(std::make_pair(op.EntityId, common::coords(op.Data.coords())));
-      });
-
-  dispatcher_.OnRemoveComponent<schema::CanonicalPosition>(
-      [&](const worker::RemoveComponentOp& op) { entity_positions_.erase(op.EntityId); });
-
-  dispatcher_.OnComponentUpdate<schema::CanonicalPosition>([&](
-      const worker::ComponentUpdateOp<schema::CanonicalPosition>& op) {
-    if (op.EntityId != player_id_ && op.Update.coords()) {
-      entity_positions_.erase(op.EntityId);
-      entity_positions_.insert(std::make_pair(op.EntityId, common::coords(*op.Update.coords())));
-    }
+    player_id_ = op.EntityId;
+    have_player_position_ = false;
+    connection.SendComponentInterest(
+        op.EntityId,
+        {
+            {schema::PlayerServer::ComponentId, {op.HasAuthority}},
+            {schema::InterpolatedPosition::ComponentId, {!op.HasAuthority}},
+        });
   });
 
   dispatcher_.OnAddComponent<schema::PlayerClient>(
@@ -56,21 +45,29 @@ PlayerController::PlayerController(worker::Connection& connection, worker::Dispa
 
   dispatcher_.OnComponentUpdate<schema::PlayerServer>(
       [&](const worker::ComponentUpdateOp<schema::PlayerServer>& op) {
-        if (op.EntityId == player_id_ && !op.Update.sync_state().empty()) {
+        if (!op.Update.sync_state().empty()) {
           const auto& sync_state = op.Update.sync_state().front();
           reconcile(sync_state.sync_tick(), {sync_state.x(), sync_state.y(), sync_state.z()});
+        }
+      });
+
+  dispatcher_.OnComponentUpdate<schema::InterpolatedPosition>(
+      [&](const worker::ComponentUpdateOp<schema::InterpolatedPosition>& op) {
+        if (op.EntityId != player_id_) {
+          auto& interpolation = interpolation_[op.EntityId];
+          for (const auto& position : op.Update.position()) {
+            interpolation.positions.push_back({position.x(), position.y(), position.z()});
+          }
         }
       });
 
   tile_map_.register_callbacks(connection_, dispatcher_);
 }
 
-void PlayerController::set_player_id(worker::EntityId player_id) {
-  player_id_ = player_id;
-  canonical_position_ = entity_positions_[player_id_];
-}
-
 void PlayerController::tick(const Input& input) {
+  // Interpolation parameters for remote entities.
+  static const std::size_t kInterpolationBufferSize = 2;
+  // Interpolation parameters for local player against authoritative server.
   static const float kSnapMaxDistance = 1.f / 64;
   static const float kInterpolateMaxDistance = 1.f;
   static const float kMovingInterpolateMinDistance = 1.f / 8;
@@ -112,19 +109,30 @@ void PlayerController::tick(const Input& input) {
 
   // Interpolate to canonical server position. We also interpolate the canonical position towards
   // our position to smooth out server hiccups.
-  auto& position = entity_positions_[player_id_];
-  interpolate(position, canonical_position_);
-  interpolate(canonical_position_, position);
+  interpolate(local_position_, canonical_position_);
+  interpolate(canonical_position_, local_position_);
 
   if (is_moving) {
     direction = glm::normalize(direction);
     core::Box box{1.f / 8};
 
     auto speed_per_tick = common::kPlayerSpeed / common::kTicksPerSync;
-    auto projection_xz = collision_.project_xz(box, position, speed_per_tick * direction);
-    position += glm::vec3{projection_xz.x, 0.f, projection_xz.y};
+    auto projection_xz = collision_.project_xz(box, local_position_, speed_per_tick * direction);
+    local_position_ += glm::vec3{projection_xz.x, 0.f, projection_xz.y};
     canonical_position_ += glm::vec3{projection_xz.x, 0.f, projection_xz.y};
     player_tick_dv_ += projection_xz / common::kPlayerSpeed;
+  }
+
+  for (auto& pair : interpolation_) {
+    auto& interpolation = pair.second;
+    if (interpolation.positions.size() <= kInterpolationBufferSize) {
+      continue;
+    }
+    ++interpolation.index;
+    if (interpolation.index >= common::kTicksPerSync) {
+      interpolation.index = 0;
+      interpolation.positions.pop_front();
+    }
   }
 }
 
@@ -151,26 +159,37 @@ void PlayerController::sync() {
 }
 
 void PlayerController::render(const Renderer& renderer, std::uint64_t frame) const {
-  auto it = entity_positions_.find(player_id_);
-  if (it == entity_positions_.end()) {
-    return;
-  }
   std::vector<Light> lights;
   std::vector<glm::vec3> positions;
 
-  lights.push_back({it->second + glm::vec3{0.f, 1.f, 0.f}, 2.f, 2.f});
+  auto interpolated_position = [&](const Interpolation& interpolation) {
+    auto base = interpolation.positions.front();
+    auto next = interpolation.positions.size() > 1 ? interpolation.positions.begin()[1] : base;
+    return base + (next - base) * (interpolation.index / static_cast<float>(common::kTicksPerSync));
+  };
+
+  positions.push_back(local_position_);
+  lights.push_back({local_position_ + glm::vec3{0.f, 1.f, 0.f}, 2.f, 2.f});
   for (worker::EntityId entity_id : player_entities_) {
-    auto jt = entity_positions_.find(entity_id);
-    positions.push_back(jt->second);
-    if (entity_id != player_id_ && jt != entity_positions_.end()) {
-      lights.push_back({jt->second + glm::vec3{0.f, 1.f, 0.f}, 2.f, 2.f});
+    auto it = interpolation_.find(entity_id);
+    if (it != interpolation_.end() && !it->second.positions.empty()) {
+      auto position = interpolated_position(it->second);
+      positions.push_back(position);
+      if (entity_id != player_id_) {
+        lights.push_back({position + glm::vec3{0.f, 1.f, 0.f}, 2.f, 2.f});
+      }
     }
   }
 
-  world_renderer_.render(renderer, frame, it->second, lights, positions, tile_map_.get());
+  world_renderer_.render(renderer, frame, local_position_, lights, positions, tile_map_.get());
 }
 
 void PlayerController::reconcile(std::uint32_t sync_tick, const glm::vec3& coordinates) {
+  if (!have_player_position_) {
+    local_position_ = coordinates;
+    have_player_position_ = true;
+  }
+
   // Discard old information.
   bool unsynced = !input_history_.empty() && sync_tick < input_history_.front().sync_tick;
   if (unsynced) {

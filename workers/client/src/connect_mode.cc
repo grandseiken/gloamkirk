@@ -55,16 +55,11 @@ ConnectMode::ConnectMode(ModeState& mode_state, worker::Connection&& connection)
         }
       });
 
-  dispatcher_.OnAuthorityChange<schema::PlayerClient>([&](const worker::AuthorityChangeOp& op) {
-    if (op.HasAuthority) {
-      player_id_ = op.EntityId;
-    } else if (op.EntityId == player_id_) {
-      player_id_ = -1;
-    }
-    if (world_) {
-      world_->set_player_id(player_id_);
-    }
-  });
+  // Wait until we're getting updates from the ambient worker.
+  dispatcher_.OnAuthorityChange<schema::PlayerClient>(
+      [&](const worker::AuthorityChangeOp& op) { have_stream_ &= op.HasAuthority; });
+  dispatcher_.OnComponentUpdate<schema::PlayerServer>(
+      [&](const worker::ComponentUpdateOp<schema::PlayerServer>&) { have_stream_ = true; });
 
   if (!connection_->IsConnected()) {
     return;
@@ -85,14 +80,14 @@ void ConnectMode::tick(const Input& input) {
       connection_->SendCommandRequest<schema::Master::Commands::ClientHeartbeat>(
           /* master entity */ 0, {}, {});
     }
-    if (player_id_ >= 0 && frame_ % 64 == 0 && !logged_in_) {
+    if (have_stream_ && frame_ % 64 == 0 && !logged_in_) {
       logged_in_ = true;
       enter_frame_ = frame_;
     }
-    if (player_id_ >= 0) {
+    if (have_stream_) {
       world_->tick(input);
     }
-    if (logged_in_ && player_id_ < 0) {
+    if (logged_in_ && !have_stream_) {
       connected_ = false;
       disconnect_reason_ = "Lost player entity.";
     }
@@ -104,7 +99,7 @@ void ConnectMode::tick(const Input& input) {
 void ConnectMode::sync() {
   static const std::string kClientLoadMetric = "client_load";
 
-  if (connected_ && player_id_ >= 0) {
+  if (connected_ && have_stream_) {
     world_->sync();
     // Send metrics for the inspector.
     worker::Metrics client_metrics;

@@ -29,7 +29,6 @@ class PlayerController {
 public:
   PlayerController(worker::Connection& connection_, worker::Dispatcher& dispatcher_,
                    const ModeState& mode_state);
-  void set_player_id(worker::EntityId player_id);
 
   // Game loop functions: sync() is called at the network frame-rate; update() is called at the
   // client rendering frame-rate.
@@ -44,9 +43,11 @@ private:
   worker::Dispatcher& dispatcher_;
 
   // Player status.
-  worker::EntityId player_id_;
-  glm::vec3 canonical_position_;
+  bool have_player_position_ = false;
+  worker::EntityId player_id_ = -1;
   std::uint32_t sync_tick_ = 0;
+  glm::vec3 canonical_position_;
+  glm::vec3 local_position_;
   glm::vec2 player_tick_dv_;
 
   // History for reconciliation.
@@ -57,8 +58,12 @@ private:
   std::deque<InputHistory> input_history_;
 
   // Other entity data.
+  struct Interpolation {
+    std::deque<glm::vec3> positions;
+    std::uint8_t index = 0;
+  };
   std::unordered_set<worker::EntityId> player_entities_;
-  std::unordered_map<worker::EntityId, glm::vec3> entity_positions_;
+  std::unordered_map<worker::EntityId, Interpolation> interpolation_;
 
   core::TileMap tile_map_;
   core::Collision collision_;

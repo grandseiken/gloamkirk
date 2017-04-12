@@ -4,14 +4,10 @@
 #include "workers/client/src/title_mode.h"
 #include <SFML/Graphics.hpp>
 #include <improbable/worker.h>
-#include <atomic>
 #include <chrono>
-#include <condition_variable>
 #include <cstdint>
-#include <deque>
 #include <iostream>
 #include <memory>
-#include <mutex>
 #include <random>
 #include <string>
 #include <thread>
@@ -81,14 +77,12 @@ void run(gloam::ModeState& mode_state, bool fade_in) {
   };
   std::unique_ptr<gloam::Mode> mode{make_title(fade_in)};
 
-  // Synchronization data.
-  std::atomic<bool> running{true};
-  std::mutex window_mutex;
-  std::deque<sf::Event> event_queue;
+  bool running = true;
 
   auto tick = [&](bool sync_tick, bool render_tick) {
     input.update();
-    for (const auto& event : event_queue) {
+    sf::Event event;
+    while (window->pollEvent(event)) {
       if (event.type == sf::Event::Closed) {
         mode_state.exit_application = true;
       } else if (event.type == sf::Event::Resized) {
@@ -97,7 +91,6 @@ void run(gloam::ModeState& mode_state, bool fade_in) {
         input.handle(event);
       }
     }
-    event_queue.clear();
 
     ++mode_state.frame;
     mode->tick(input);
@@ -123,75 +116,48 @@ void run(gloam::ModeState& mode_state, bool fade_in) {
     }
   };
 
-  window->setActive(false);
-  std::thread tick_thread{[&] {
-    std::uint32_t sync = 0;
-    std::uint32_t render = 0;
+  std::uint32_t sync = 0;
+  std::uint32_t render = 0;
+  auto advance_tick = [&] {
+    sync = (1 + sync) % gloam::common::kTicksPerSync;
+    render = (1 + render) % (mode_state.framerate == gloam::Framerate::k30Fps ? 2 : 1);
+  };
 
-    auto advance_tick = [&] {
-      sync = (1 + sync) % gloam::common::kTicksPerSync;
-      render = (1 + render) % (mode_state.framerate == gloam::Framerate::k30Fps ? 2 : 1);
-    };
-
-    {
-      std::lock_guard<std::mutex> lock{window_mutex};
-      window->setActive(true);
-      window->display();
-    }
-    auto next_update = std::chrono::steady_clock::now();
-
-    while (running) {
-      auto start_point = std::chrono::steady_clock::now();
-      bool sync_tick = !sync;
-      bool render_tick = !render;
-      {
-        std::lock_guard<std::mutex> lock{window_mutex};
-        while (start_point > next_update &&
-               start_point - next_update >= gloam::common::kTickDuration) {
-          tick(false, false);
-          advance_tick();
-          next_update += gloam::common::kTickDuration;
-        }
-        tick(sync_tick, render_tick);
-
-        if (render_tick) {
-          window->display();
-        }
-      }
-      if (render_tick && sync_tick) {
-        auto update_time = std::chrono::steady_clock::now() - start_point;
-        mode_state.client_load =
-            static_cast<float>(
-                std::chrono::duration_cast<std::chrono::microseconds>(update_time).count()) /
-            std::chrono::duration_cast<std::chrono::microseconds>(gloam::common::kTickDuration)
-                .count();
-      }
-
-      next_update += gloam::common::kTickDuration;
-      if (next_update > std::chrono::steady_clock::now()) {
-        std::this_thread::sleep_until(next_update);
-      }
-      advance_tick();
-    }
-  }};
-
-  while (running) {
-    // Process SFML window events. This must happen on the main thread.
-    {
-      std::lock_guard<std::mutex> lock{window_mutex};
-      sf::Event event;
-      while (window->pollEvent(event)) {
-        event_queue.emplace_back(event);
-      }
-    }
-    // Try to process at least once per tick.
-    std::this_thread::sleep_for(gloam::common::kTickDuration / 2);
-  }
-
-  running = false;
-  tick_thread.join();
-  // For OpenGL destruction!
   window->setActive(true);
+  window->display();
+  auto next_update = std::chrono::steady_clock::now();
+  while (running) {
+    auto start_point = std::chrono::steady_clock::now();
+    bool sync_tick = !sync;
+    bool render_tick = !render;
+    {
+      while (start_point > next_update &&
+             start_point - next_update >= gloam::common::kTickDuration) {
+        tick(false, false);
+        advance_tick();
+        next_update += gloam::common::kTickDuration;
+      }
+      tick(sync_tick, render_tick);
+
+      if (render_tick) {
+        window->display();
+      }
+    }
+    if (render_tick && sync_tick) {
+      auto update_time = std::chrono::steady_clock::now() - start_point;
+      mode_state.client_load =
+          static_cast<float>(
+              std::chrono::duration_cast<std::chrono::microseconds>(update_time).count()) /
+          std::chrono::duration_cast<std::chrono::microseconds>(gloam::common::kTickDuration)
+              .count();
+    }
+
+    next_update += gloam::common::kTickDuration;
+    if (next_update > std::chrono::steady_clock::now()) {
+      std::this_thread::sleep_until(next_update);
+    }
+    advance_tick();
+  }
 }
 
 }  // anonymous

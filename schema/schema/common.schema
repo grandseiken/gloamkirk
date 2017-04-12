@@ -2,6 +2,12 @@ package gloam.schema;
 
 type Unit {}
 
+type Vec3 {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+}
+
 // Canonical position component. Required for all entities. Used for load-balancing, spatial finds,
 // the inspector, and so on.
 component CanonicalPosition {
@@ -9,3 +15,8 @@ component CanonicalPosition {
   EntityPosition coords = 1;
 }
 
+// Interpolated position updates for clients.
+component InterpolatedPosition {
+  id = 102;
+  event Vec3 position;
+}

@@ -16,7 +16,6 @@ namespace gloam {
 namespace ambient {
 namespace {
 const std::string kWorkerType = "ambient";
-const std::uint32_t kSyncBufferCount = 8;
 
 class PositionLogic : public managed::WorkerLogic {
 public:
@@ -98,15 +97,24 @@ public:
         current += glm::vec3{projection_xz.x, 0.f, projection_xz.y};
       }
 
-      // Update the canonical position.
-      if (current != position.last) {
+      // Bounce back to client (and cosimulators) for this player.
+      c_->connection.SendComponentUpdate<schema::PlayerServer>(
+          pair.first,
+          schema::PlayerServer::Update{}.add_sync_state(
+              {position.player_tick, current.x, current.y, current.z}));
+      // Update the canonical position and send interpolation. Make sure to duplicate the final
+      // position in case the client is extrapolating.
+      if (current != position.last || position.moving) {
+        c_->connection.SendComponentUpdate<schema::InterpolatedPosition>(
+            pair.first,
+            schema::InterpolatedPosition::Update{}.add_position({current.x, current.y, current.z}));
+      }
+
+      position.moving = current != position.last;
+      if (position.moving) {
         c_->connection.SendComponentUpdate<schema::CanonicalPosition>(
             pair.first, schema::CanonicalPosition::Update{}.set_coords(common::coords(current)));
       }
-      // Bounce back to client (and cosimulators) for this player.
-      c_->connection.SendComponentUpdate<schema::PlayerServer>(
-          pair.first, schema::PlayerServer::Update{}.add_sync_state(
-                          {position.player_tick, current.x, current.y, current.z}));
       position.last = current;
       ++position.player_tick;
     }
@@ -121,6 +129,7 @@ private:
 
   struct Position {
     bool has_authority = false;
+    bool moving = false;
     glm::vec2 xz_dv;
     glm::vec3 last;
     glm::vec3 current;
