@@ -99,9 +99,8 @@ public:
 
       // Bounce back to client (and cosimulators) for this player.
       c_->connection.SendComponentUpdate<schema::PlayerServer>(
-          pair.first,
-          schema::PlayerServer::Update{}.add_sync_state(
-              {position.player_tick, current.x, current.y, current.z}));
+          pair.first, schema::PlayerServer::Update{}.add_sync_state(
+                          {position.player_tick, current.x, current.y, current.z}));
       // Update the canonical position and send interpolation. Make sure to duplicate the final
       // position in case the client is extrapolating.
       if (current != position.last || position.moving) {

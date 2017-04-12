@@ -15,11 +15,23 @@ PlayerController::PlayerController(worker::Connection& connection, worker::Dispa
   dispatcher_.OnAddEntity([&](const worker::AddEntityOp& op) {
     connection_.SendComponentInterest(op.EntityId,
                                       {
+                                          // Only for initial checkout.
+                                          {schema::CanonicalPosition::ComponentId, {true}},
                                           {schema::InterpolatedPosition::ComponentId, {true}},
                                           // TODO: replace with common component.
                                           {schema::PlayerClient::ComponentId, {true}},
                                       });
   });
+
+  dispatcher.OnAddComponent<schema::CanonicalPosition>(
+      [&](const worker::AddComponentOp<schema::CanonicalPosition>& op) {
+        if (op.EntityId != player_id_) {
+          interpolation_[op.EntityId].positions.push_back(
+              {op.Data.coords().x(), op.Data.coords().y(), op.Data.coords().z()});
+        }
+        connection.SendComponentInterest(op.EntityId,
+                                         {{schema::CanonicalPosition::ComponentId, {false}}});
+      });
 
   dispatcher.OnRemoveEntity(
       [&](const worker::RemoveEntityOp& op) { interpolation_.erase(op.EntityId); });
@@ -27,12 +39,12 @@ PlayerController::PlayerController(worker::Connection& connection, worker::Dispa
   dispatcher_.OnAuthorityChange<schema::PlayerClient>([&](const worker::AuthorityChangeOp& op) {
     player_id_ = op.EntityId;
     have_player_position_ = false;
+    interpolation_.erase(player_id_);
     connection.SendComponentInterest(
-        op.EntityId,
-        {
-            {schema::PlayerServer::ComponentId, {op.HasAuthority}},
-            {schema::InterpolatedPosition::ComponentId, {!op.HasAuthority}},
-        });
+        op.EntityId, {
+                         {schema::PlayerServer::ComponentId, {op.HasAuthority}},
+                         {schema::InterpolatedPosition::ComponentId, {!op.HasAuthority}},
+                     });
   });
 
   dispatcher_.OnAddComponent<schema::PlayerClient>(
@@ -191,10 +203,7 @@ void PlayerController::reconcile(std::uint32_t sync_tick, const glm::vec3& coord
   }
 
   // Discard old information.
-  bool unsynced = !input_history_.empty() && sync_tick < input_history_.front().sync_tick;
-  if (unsynced) {
-    input_history_.pop_front();
-  }
+  bool unsynced = sync_tick < input_history_.front().sync_tick;
   while (!input_history_.empty() && input_history_.front().sync_tick <= sync_tick) {
     input_history_.pop_front();
   }
