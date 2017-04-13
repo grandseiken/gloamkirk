@@ -137,11 +137,12 @@ void PlayerController::tick(const Input& input) {
 
   for (auto& pair : interpolation_) {
     auto& interpolation = pair.second;
-    if (interpolation.positions.size() <= kInterpolationBufferSize) {
-      continue;
+    while (interpolation.positions.size() > 2 * kInterpolationBufferSize) {
+      interpolation.index = 0;
+      interpolation.positions.pop_front();
     }
-    ++interpolation.index;
-    if (interpolation.index >= common::kTicksPerSync) {
+    if (interpolation.positions.size() > kInterpolationBufferSize &&
+        ++interpolation.index >= common::kTicksPerSync) {
       interpolation.index = 0;
       interpolation.positions.pop_front();
     }

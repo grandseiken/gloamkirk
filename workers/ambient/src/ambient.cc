@@ -33,6 +33,11 @@ public:
     c.dispatcher.OnRemoveEntity(
         [&](const worker::RemoveEntityOp& op) { entity_positions_.erase(op.EntityId); });
 
+    c.dispatcher.OnAuthorityChange<schema::CanonicalPosition>(
+        [&](const worker::AuthorityChangeOp& op) {
+          entity_positions_[op.EntityId].has_authority = op.HasAuthority;
+        });
+
     c.dispatcher.OnAddComponent<schema::CanonicalPosition>(
         [&](const worker::AddComponentOp<schema::CanonicalPosition>& op) {
           // We only get the position when we're authoritative.
@@ -50,11 +55,6 @@ public:
             position.last = position.current;
             position.current = {sync.x(), sync.y(), sync.z()};
           }
-        });
-
-    c.dispatcher.OnAuthorityChange<schema::CanonicalPosition>(
-        [&](const worker::AuthorityChangeOp& op) {
-          entity_positions_[op.EntityId].has_authority = op.HasAuthority;
         });
 
     c.dispatcher.OnComponentUpdate<schema::PlayerClient>(
@@ -120,12 +120,6 @@ public:
   }
 
 private:
-  struct PositionSync {
-    std::uint32_t tick = 0;
-    // Normalized xz direction.
-    glm::vec2 xz;
-  };
-
   struct Position {
     bool has_authority = false;
     bool moving = false;
