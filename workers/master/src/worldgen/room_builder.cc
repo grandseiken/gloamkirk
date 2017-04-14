@@ -4,12 +4,11 @@
 namespace gloam {
 namespace master {
 namespace worldgen {
-namespace {
+
 bool xy_swapped(Symmetry symmetry) {
-  return symmetry == Symmetry::LEFT_CW || symmetry == Symmetry::LEFT_CCW ||
-      symmetry == Symmetry::RIGHT_CW || symmetry == Symmetry::RIGHT_CCW;
+  return symmetry == Symmetry::kLeftCw || symmetry == Symmetry::kLeftCcw ||
+      symmetry == Symmetry::kRightCw || symmetry == Symmetry::kRightCcw;
 }
-}  // anonymous
 
 MapType MapWriter::map_type() const {
   return data_.map_type;
@@ -54,20 +53,27 @@ schema::Tile& MapWriter::find_tile(const glm::ivec2& position) const {
   if (v.x < 0 || v.y < 0 || v.x >= target_dimensions_.x || v.y >= target_dimensions_.y) {
     return default;
   }
-  if (symmetry_ == Symmetry::DOWN_CCW || symmetry_ == Symmetry::UP_CW ||
-      symmetry_ == Symmetry::RIGHT_CW || symmetry_ == Symmetry::RIGHT_CCW) {
+  if (symmetry_ == Symmetry::kDownCcw || symmetry_ == Symmetry::kUpCw ||
+      symmetry_ == Symmetry::kRightCw || symmetry_ == Symmetry::kRightCcw) {
     v.x = target_dimensions_.x - 1 - v.x;
   }
-  if (symmetry_ == Symmetry::UP_CW || symmetry_ == Symmetry::UP_CCW ||
-      symmetry_ == Symmetry::LEFT_CW || symmetry_ == Symmetry::RIGHT_CCW) {
+  if (symmetry_ == Symmetry::kUpCw || symmetry_ == Symmetry::kUpCcw ||
+      symmetry_ == Symmetry::kLeftCw || symmetry_ == Symmetry::kRightCcw) {
     v.y = target_dimensions_.y - 1 - v.y;
   }
   auto map_position = target_origin_ + v;
   return data_.tiles[map_position.x + map_position.y * data_.dimensions.x];
 }
 
-RoomBuilder::RoomBuilder(const glm::ivec2& min_dimensions, const glm::ivec2& max_dimensions)
-: min_dimensions_{min_dimensions}, max_dimensions_{max_dimensions} {}
+RoomBuilder::RoomBuilder(std::uint32_t flags, const glm::ivec2& min_dimensions,
+                         const glm::ivec2& max_dimensions)
+: flags_{static_cast<RoomBuilderFlags>(flags)}
+, min_dimensions_{min_dimensions}
+, max_dimensions_{max_dimensions} {}
+
+RoomBuilderFlags RoomBuilder::flags() const {
+  return flags_;
+}
 
 const glm::ivec2& RoomBuilder::min_dimensions() const {
   return min_dimensions_;

@@ -11,16 +11,30 @@ class Random;
 struct MapData;
 enum class MapType;
 
+// Possible orientations for a MapWriter.
 enum class Symmetry {
-  DOWN_CW,
-  DOWN_CCW,
-  UP_CW,
-  UP_CCW,
-  LEFT_CW,
-  LEFT_CCW,
-  RIGHT_CW,
-  RIGHT_CCW,
+  kDownCw,
+  kDownCcw,
+  kUpCw,
+  kUpCcw,
+  kLeftCw,
+  kLeftCcw,
+  kRightCw,
+  kRightCcw,
 };
+
+// Room builder settings.
+enum RoomBuilderFlags : std::uint32_t {
+  kNone = 0,
+  // A room that can be laid over other rooms.
+  kCanOverlay = 1,
+  // A room that cannot have other rooms laid over it.
+  kExclusive = 2,
+  // A special room.
+  kSpecial = 4,
+};
+
+bool xy_swapped(Symmetry symmetry);
 
 class MapWriter {
 public:
@@ -46,13 +60,17 @@ private:
 
 class RoomBuilder {
 public:
-  RoomBuilder(const glm::ivec2& min_dimensions, const glm::ivec2& max_dimensions);
+  RoomBuilder(std::uint32_t flags, const glm::ivec2& min_dimensions,
+              const glm::ivec2& max_dimensions);
+
+  RoomBuilderFlags flags() const;
   const glm::ivec2& min_dimensions() const;
   const glm::ivec2& max_dimensions() const;
 
-  virtual void build(MapWriter& writer, Random& random) = 0;
+  virtual void build(MapWriter& writer, Random& random) const = 0;
 
 private:
+  RoomBuilderFlags flags_;
   glm::ivec2 min_dimensions_;
   glm::ivec2 max_dimensions_;
 };
