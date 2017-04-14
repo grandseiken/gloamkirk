@@ -11,8 +11,8 @@ set(MANAGED_SOURCE_FILES
   "src/managed/managed.cc"
   "src/managed/managed.h")
 
-source_group(src\\core "src/core/[^/]*")
-source_group(src\\managed "src/managed/[^/]*")
+source_group(src\\core "${CMAKE_CURRENT_SOURCE_DIR}/src/core/[^/]*")
+source_group(src\\managed "${CMAKE_CURRENT_SOURCE_DIR}/src/managed/[^/]*")
 
 add_library(core STATIC ${CORE_SOURCE_FILES})
 target_include_directories(core PRIVATE "${PROJECT_ROOT}")

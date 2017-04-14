@@ -4,7 +4,7 @@ project(ambient)
 set(AMBIENT_SOURCE_FILES
   "src/ambient.cc")
 
-source_group(src "src/[^/]*")
+source_group(src "${CMAKE_CURRENT_SOURCE_DIR}/src/[^/]*")
 
 add_executable(ambient ${AMBIENT_SOURCE_FILES})
 target_include_directories(ambient PRIVATE "${PROJECT_ROOT}")

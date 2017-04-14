@@ -2,7 +2,7 @@
 project(snapshot)
 
 set(SNAPSHOT_SOURCE_FILES "src/snapshot_generator.cc")
-source_group(src "src/[^/]*")
+source_group(src "${CMAKE_CURRENT_SOURCE_DIR}/src/[^/]*")
 
 add_executable(snapshot_generator ${SNAPSHOT_SOURCE_FILES})
 target_include_directories(snapshot_generator PRIVATE "${PROJECT_ROOT}")

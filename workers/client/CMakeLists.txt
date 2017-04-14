@@ -28,9 +28,9 @@ set(CLIENT_SOURCE_FILES
   "src/world/world_renderer.cc"
   "src/world/world_renderer.h")
 
-source_group(src "src/[^/]*")
-source_group(src\\shaders "src/shaders/[^/]*")
-source_group(src\\world "src/world/[^/]*")
+source_group(src "${CMAKE_CURRENT_SOURCE_DIR}/src/[^/]*")
+source_group(src\\shaders "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders/[^/]*")
+source_group(src\\world "${CMAKE_CURRENT_SOURCE_DIR}/src/world/[^/]*")
 
 add_executable(client ${CLIENT_SOURCE_FILES})
 target_include_directories(client PRIVATE "${PROJECT_ROOT}")

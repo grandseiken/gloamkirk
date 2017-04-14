@@ -7,6 +7,12 @@ else()
   add_definitions(-w)
 endif()
 
+set(SCHEMA_FILES
+  "schema/chunk.schema"
+  "schema/common.schema"
+  "schema/master.schema"
+  "schema/player.schema")
+
 set(SCHEMA_SOURCE_FILES
   "${PROJECT_GENERATED}/schema/chunk.cc"
   "${PROJECT_GENERATED}/schema/chunk.h"
@@ -29,6 +35,10 @@ set(SCHEMA_SOURCE_FILES
   "${PROJECT_GENERATED}/improbable/standard_library.pb.cc"
   "${PROJECT_GENERATED}/improbable/standard_library.pb.h")
 
-add_library(schema STATIC ${SCHEMA_SOURCE_FILES})
+source_group(schema "${CMAKE_CURRENT_SOURCE_DIR}/schema/[^/]*")
+source_group(generated\\schema "${PROJECT_GENERATED}/schema/[^/]*")
+source_group(generated\\improbable "${PROJECT_GENERATED}/improbable/[^/]*")
+
+add_library(schema STATIC ${SCHEMA_FILES} ${SCHEMA_SOURCE_FILES})
 target_include_directories(schema SYSTEM PUBLIC "${PROJECT_GENERATED}")
 target_link_libraries(schema PRIVATE worker_sdk)

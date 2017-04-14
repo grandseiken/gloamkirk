@@ -186,7 +186,7 @@ int main(int argc, const char** argv) {
   auto now = std::chrono::system_clock::now().time_since_epoch();
   std::mt19937 generator{static_cast<unsigned int>(
       std::chrono::duration_cast<std::chrono::milliseconds>(now).count())};
-  std::uniform_int_distribution<std::int32_t> distribution(0, 1 << 16);
+  std::uniform_int_distribution<std::int32_t> distribution{0, 1 << 16};
 
   mode_state.random_seed = distribution(generator);
   mode_state.frame = 0;
