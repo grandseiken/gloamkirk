@@ -105,11 +105,17 @@ void WorldSpawner::sync() {
     schema::ChunkData chunk_data{chunk_size_, coords.x, coords.y, {}};
     for (std::int32_t y = 0; y < chunk_size_; ++y) {
       for (std::int32_t x = 0; x < chunk_size_; ++x) {
-        chunk_data.tiles().emplace_back(schema::Tile::Terrain::GRASS,
-                                        (x == chunk_size_ / 2 || 1 + x == chunk_size_ / 2) &&
-                                                (y == chunk_size_ / 2 || 1 + y == chunk_size_ / 2)
-                                            ? 2
-                                            : 0);
+        auto cs2 = chunk_size_ / 2;
+        auto ramp = 2 + x == cs2 && y == cs2
+            ? schema::Tile::Ramp::RIGHT
+            : x == cs2 && y - 1 == cs2 ? schema::Tile::Ramp::DOWN
+                                       : x - 1 == cs2 && 1 + y == cs2
+                    ? schema::Tile::Ramp::LEFT
+                    : 1 + x == cs2 && 2 + y == cs2 ? schema::Tile::Ramp::UP
+                                                   : schema::Tile::Ramp::NONE;
+        chunk_data.tiles().emplace_back(
+            schema::Tile::Terrain::GRASS,
+            (x == cs2 || 1 + x == cs2) && (y == cs2 || 1 + y == cs2) ? 2 : 0, ramp);
       }
     }
 

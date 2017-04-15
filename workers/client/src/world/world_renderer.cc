@@ -70,7 +70,23 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
     glm::vec2 max = (coord + glm::ivec2{1, 1}) * kTileSize;
     auto height = static_cast<float>(pair.second.height() * kTileSize);
     auto material = tile_material(pair.second);
-    glm::vec3 top_normal = {0, 1., 0.};
+
+    glm::vec3 ramp_v = static_cast<float>(kTileSize) * glm::vec3{0., 1., 0.};
+    glm::vec3 top_normal = {0., 1., 0.};
+    bool t_ramp = pair.second.ramp() == schema::Tile::Ramp::UP;
+    bool b_ramp = pair.second.ramp() == schema::Tile::Ramp::DOWN;
+    bool l_ramp = pair.second.ramp() == schema::Tile::Ramp::LEFT;
+    bool r_ramp = pair.second.ramp() == schema::Tile::Ramp::RIGHT;
+
+    if (t_ramp) {
+      top_normal = glm::normalize(glm::vec3{0., 1., -1.});
+    } else if (b_ramp) {
+      top_normal = glm::normalize(glm::vec3{0., 1., 1.});
+    } else if (l_ramp) {
+      top_normal = glm::normalize(glm::vec3{1., 1., 0.});
+    } else if (r_ramp) {
+      top_normal = glm::normalize(glm::vec3{-1., 1., 0.});
+    }
 
     auto height_difference = [&](const glm::ivec2& coord) {
       auto it = tile_map.find(coord);
@@ -116,71 +132,45 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
       auto world_height = pixel_layer * pixel_height;
       auto world_offset = glm::vec3{0.f, world_height, 0.f};
 
-      add_vec3(world_offset + glm::vec3{min.x, height, min.y});
-      add_vec3(top_normal);
-      data.push_back(l_height > 0 || b_height > 0 || bl_height > 0);
-      data.push_back(l_height < 0 || b_height < 0 || bl_height < 0);
-      data.push_back(l_terrain || b_terrain || bl_terrain);
-      data.push_back(world_height);
-      data.push_back(material);
+      auto add_corner = [&](const glm::vec3& v, std::int32_t h0, std::int32_t h1, std::int32_t h2,
+                            bool ramp, bool terrain_edge) {
+        add_vec3(world_offset + v + (ramp ? ramp_v : glm::vec3{}));
+        add_vec3(top_normal);
+        data.push_back(h0 > 1 || h1 > 1 || h2 > 1 || (!ramp && (h0 > 0 || h1 > 1 || h2 > 1)));
+        data.push_back(h0 < 0 || h1 < 0 || h2 < 0 || (ramp && (!h0 || !h1 || !h2)));
+        data.push_back(terrain_edge);
+        data.push_back(world_height);
+        data.push_back(material);
+      };
 
-      add_vec3(world_offset + glm::vec3{min.x, height, max.y});
-      add_vec3(top_normal);
-      data.push_back(l_height > 0 || t_height > 0 || tl_height > 0);
-      data.push_back(l_height < 0 || t_height < 0 || tl_height < 0);
-      data.push_back(l_terrain || t_terrain || tl_terrain);
-      data.push_back(world_height);
-      data.push_back(material);
+      auto add_side = [&](const glm::vec3& v, std::int32_t h, bool ramp_half, bool ramp,
+                          bool terrain_edge) {
+        add_vec3(world_offset + v + (ramp_half ? ramp_v / 2.f : glm::vec3{}) +
+                 (ramp ? ramp_v : glm::vec3{}));
+        add_vec3(top_normal);
+        data.push_back(h > 1 || (h > 0 && !ramp));
+        data.push_back(h < 0 || (!h && (ramp_half || ramp)));
+        data.push_back(terrain_edge);
+        data.push_back(world_height);
+        data.push_back(material);
+      };
 
-      add_vec3(world_offset + glm::vec3{max.x, height, min.y});
-      add_vec3(top_normal);
-      data.push_back(r_height > 0 || b_height > 0 || br_height > 0);
-      data.push_back(r_height < 0 || b_height < 0 || br_height < 0);
-      data.push_back(r_terrain || b_terrain || br_terrain);
-      data.push_back(world_height);
-      data.push_back(material);
+      add_corner({min.x, height, min.y}, l_height, b_height, bl_height, l_ramp || b_ramp,
+                 l_terrain || b_terrain || bl_terrain);
+      add_corner({min.x, height, max.y}, l_height, t_height, tl_height, l_ramp || t_ramp,
+                 l_terrain || t_terrain || tl_terrain);
+      add_corner({max.x, height, min.y}, r_height, b_height, br_height, r_ramp || b_ramp,
+                 r_terrain || b_terrain || br_terrain);
+      add_corner({max.x, height, max.y}, r_height, t_height, tr_height, r_ramp || t_ramp,
+                 r_terrain || t_terrain || tr_terrain);
 
-      add_vec3(world_offset + glm::vec3{max.x, height, max.y});
-      add_vec3(top_normal);
-      data.push_back(r_height > 0 || t_height > 0 || tr_height > 0);
-      data.push_back(r_height < 0 || t_height < 0 || tr_height < 0);
-      data.push_back(r_terrain || t_terrain || tr_terrain);
-      data.push_back(world_height);
-      data.push_back(material);
+      add_side({min.x, height, (min.y + max.y) / 2}, l_height, t_ramp || b_ramp, l_ramp, l_terrain);
+      add_side({(min.x + max.x) / 2, height, max.y}, t_height, l_ramp || r_ramp, t_ramp, r_terrain);
+      add_side({(min.x + max.x) / 2, height, min.y}, b_height, l_ramp || r_ramp, b_ramp, b_terrain);
+      add_side({max.x, height, (min.y + max.y) / 2}, r_height, t_ramp || b_ramp, r_ramp, r_terrain);
 
-      add_vec3(world_offset + glm::vec3{min.x, height, (min.y + max.y) / 2});
-      add_vec3(top_normal);
-      data.push_back(l_height > 0);
-      data.push_back(l_height < 0);
-      data.push_back(l_terrain);
-      data.push_back(world_height);
-      data.push_back(material);
-
-      add_vec3(world_offset + glm::vec3{(min.x + max.x) / 2, height, max.y});
-      add_vec3(top_normal);
-      data.push_back(t_height > 0);
-      data.push_back(t_height < 0);
-      data.push_back(t_terrain);
-      data.push_back(world_height);
-      data.push_back(material);
-
-      add_vec3(world_offset + glm::vec3{(min.x + max.x) / 2, height, min.y});
-      add_vec3(top_normal);
-      data.push_back(b_height > 0);
-      data.push_back(b_height < 0);
-      data.push_back(b_terrain);
-      data.push_back(world_height);
-      data.push_back(material);
-
-      add_vec3(world_offset + glm::vec3{max.x, height, (min.y + max.y) / 2});
-      add_vec3(top_normal);
-      data.push_back(r_height > 0);
-      data.push_back(r_height < 0);
-      data.push_back(r_terrain);
-      data.push_back(world_height);
-      data.push_back(material);
-
-      add_vec3(world_offset + glm::vec3{(min.x + max.x) / 2, height, (min.y + max.y) / 2});
+      add_vec3(world_offset + glm::vec3{(min.x + max.x) / 2, height, (min.y + max.y) / 2} +
+               (l_ramp || r_ramp || t_ramp || b_ramp ? ramp_v : glm::vec3{}));
       add_vec3(top_normal);
       data.push_back(0);
       data.push_back(0);

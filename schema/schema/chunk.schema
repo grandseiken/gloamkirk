@@ -5,8 +5,17 @@ type Tile {
     GRASS = 1;
   }
 
+  enum Ramp {
+    NONE = 0;
+    UP = 1;
+    DOWN = 2;
+    LEFT = 3;
+    RIGHT = 4;
+  }
+
   Terrain terrain = 1;
   int32 height = 2;
+  Ramp ramp = 3;
 }
 
 // Component exclusive to chunk entities.

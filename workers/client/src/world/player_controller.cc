@@ -204,7 +204,7 @@ void PlayerController::reconcile(std::uint32_t sync_tick, const glm::vec3& coord
   }
 
   // Discard old information.
-  bool unsynced = sync_tick < input_history_.front().sync_tick;
+  bool unsynced = !input_history_.empty() && sync_tick < input_history_.front().sync_tick;
   while (!input_history_.empty() && input_history_.front().sync_tick <= sync_tick) {
     input_history_.pop_front();
   }
