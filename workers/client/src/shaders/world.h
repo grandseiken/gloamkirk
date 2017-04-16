@@ -51,7 +51,7 @@ void main()
   float material = vertex_material;
 
   float protrusion_value = 0.;
-  if (normal.y >= 1.) {
+  if (normal.y >= .5) {
     float s512 = simplex3(world * d512);
     float s256 = simplex3(world * d256);
     float s128 = simplex3(world * d128);
@@ -155,7 +155,7 @@ void main() {
   float value = d2 * s512 + d1 * s256 + d2 * s128 + d4 * g64.w + d8 * g32.w + d16 * g16.w;
   float mix_value = clamp(
       d4 * protrusion + edge_up - edge_down + d2 + clamp(value * 8., -4., 1.), 0., 1.);
-  if (normal.y < 1.) {
+  if (normal.y < .5) {
     mix_value = 0.;
   }
 

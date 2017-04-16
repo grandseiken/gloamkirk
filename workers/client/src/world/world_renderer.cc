@@ -88,33 +88,51 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
       top_normal = glm::normalize(glm::vec3{-1., 1., 0.});
     }
 
-    auto height_difference = [&](const glm::ivec2& coord) {
-      auto it = tile_map.find(coord);
-      return it == tile_map.end() ? 0 : it->second.height() - pair.second.height();
+    auto height_difference = [&](const glm::ivec2& v) {
+      auto it = tile_map.find(coord + v);
+      auto ramp = it->second.ramp();
+      auto difference = it == tile_map.end() ? 0 : it->second.height() - pair.second.height();
+      if ((v.x < 0 && ramp == schema::Tile::Ramp::RIGHT) ||
+          (v.x > 0 && ramp == schema::Tile::Ramp::LEFT) ||
+          (v.y < 0 && ramp == schema::Tile::Ramp::DOWN) ||
+          (v.y > 0 && ramp == schema::Tile::Ramp::UP)) {
+        return 1 + difference;
+      }
+      return difference;
     };
 
-    auto terrain_difference = [&](const glm::ivec2& coord) {
-      auto it = tile_map.find(coord);
+    auto same_ramp = [&](const glm::ivec2& v) {
+      auto it = tile_map.find(coord + v);
+      return it != tile_map.end() && it->second.ramp() == pair.second.ramp();
+    };
+
+    auto terrain_difference = [&](const glm::ivec2& v) {
+      auto it = tile_map.find(coord + v);
       return it != tile_map.end() && it->second.terrain() != pair.second.terrain();
     };
 
-    auto l_height = height_difference(coord + glm::ivec2{-1, 0});
-    auto r_height = height_difference(coord + glm::ivec2{1, 0});
-    auto b_height = height_difference(coord + glm::ivec2{0, -1});
-    auto t_height = height_difference(coord + glm::ivec2{0, 1});
-    auto tl_height = height_difference(coord + glm::ivec2{-1, 1});
-    auto tr_height = height_difference(coord + glm::ivec2{1, 1});
-    auto bl_height = height_difference(coord + glm::ivec2{-1, -1});
-    auto br_height = height_difference(coord + glm::ivec2{1, -1});
+    auto l_height = height_difference(glm::ivec2{-1, 0});
+    auto r_height = height_difference(glm::ivec2{1, 0});
+    auto b_height = height_difference(glm::ivec2{0, -1});
+    auto t_height = height_difference(glm::ivec2{0, 1});
+    auto tl_height = height_difference(glm::ivec2{-1, 1});
+    auto tr_height = height_difference(glm::ivec2{1, 1});
+    auto bl_height = height_difference(glm::ivec2{-1, -1});
+    auto br_height = height_difference(glm::ivec2{1, -1});
 
-    auto l_terrain = terrain_difference(coord + glm::ivec2{-1, 0});
-    auto r_terrain = terrain_difference(coord + glm::ivec2{1, 0});
-    auto b_terrain = terrain_difference(coord + glm::ivec2{0, -1});
-    auto t_terrain = terrain_difference(coord + glm::ivec2{0, 1});
-    auto tl_terrain = terrain_difference(coord + glm::ivec2{-1, 1});
-    auto tr_terrain = terrain_difference(coord + glm::ivec2{1, 1});
-    auto bl_terrain = terrain_difference(coord + glm::ivec2{-1, -1});
-    auto br_terrain = terrain_difference(coord + glm::ivec2{1, -1});
+    auto l_same_ramp = same_ramp(glm::ivec2{-1, 0});
+    auto r_same_ramp = same_ramp(glm::ivec2{1, 0});
+    auto b_same_ramp = same_ramp(glm::ivec2{0, -1});
+    auto t_same_ramp = same_ramp(glm::ivec2{0, 1});
+
+    auto l_terrain = terrain_difference(glm::ivec2{-1, 0});
+    auto r_terrain = terrain_difference(glm::ivec2{1, 0});
+    auto b_terrain = terrain_difference(glm::ivec2{0, -1});
+    auto t_terrain = terrain_difference(glm::ivec2{0, 1});
+    auto tl_terrain = terrain_difference(glm::ivec2{-1, 1});
+    auto tr_terrain = terrain_difference(glm::ivec2{1, 1});
+    auto bl_terrain = terrain_difference(glm::ivec2{-1, -1});
+    auto br_terrain = terrain_difference(glm::ivec2{1, -1});
 
     std::vector<glm::vec3> vertices = {{min.x, height, min.y},
                                        {min.x, height, max.y},
@@ -123,7 +141,7 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
     auto all_vertices = vertices;
     for (const auto& v : vertices) {
       all_vertices.emplace_back(
-          v + glm::vec3{0.f, kPixelLayers * antialias_level.y * pixel_height, 0.f});
+          v + ramp_v + glm::vec3{0.f, kPixelLayers * antialias_level.y * pixel_height, 0.f});
     }
 
     bool visible = is_visible(camera_matrix, all_vertices);
@@ -133,44 +151,54 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
       auto world_offset = glm::vec3{0.f, world_height, 0.f};
 
       auto add_corner = [&](const glm::vec3& v, std::int32_t h0, std::int32_t h1, std::int32_t h2,
-                            bool ramp, bool terrain_edge) {
+                            bool ramp0, bool ramp1, bool same_ramp0, bool same_ramp1,
+                            bool terrain_edge) {
+        bool ramp = ramp0 || ramp1;
         add_vec3(world_offset + v + (ramp ? ramp_v : glm::vec3{}));
         add_vec3(top_normal);
-        data.push_back(h0 > 1 || h1 > 1 || h2 > 1 || (!ramp && (h0 > 0 || h1 > 1 || h2 > 1)));
-        data.push_back(h0 < 0 || h1 < 0 || h2 < 0 || (ramp && (!h0 || !h1 || !h2)));
+        data.push_back(h0 > 1 || h1 > 1 || h2 > 1 || (!ramp && (h0 > 0 || h1 > 0 || h2 > 0)));
+        bool a0 = !h0 && (ramp0 || (ramp1 && !same_ramp0));
+        bool a1 = !h0 && (ramp1 || (ramp0 && !same_ramp1));
+        bool a2 = ramp && !h2;
+        data.push_back(h0 < 0 || h1 < 0 || h2 < 0 || a0 || a1 || a2);
         data.push_back(terrain_edge);
         data.push_back(world_height);
         data.push_back(material);
       };
 
       auto add_side = [&](const glm::vec3& v, std::int32_t h, bool ramp_half, bool ramp,
-                          bool terrain_edge) {
+                          bool side_same_ramp, bool terrain_edge) {
         add_vec3(world_offset + v + (ramp_half ? ramp_v / 2.f : glm::vec3{}) +
                  (ramp ? ramp_v : glm::vec3{}));
         add_vec3(top_normal);
         data.push_back(h > 1 || (h > 0 && !ramp));
-        data.push_back(h < 0 || (!h && (ramp_half || ramp)));
+        data.push_back(h < 0 || (!h && !(side_same_ramp && ramp_half) && (ramp_half || ramp)));
         data.push_back(terrain_edge);
         data.push_back(world_height);
         data.push_back(material);
       };
 
-      add_corner({min.x, height, min.y}, l_height, b_height, bl_height, l_ramp || b_ramp,
-                 l_terrain || b_terrain || bl_terrain);
-      add_corner({min.x, height, max.y}, l_height, t_height, tl_height, l_ramp || t_ramp,
-                 l_terrain || t_terrain || tl_terrain);
-      add_corner({max.x, height, min.y}, r_height, b_height, br_height, r_ramp || b_ramp,
-                 r_terrain || b_terrain || br_terrain);
-      add_corner({max.x, height, max.y}, r_height, t_height, tr_height, r_ramp || t_ramp,
-                 r_terrain || t_terrain || tr_terrain);
+      add_corner({min.x, height, min.y}, l_height, b_height, bl_height, l_ramp, b_ramp, l_same_ramp,
+                 b_same_ramp, l_terrain || b_terrain || bl_terrain);
+      add_corner({min.x, height, max.y}, l_height, t_height, tl_height, l_ramp, t_ramp, l_same_ramp,
+                 t_same_ramp, l_terrain || t_terrain || tl_terrain);
+      add_corner({max.x, height, min.y}, r_height, b_height, br_height, r_ramp, b_ramp, r_same_ramp,
+                 b_same_ramp, r_terrain || b_terrain || br_terrain);
+      add_corner({max.x, height, max.y}, r_height, t_height, tr_height, r_ramp, t_ramp, r_same_ramp,
+                 t_same_ramp, r_terrain || t_terrain || tr_terrain);
 
-      add_side({min.x, height, (min.y + max.y) / 2}, l_height, t_ramp || b_ramp, l_ramp, l_terrain);
-      add_side({(min.x + max.x) / 2, height, max.y}, t_height, l_ramp || r_ramp, t_ramp, r_terrain);
-      add_side({(min.x + max.x) / 2, height, min.y}, b_height, l_ramp || r_ramp, b_ramp, b_terrain);
-      add_side({max.x, height, (min.y + max.y) / 2}, r_height, t_ramp || b_ramp, r_ramp, r_terrain);
+      add_side({min.x, height, (min.y + max.y) / 2}, l_height, t_ramp || b_ramp, l_ramp,
+               l_same_ramp, l_terrain);
+      add_side({(min.x + max.x) / 2, height, max.y}, t_height, l_ramp || r_ramp, t_ramp,
+               t_same_ramp, r_terrain);
+      add_side({(min.x + max.x) / 2, height, min.y}, b_height, l_ramp || r_ramp, b_ramp,
+               b_same_ramp, b_terrain);
+      add_side({max.x, height, (min.y + max.y) / 2}, r_height, t_ramp || b_ramp, r_ramp,
+               r_same_ramp, r_terrain);
 
+      // Centre vertex.
       add_vec3(world_offset + glm::vec3{(min.x + max.x) / 2, height, (min.y + max.y) / 2} +
-               (l_ramp || r_ramp || t_ramp || b_ramp ? ramp_v : glm::vec3{}));
+               (l_ramp || r_ramp || t_ramp || b_ramp ? ramp_v / 2.f : glm::vec3{}));
       add_vec3(top_normal);
       data.push_back(0);
       data.push_back(0);
@@ -198,72 +226,32 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
       max = glm::vec2{(1 + coord.x) * kTileSize, height};
       glm::vec3 side_normal = {0., 0., jt->second.height() > pair.second.height() ? 1. : -1.};
 
-      if (is_visible(
-              camera_matrix,
-              {{min.x, min.y, y}, {min.x, max.y, y}, {max.x, min.y, y}, {max.x, max.y, y}})) {
-        add_vec3({min.x, min.y, y});
+      auto add_point = [&](const glm::vec3& v, float up_edge, float down_edge, float terrain_edge) {
+        add_vec3(v);
         add_vec3(side_normal);
-        data.push_back(0);
-        data.push_back(1);
-        data.push_back(l_terrain || bl_terrain);
+        data.push_back(up_edge);
+        data.push_back(down_edge);
+        data.push_back(terrain_edge);
         data.push_back(0);
         data.push_back(material);
+      };
 
-        add_vec3({min.x, max.y, y});
-        add_vec3(side_normal);
-        data.push_back(1);
-        data.push_back(0);
-        data.push_back(l_terrain || bl_terrain);
-        data.push_back(0);
-        data.push_back(material);
+      std::vector<glm::vec3> vertices = {
+          {min.x, min.y, y}, {min.x, max.y, y}, {max.x, min.y, y}, {max.x, max.y, y}};
+      auto all_vertices = vertices;
+      for (const auto& v : vertices) {
+        all_vertices.emplace_back(v + ramp_v);
+      }
 
-        add_vec3({max.x, min.y, y});
-        add_vec3(side_normal);
-        data.push_back(0);
-        data.push_back(1);
-        data.push_back(r_terrain || br_terrain);
-        data.push_back(0);
-        data.push_back(material);
-
-        add_vec3({max.x, max.y, y});
-        add_vec3(side_normal);
-        data.push_back(1);
-        data.push_back(0);
-        data.push_back(r_terrain || br_terrain);
-        data.push_back(0);
-        data.push_back(material);
-
-        add_vec3({min.x, min.y + edge, y});
-        add_vec3(side_normal);
-        data.push_back(0);
-        data.push_back(0);
-        data.push_back(l_terrain || bl_terrain);
-        data.push_back(0);
-        data.push_back(material);
-
-        add_vec3({min.x, max.y - edge, y});
-        add_vec3(side_normal);
-        data.push_back(0);
-        data.push_back(0);
-        data.push_back(l_terrain || bl_terrain);
-        data.push_back(0);
-        data.push_back(material);
-
-        add_vec3({max.x, min.y + edge, y});
-        add_vec3(side_normal);
-        data.push_back(0);
-        data.push_back(0);
-        data.push_back(r_terrain || br_terrain);
-        data.push_back(0);
-        data.push_back(material);
-
-        add_vec3({max.x, max.y - edge, y});
-        add_vec3(side_normal);
-        data.push_back(0);
-        data.push_back(0);
-        data.push_back(r_terrain || br_terrain);
-        data.push_back(0);
-        data.push_back(material);
+      if (is_visible(camera_matrix, all_vertices)) {
+        add_point({min.x, min.y, y}, 0, 1, l_terrain || bl_terrain);
+        add_point({min.x, max.y, y}, 1, 0, l_terrain || bl_terrain);
+        add_point({max.x, min.y, y}, 0, 1, r_terrain || br_terrain);
+        add_point({max.x, max.y, y}, 1, 0, r_terrain || br_terrain);
+        add_point({min.x, min.y + edge, y}, 0, 0, l_terrain || bl_terrain);
+        add_point({min.x, max.y - edge, y}, 0, 0, l_terrain || bl_terrain);
+        add_point({max.x, min.y + edge, y}, 0, 0, r_terrain || br_terrain);
+        add_point({max.x, max.y - edge, y}, 0, 0, r_terrain || br_terrain);
 
         add_tri(0, 2, 4);
         add_tri(4, 2, 6);
@@ -284,72 +272,32 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
       max = glm::vec2{(1 + coord.y) * kTileSize, height};
       glm::vec3 side_normal = {jt->second.height() > pair.second.height() ? 1. : -1., 0., 0.};
 
-      if (is_visible(
-              camera_matrix,
-              {{x, min.y, min.x}, {x, min.y, max.x}, {x, max.y, min.x}, {x, max.y, max.x}})) {
-        add_vec3({x, min.y, min.x});
+      auto add_point = [&](const glm::vec3& v, float up_edge, float down_edge, float terrain_edge) {
+        add_vec3(v);
         add_vec3(side_normal);
-        data.push_back(0);
-        data.push_back(1);
-        data.push_back(b_terrain || bl_terrain);
+        data.push_back(up_edge);
+        data.push_back(down_edge);
+        data.push_back(terrain_edge);
         data.push_back(0);
         data.push_back(material);
+      };
 
-        add_vec3({x, min.y, max.x});
-        add_vec3(side_normal);
-        data.push_back(0);
-        data.push_back(1);
-        data.push_back(t_terrain || tl_terrain);
-        data.push_back(0);
-        data.push_back(material);
+      std::vector<glm::vec3> vertices = {
+          {x, min.y, min.x}, {x, min.y, max.x}, {x, max.y, min.x}, {x, max.y, max.x}};
+      auto all_vertices = vertices;
+      for (const auto& v : vertices) {
+        all_vertices.emplace_back(v + ramp_v);
+      }
 
-        add_vec3({x, max.y, min.x});
-        add_vec3(side_normal);
-        data.push_back(1);
-        data.push_back(0);
-        data.push_back(b_terrain || bl_terrain);
-        data.push_back(0);
-        data.push_back(material);
-
-        add_vec3({x, max.y, max.x});
-        add_vec3(side_normal);
-        data.push_back(1);
-        data.push_back(0);
-        data.push_back(t_terrain || tl_terrain);
-        data.push_back(0);
-        data.push_back(material);
-
-        add_vec3({x, min.y + edge, min.x});
-        add_vec3(side_normal);
-        data.push_back(0);
-        data.push_back(0);
-        data.push_back(b_terrain || bl_terrain);
-        data.push_back(0);
-        data.push_back(material);
-
-        add_vec3({x, min.y + edge, max.x});
-        add_vec3(side_normal);
-        data.push_back(0);
-        data.push_back(0);
-        data.push_back(t_terrain || tl_terrain);
-        data.push_back(0);
-        data.push_back(material);
-
-        add_vec3({x, max.y - edge, min.x});
-        add_vec3(side_normal);
-        data.push_back(0);
-        data.push_back(0);
-        data.push_back(b_terrain || bl_terrain);
-        data.push_back(0);
-        data.push_back(material);
-
-        add_vec3({x, max.y - edge, max.x});
-        add_vec3(side_normal);
-        data.push_back(0);
-        data.push_back(0);
-        data.push_back(t_terrain || tl_terrain);
-        data.push_back(0);
-        data.push_back(material);
+      if (is_visible(camera_matrix, all_vertices)) {
+        add_point({x, min.y, min.x}, 0, 1, b_terrain || bl_terrain);
+        add_point({x, min.y, max.x}, 0, 1, t_terrain || tl_terrain);
+        add_point({x, max.y, min.x}, 1, 0, b_terrain || bl_terrain);
+        add_point({x, max.y, max.x}, 1, 0, t_terrain || tl_terrain);
+        add_point({x, min.y + edge, min.x}, 0, 0, b_terrain || bl_terrain);
+        add_point({x, min.y + edge, max.x}, 0, 0, t_terrain || tl_terrain);
+        add_point({x, max.y - edge, min.x}, 0, 0, b_terrain || bl_terrain);
+        add_point({x, max.y - edge, max.x}, 0, 0, t_terrain || tl_terrain);
 
         add_tri(1, 0, 4);
         add_tri(1, 4, 5);

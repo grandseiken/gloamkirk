@@ -106,16 +106,20 @@ void WorldSpawner::sync() {
     for (std::int32_t y = 0; y < chunk_size_; ++y) {
       for (std::int32_t x = 0; x < chunk_size_; ++x) {
         auto cs2 = chunk_size_ / 2;
-        auto ramp = 2 + x == cs2 && y == cs2
+        auto ramp = (3 + x == cs2 || 2 + x == cs2) && (y == cs2 || 1 + y == cs2)
             ? schema::Tile::Ramp::RIGHT
-            : x == cs2 && y - 1 == cs2 ? schema::Tile::Ramp::DOWN
-                                       : x - 1 == cs2 && 1 + y == cs2
+            : (x == cs2 || 1 + x == cs2) && y - 1 == cs2
+                ? schema::Tile::Ramp::DOWN
+                : (x - 2 == cs2 || x - 1 == cs2) && (y == cs2 || 1 + y == cs2)
                     ? schema::Tile::Ramp::LEFT
-                    : 1 + x == cs2 && 2 + y == cs2 ? schema::Tile::Ramp::UP
-                                                   : schema::Tile::Ramp::NONE;
+                    : (x == cs2 || 1 + x == cs2) && 2 + y == cs2 ? schema::Tile::Ramp::UP
+                                                                 : schema::Tile::Ramp::NONE;
         chunk_data.tiles().emplace_back(
             schema::Tile::Terrain::GRASS,
-            (x == cs2 || 1 + x == cs2) && (y == cs2 || 1 + y == cs2) ? 2 : 0, ramp);
+            (x == cs2 || 1 + x == cs2) && (y == cs2 || 1 + y == cs2)
+                ? 2
+                : (x - 1 == cs2 || 2 + x == cs2) && (y == cs2 || 1 + y == cs2) ? 1 : 0,
+            ramp);
       }
     }
 
