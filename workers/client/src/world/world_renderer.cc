@@ -90,7 +90,7 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
 
     auto height_difference = [&](const glm::ivec2& v) {
       auto it = tile_map.find(coord + v);
-      auto ramp = it->second.ramp();
+      auto ramp = it == tile_map.end() ? schema::Tile::Ramp::NONE : it->second.ramp();
       auto difference = it == tile_map.end() ? 0 : it->second.height() - pair.second.height();
       if ((v.x < 0 && ramp == schema::Tile::Ramp::RIGHT) ||
           (v.x > 0 && ramp == schema::Tile::Ramp::LEFT) ||
