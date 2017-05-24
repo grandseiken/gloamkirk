@@ -31,7 +31,6 @@ Cpp11BracedListStyle: true
 DerivePointerAlignment: false
 DisableFormat:   false
 ExperimentalAutoDetectBinPacking: false
-FixNamespaceComments: false
 IncludeCategories:
   - Regex:           '".*"'
     Priority:        1

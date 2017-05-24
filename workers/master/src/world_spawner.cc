@@ -115,8 +115,7 @@ void WorldSpawner::sync() {
                     : (x == cs2 || 1 + x == cs2) && 2 + y == cs2 ? schema::Tile::Ramp::UP
                                                                  : schema::Tile::Ramp::NONE;
         chunk_data.tiles().emplace_back(
-            schema::Tile::Terrain::GRASS,
-            (x == cs2 || 1 + x == cs2) && (y == cs2 || 1 + y == cs2)
+            schema::Tile::Terrain::GRASS, (x == cs2 || 1 + x == cs2) && (y == cs2 || 1 + y == cs2)
                 ? 2
                 : (x - 1 == cs2 || 2 + x == cs2) && (y == cs2 || 1 + y == cs2) ? 1 : 0,
             ramp);

@@ -223,8 +223,9 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
       bool next_t_ramp = jt->second.ramp() == schema::Tile::Ramp::UP;
       bool next_l_ramp = jt->second.ramp() == schema::Tile::Ramp::LEFT;
       bool next_r_ramp = jt->second.ramp() == schema::Tile::Ramp::RIGHT;
-      auto edge_v = height > next_height ? glm::vec3{0.f, kTileSize / 2, 0.f}
-                                         : -glm::vec3{0.f, kTileSize / 2, 0.f};
+      auto next_up = next_height > height;
+      auto edge_v =
+          next_up ? glm::vec3{0.f, kTileSize / 2, 0.f} : -glm::vec3{0.f, kTileSize / 2, 0.f};
       glm::vec3 side_normal = {0., 0., jt->second.height() > pair.second.height() ? 1. : -1.};
 
       auto add_point = [&](const glm::vec3& v, float up_edge, float down_edge, float terrain_edge) {
@@ -254,14 +255,14 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
       if (is_visible(camera_matrix, {l, r, nl, nr})) {
         // TODO: handle special (degenerate) cases.
         if (!l_zero && !r_zero) {
-          add_point(nl, 0, 1, l_terrain || bl_terrain);
-          add_point(l, 1, 0, l_terrain || bl_terrain);
-          add_point(nr, 0, 1, r_terrain || br_terrain);
-          add_point(r, 1, 0, r_terrain || br_terrain);
-          add_point(nl + edge_v, 0, 0, l_terrain || bl_terrain);
-          add_point(l - edge_v, 0, 0, l_terrain || bl_terrain);
-          add_point(nr + edge_v, 0, 0, r_terrain || br_terrain);
-          add_point(r - edge_v, 0, 0, r_terrain || br_terrain);
+          add_point(nl, next_up, 1 - next_up, l_terrain || bl_terrain);
+          add_point(l, 1 - next_up, next_up, l_terrain || bl_terrain);
+          add_point(nr, next_up, 1 - next_up, r_terrain || br_terrain);
+          add_point(r, 1 - next_up, next_up, r_terrain || br_terrain);
+          add_point(nl - edge_v, 0, 0, l_terrain || bl_terrain);
+          add_point(l + edge_v, 0, 0, l_terrain || bl_terrain);
+          add_point(nr - edge_v, 0, 0, r_terrain || br_terrain);
+          add_point(r + edge_v, 0, 0, r_terrain || br_terrain);
 
           add_tri(0, 2, 4);
           add_tri(4, 2, 6);
@@ -280,8 +281,9 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
       bool next_t_ramp = jt->second.ramp() == schema::Tile::Ramp::UP;
       bool next_b_ramp = jt->second.ramp() == schema::Tile::Ramp::DOWN;
       bool next_r_ramp = jt->second.ramp() == schema::Tile::Ramp::RIGHT;
-      auto edge_v = height > next_height ? glm::vec3{0.f, kTileSize / 2, 0.f}
-                                         : -glm::vec3{0.f, kTileSize / 2, 0.f};
+      auto next_up = next_height > height;
+      auto edge_v =
+          next_up ? glm::vec3{0.f, kTileSize / 2, 0.f} : -glm::vec3{0.f, kTileSize / 2, 0.f};
       glm::vec3 side_normal = {jt->second.height() > pair.second.height() ? 1. : -1., 0., 0.};
 
       auto add_point = [&](const glm::vec3& v, float up_edge, float down_edge, float terrain_edge) {
@@ -311,14 +313,14 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
       if (is_visible(camera_matrix, {b, t, nb, nt})) {
         // TODO: handle special (degenerate) cases.
         if (!b_zero && !t_zero) {
-          add_point(nb, 0, 1, b_terrain || bl_terrain);
-          add_point(nt, 0, 1, t_terrain || tl_terrain);
-          add_point(b, 1, 0, b_terrain || bl_terrain);
-          add_point(t, 1, 0, t_terrain || tl_terrain);
-          add_point(nb + edge_v, 0, 0, b_terrain || bl_terrain);
-          add_point(nt + edge_v, 0, 0, t_terrain || tl_terrain);
-          add_point(b - edge_v, 0, 0, b_terrain || bl_terrain);
-          add_point(t - edge_v, 0, 0, t_terrain || tl_terrain);
+          add_point(nb, next_up, 1 - next_up, b_terrain || bl_terrain);
+          add_point(nt, next_up, 1 - next_up, t_terrain || tl_terrain);
+          add_point(b, 1 - next_up, next_up, b_terrain || bl_terrain);
+          add_point(t, 1 - next_up, next_up, t_terrain || tl_terrain);
+          add_point(nb - edge_v, 0, 0, b_terrain || bl_terrain);
+          add_point(nt - edge_v, 0, 0, t_terrain || tl_terrain);
+          add_point(b + edge_v, 0, 0, b_terrain || bl_terrain);
+          add_point(t + edge_v, 0, 0, t_terrain || tl_terrain);
 
           add_tri(1, 0, 4);
           add_tri(1, 4, 5);
