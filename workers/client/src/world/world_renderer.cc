@@ -68,6 +68,7 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
     const auto& coord = pair.first;
     glm::vec2 min = coord * kTileSize;
     glm::vec2 max = (coord + glm::ivec2{1, 1}) * kTileSize;
+    auto mid = (min + max) / 2.f;
     auto height = static_cast<float>(pair.second.height() * kTileSize);
     auto material = tile_material(pair.second);
 
@@ -187,17 +188,13 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
       add_corner({max.x, height, max.y}, r_height, t_height, tr_height, r_ramp, t_ramp, r_same_ramp,
                  t_same_ramp, r_terrain || t_terrain || tr_terrain);
 
-      add_side({min.x, height, (min.y + max.y) / 2}, l_height, t_ramp || b_ramp, l_ramp,
-               l_same_ramp, l_terrain);
-      add_side({(min.x + max.x) / 2, height, max.y}, t_height, l_ramp || r_ramp, t_ramp,
-               t_same_ramp, r_terrain);
-      add_side({(min.x + max.x) / 2, height, min.y}, b_height, l_ramp || r_ramp, b_ramp,
-               b_same_ramp, b_terrain);
-      add_side({max.x, height, (min.y + max.y) / 2}, r_height, t_ramp || b_ramp, r_ramp,
-               r_same_ramp, r_terrain);
+      add_side({min.x, height, mid.y}, l_height, t_ramp || b_ramp, l_ramp, l_same_ramp, l_terrain);
+      add_side({mid.x, height, max.y}, t_height, l_ramp || r_ramp, t_ramp, t_same_ramp, r_terrain);
+      add_side({mid.x, height, min.y}, b_height, l_ramp || r_ramp, b_ramp, b_same_ramp, b_terrain);
+      add_side({max.x, height, mid.y}, r_height, t_ramp || b_ramp, r_ramp, r_same_ramp, r_terrain);
 
       // Centre vertex.
-      add_vec3(world_offset + glm::vec3{(min.x + max.x) / 2, height, (min.y + max.y) / 2} +
+      add_vec3(world_offset + glm::vec3{mid.x, height, mid.y} +
                (l_ramp || r_ramp || t_ramp || b_ramp ? ramp_v / 2.f : glm::vec3{}));
       add_vec3(top_normal);
       data.push_back(0);
@@ -247,30 +244,42 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
           (b_ramp || l_ramp ? ramp_v : glm::vec3{});
       auto r = glm::vec3{(1 + coord.x) * kTileSize, height, coord.y * kTileSize} +
           (b_ramp || r_ramp ? ramp_v : glm::vec3{});
+      auto m = (l + r) / 2.f;
       auto nl = glm::vec3{coord.x * kTileSize, next_height, coord.y * kTileSize} +
           (next_t_ramp || next_l_ramp ? ramp_v : glm::vec3{});
       auto nr = glm::vec3{(1 + coord.x) * kTileSize, next_height, coord.y * kTileSize} +
           (next_t_ramp || next_r_ramp ? ramp_v : glm::vec3{});
+      auto nm = (nl + nr) / 2.f;
 
       if (is_visible(camera_matrix, {l, r, nl, nr})) {
         // TODO: handle special (degenerate) cases.
         if (!l_zero && !r_zero) {
           add_point(nl, next_up, 1 - next_up, l_terrain || bl_terrain);
-          add_point(l, 1 - next_up, next_up, l_terrain || bl_terrain);
           add_point(nr, next_up, 1 - next_up, r_terrain || br_terrain);
+          add_point(nm, next_up, 1 - next_up, 0);
+          add_point(l, 1 - next_up, next_up, l_terrain || bl_terrain);
           add_point(r, 1 - next_up, next_up, r_terrain || br_terrain);
+          add_point(m, 1 - next_up, next_up, 0);
           add_point(nl - edge_v, 0, 0, l_terrain || bl_terrain);
-          add_point(l + edge_v, 0, 0, l_terrain || bl_terrain);
           add_point(nr - edge_v, 0, 0, r_terrain || br_terrain);
+          add_point(nm - edge_v, 0, 0, 0);
+          add_point(l + edge_v, 0, 0, l_terrain || bl_terrain);
           add_point(r + edge_v, 0, 0, r_terrain || br_terrain);
+          add_point(m + edge_v, 0, 0, 0);
 
-          add_tri(0, 2, 4);
-          add_tri(4, 2, 6);
-          add_tri(5, 7, 1);
-          add_tri(1, 7, 3);
-          add_tri(4, 6, 5);
-          add_tri(5, 6, 7);
-          index += 8;
+          add_tri(2, 6, 0);
+          add_tri(2, 8, 6);
+          add_tri(8, 9, 6);
+          add_tri(8, 11, 9);
+          add_tri(11, 3, 9);
+          add_tri(11, 5, 3);
+          add_tri(1, 8, 2);
+          add_tri(1, 7, 8);
+          add_tri(7, 11, 8);
+          add_tri(7, 10, 11);
+          add_tri(10, 5, 11);
+          add_tri(10, 4, 5);
+          index += 12;
         }
       }
     }
@@ -305,30 +314,42 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
           (l_ramp || b_ramp ? ramp_v : glm::vec3{});
       auto t = glm::vec3{coord.x * kTileSize, height, (1 + coord.y) * kTileSize} +
           (l_ramp || t_ramp ? ramp_v : glm::vec3{});
+      auto m = (b + t) / 2.f;
       auto nb = glm::vec3{coord.x * kTileSize, next_height, coord.y * kTileSize} +
           (next_r_ramp || next_b_ramp ? ramp_v : glm::vec3{});
       auto nt = glm::vec3{coord.x * kTileSize, next_height, (1 + coord.y) * kTileSize} +
           (next_r_ramp || next_t_ramp ? ramp_v : glm::vec3{});
+      auto nm = (nb + nt) / 2.f;
 
       if (is_visible(camera_matrix, {b, t, nb, nt})) {
         // TODO: handle special (degenerate) cases.
         if (!b_zero && !t_zero) {
           add_point(nb, next_up, 1 - next_up, b_terrain || bl_terrain);
           add_point(nt, next_up, 1 - next_up, t_terrain || tl_terrain);
+          add_point(nm, next_up, 1 - next_up, 0);
           add_point(b, 1 - next_up, next_up, b_terrain || bl_terrain);
           add_point(t, 1 - next_up, next_up, t_terrain || tl_terrain);
+          add_point(m, 1 - next_up, next_up, 0);
           add_point(nb - edge_v, 0, 0, b_terrain || bl_terrain);
           add_point(nt - edge_v, 0, 0, t_terrain || tl_terrain);
+          add_point(nm - edge_v, 0, 0, 0);
           add_point(b + edge_v, 0, 0, b_terrain || bl_terrain);
           add_point(t + edge_v, 0, 0, t_terrain || tl_terrain);
+          add_point(m + edge_v, 0, 0, 0);
 
-          add_tri(1, 0, 4);
-          add_tri(1, 4, 5);
-          add_tri(7, 6, 2);
-          add_tri(7, 2, 3);
-          add_tri(5, 4, 6);
-          add_tri(5, 6, 7);
-          index += 8;
+          add_tri(2, 0, 6);
+          add_tri(2, 6, 8);
+          add_tri(8, 6, 9);
+          add_tri(8, 9, 11);
+          add_tri(11, 9, 3);
+          add_tri(11, 3, 5);
+          add_tri(1, 2, 8);
+          add_tri(1, 8, 7);
+          add_tri(7, 8, 11);
+          add_tri(7, 11, 10);
+          add_tri(10, 11, 5);
+          add_tri(10, 5, 4);
+          index += 12;
         }
       }
     }
