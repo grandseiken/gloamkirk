@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 #include <schema/common.h>
 #include <schema/player.h>
+#include <algorithm>
 
 namespace gloam {
 namespace world {

@@ -3,6 +3,7 @@
 #include <glm/common.hpp>
 #include <glm/geometric.hpp>
 #include <improbable/worker.h>
+#include <algorithm>
 
 namespace gloam {
 namespace core {

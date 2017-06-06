@@ -8,7 +8,7 @@
           "arguments": [
             "process_schema",
             "generate",
-            "--language=cpp",
+            "--language=cpp_dynamic",
             "--input=schema",
             "--input=build/dependencies/schema/WorkerSdkSchema",
             "--output=build/generated",

@@ -16,24 +16,14 @@ set(SCHEMA_FILES
 set(SCHEMA_SOURCE_FILES
   "${PROJECT_GENERATED}/schema/chunk.cc"
   "${PROJECT_GENERATED}/schema/chunk.h"
-  "${PROJECT_GENERATED}/schema/chunk.pb.cc"
-  "${PROJECT_GENERATED}/schema/chunk.pb.h"
   "${PROJECT_GENERATED}/schema/common.cc"
   "${PROJECT_GENERATED}/schema/common.h"
-  "${PROJECT_GENERATED}/schema/common.pb.cc"
-  "${PROJECT_GENERATED}/schema/common.pb.h"
   "${PROJECT_GENERATED}/schema/master.cc"
   "${PROJECT_GENERATED}/schema/master.h"
-  "${PROJECT_GENERATED}/schema/master.pb.cc"
-  "${PROJECT_GENERATED}/schema/master.pb.h"
   "${PROJECT_GENERATED}/schema/player.cc"
   "${PROJECT_GENERATED}/schema/player.h"
-  "${PROJECT_GENERATED}/schema/player.pb.cc"
-  "${PROJECT_GENERATED}/schema/player.pb.h"
   "${PROJECT_GENERATED}/improbable/standard_library.cc"
-  "${PROJECT_GENERATED}/improbable/standard_library.h"
-  "${PROJECT_GENERATED}/improbable/standard_library.pb.cc"
-  "${PROJECT_GENERATED}/improbable/standard_library.pb.h")
+  "${PROJECT_GENERATED}/improbable/standard_library.h")
 
 source_group(schema "${CMAKE_CURRENT_SOURCE_DIR}/schema/[^/]*")
 source_group(generated\\schema "${PROJECT_GENERATED}/schema/[^/]*")
