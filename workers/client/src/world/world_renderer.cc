@@ -58,10 +58,15 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
     data.push_back(v.z);
   };
 
-  auto add_tri = [&](GLuint a, GLuint b, GLuint c) {
+  auto add_tri = [&](bool reverse, GLuint a, GLuint b, GLuint c) {
     indices.push_back(index + a);
-    indices.push_back(index + b);
-    indices.push_back(index + c);
+    if (reverse) {
+      indices.push_back(index + c);
+      indices.push_back(index + b);
+    } else {
+      indices.push_back(index + b);
+      indices.push_back(index + c);
+    }
   };
 
   for (const auto& pair : tile_map) {
@@ -72,7 +77,6 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
     auto height = pair.second.height();
     auto material = tile_material(pair.second);
 
-    glm::vec3 height_v = glm::vec3{0., kTileSize.y, 0.};
     glm::vec3 top_normal = {0., 1., 0.};
     bool t_ramp = pair.second.ramp() == schema::Tile::Ramp::UP;
     bool b_ramp = pair.second.ramp() == schema::Tile::Ramp::DOWN;
@@ -143,7 +147,7 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
     for (const auto& v : vertices) {
       all_vertices.emplace_back(kTileSize * v);
       all_vertices.emplace_back(
-          kTileSize * v + height_v +
+          kTileSize * (v + glm::vec3{0., 1., 0.}) +
           glm::vec3{0.f, kPixelLayers * antialias_level.y * pixel_height, 0.f});
     }
 
@@ -157,7 +161,7 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
                             bool ramp0, bool ramp1, bool same_ramp0, bool same_ramp1,
                             bool terrain_edge) {
         bool ramp = ramp0 || ramp1;
-        add_vec3(world_offset + kTileSize * v + (ramp ? height_v : glm::vec3{}));
+        add_vec3(world_offset + kTileSize * (v + glm::vec3{0., ramp * 1., 0.}));
         add_vec3(top_normal);
         data.push_back(h0 > 1 || h1 > 1 || h2 > 1 || (!ramp && (h0 > 0 || h1 > 0 || h2 > 0)));
         bool a0 = !h0 && (ramp0 || (ramp1 && !same_ramp0));
@@ -171,8 +175,7 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
 
       auto add_side = [&](const glm::vec3& v, std::int32_t h, bool ramp_half, bool ramp,
                           bool side_same_ramp, bool terrain_edge) {
-        add_vec3(world_offset + kTileSize * v + (ramp_half ? height_v / 2.f : glm::vec3{}) +
-                 (ramp ? height_v : glm::vec3{}));
+        add_vec3(world_offset + kTileSize * (v + glm::vec3{0., ramp_half * .5 + ramp * 1., 0.}));
         add_vec3(top_normal);
         data.push_back(h > 1 || (h > 0 && !ramp));
         data.push_back(h < 0 || (!h && !(side_same_ramp && ramp_half) && (ramp_half || ramp)));
@@ -196,8 +199,9 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
       add_side({max.x, height, mid.y}, r_height, t_ramp || b_ramp, r_ramp, r_same_ramp, r_terrain);
 
       // Centre vertex.
-      add_vec3(world_offset + kTileSize * glm::vec3{mid.x, height, mid.y} +
-               (l_ramp || r_ramp || t_ramp || b_ramp ? height_v / 2.f : glm::vec3{}));
+      add_vec3(world_offset +
+               kTileSize *
+                   glm::vec3{mid.x, height + (l_ramp || r_ramp || t_ramp || b_ramp) * .5f, mid.y});
       add_vec3(top_normal);
       data.push_back(0);
       data.push_back(0);
@@ -205,29 +209,29 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
       data.push_back(world_height);
       data.push_back(material);
 
-      add_tri(0, 6, 4);
-      add_tri(6, 8, 4);
-      add_tri(4, 8, 1);
-      add_tri(8, 5, 1);
-      add_tri(8, 7, 5);
-      add_tri(7, 3, 5);
-      add_tri(6, 2, 8);
-      add_tri(2, 7, 8);
+      add_tri(false, 0, 6, 4);
+      add_tri(false, 6, 8, 4);
+      add_tri(false, 4, 8, 1);
+      add_tri(false, 8, 5, 1);
+      add_tri(false, 8, 7, 5);
+      add_tri(false, 7, 3, 5);
+      add_tri(false, 6, 2, 8);
+      add_tri(false, 2, 7, 8);
       index += 9;
     }
 
     auto jt = tile_map.find(coord - glm::ivec2{0, 1});
-    if (jt != tile_map.end() && jt->second.height() != height) {
+    if (jt != tile_map.end()) {
       auto next_height = jt->second.height();
       bool next_t_ramp = jt->second.ramp() == schema::Tile::Ramp::UP;
       bool next_l_ramp = jt->second.ramp() == schema::Tile::Ramp::LEFT;
       bool next_r_ramp = jt->second.ramp() == schema::Tile::Ramp::RIGHT;
       auto next_up = next_height > height;
-      auto edge_v = next_up ? height_v / 2.f : -height_v / 2.f;
+      glm::vec3 edge_v = {0.f, next_up ? .5f : -.5f, 0.f};
       glm::vec3 side_normal = {0., 0., next_up ? 1. : -1.};
 
       auto add_point = [&](const glm::vec3& v, float up_edge, float down_edge, float terrain_edge) {
-        add_vec3(v);
+        add_vec3(kTileSize * v);
         add_vec3(side_normal);
         data.push_back(up_edge);
         data.push_back(down_edge);
@@ -236,25 +240,21 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
         data.push_back(material);
       };
 
-      bool l_zero =
-          height + (b_ramp || l_ramp ? 1 : 0) == next_height + (next_t_ramp || next_l_ramp ? 1 : 0);
-      bool r_zero =
-          height + (b_ramp || r_ramp ? 1 : 0) == next_height + (next_t_ramp || next_r_ramp ? 1 : 0);
+      auto lh = height + (b_ramp || l_ramp ? 1 : 0);
+      auto rh = height + (b_ramp || r_ramp ? 1 : 0);
+      auto nlh = next_height + (next_t_ramp || next_l_ramp ? 1 : 0);
+      auto nrh = next_height + (next_t_ramp || next_r_ramp ? 1 : 0);
 
-      auto l =
-          kTileSize * glm::vec3{min.x, height, min.y} + (b_ramp || l_ramp ? height_v : glm::vec3{});
-      auto r =
-          kTileSize * glm::vec3{max.x, height, min.y} + (b_ramp || r_ramp ? height_v : glm::vec3{});
+      glm::vec3 l = {min.x, lh, min.y};
+      glm::vec3 r = {max.x, rh, min.y};
+      glm::vec3 nl = {min.x, nlh, min.y};
+      glm::vec3 nr = {max.x, nrh, min.y};
       auto m = (l + r) / 2.f;
-      auto nl = kTileSize * glm::vec3{min.x, next_height, min.y} +
-          (next_t_ramp || next_l_ramp ? height_v : glm::vec3{});
-      auto nr = kTileSize * glm::vec3{max.x, next_height, min.y} +
-          (next_t_ramp || next_r_ramp ? height_v : glm::vec3{});
       auto nm = (nl + nr) / 2.f;
 
       if (is_visible(camera_matrix, {l, r, nl, nr})) {
         // TODO: handle special (degenerate) cases.
-        if (!l_zero && !r_zero) {
+        if (lh != nlh && rh != nrh) {
           add_point(nl, next_up, 1 - next_up, l_terrain || bl_terrain);
           add_point(nr, next_up, 1 - next_up, r_terrain || br_terrain);
           add_point(nm, next_up, 1 - next_up, 0);
@@ -268,35 +268,35 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
           add_point(r + edge_v, 0, 0, r_terrain || br_terrain);
           add_point(m + edge_v, 0, 0, 0);
 
-          add_tri(2, 6, 0);
-          add_tri(2, 8, 6);
-          add_tri(8, 9, 6);
-          add_tri(8, 11, 9);
-          add_tri(11, 3, 9);
-          add_tri(11, 5, 3);
-          add_tri(1, 8, 2);
-          add_tri(1, 7, 8);
-          add_tri(7, 11, 8);
-          add_tri(7, 10, 11);
-          add_tri(10, 5, 11);
-          add_tri(10, 4, 5);
+          add_tri(true, 2, 0, 6);
+          add_tri(true, 2, 6, 8);
+          add_tri(true, 8, 6, 9);
+          add_tri(true, 8, 9, 11);
+          add_tri(true, 11, 9, 3);
+          add_tri(true, 11, 3, 5);
+          add_tri(true, 1, 2, 8);
+          add_tri(true, 1, 8, 7);
+          add_tri(true, 7, 8, 11);
+          add_tri(true, 7, 11, 10);
+          add_tri(true, 10, 11, 5);
+          add_tri(true, 10, 5, 4);
           index += 12;
         }
       }
     }
 
     jt = tile_map.find(coord - glm::ivec2{1, 0});
-    if (jt != tile_map.end() && jt->second.height() != height) {
+    if (jt != tile_map.end()) {
       auto next_height = jt->second.height();
       bool next_t_ramp = jt->second.ramp() == schema::Tile::Ramp::UP;
       bool next_b_ramp = jt->second.ramp() == schema::Tile::Ramp::DOWN;
       bool next_r_ramp = jt->second.ramp() == schema::Tile::Ramp::RIGHT;
       auto next_up = next_height > height;
-      auto edge_v = next_up ? height_v / 2.f : -height_v / 2.f;
+      glm::vec3 edge_v = {0.f, next_up ? .5f : -.5f, 0.f};
       glm::vec3 side_normal = {next_up ? 1. : -1., 0., 0.};
 
       auto add_point = [&](const glm::vec3& v, float up_edge, float down_edge, float terrain_edge) {
-        add_vec3(v);
+        add_vec3(kTileSize * v);
         add_vec3(side_normal);
         data.push_back(up_edge);
         data.push_back(down_edge);
@@ -305,25 +305,21 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
         data.push_back(material);
       };
 
-      bool b_zero =
-          height + (l_ramp || b_ramp ? 1 : 0) == next_height + (next_r_ramp || next_b_ramp ? 1 : 0);
-      bool t_zero =
-          height + (l_ramp || t_ramp ? 1 : 0) == next_height + (next_r_ramp || next_t_ramp ? 1 : 0);
+      auto bh = height + (l_ramp || b_ramp ? 1 : 0);
+      auto th = height + (l_ramp || t_ramp ? 1 : 0);
+      auto nbh = next_height + (next_r_ramp || next_b_ramp ? 1 : 0);
+      auto nth = next_height + (next_r_ramp || next_t_ramp ? 1 : 0);
 
-      auto b =
-          kTileSize * glm::vec3{min.x, height, min.y} + (l_ramp || b_ramp ? height_v : glm::vec3{});
-      auto t =
-          kTileSize * glm::vec3{min.x, height, max.y} + (l_ramp || t_ramp ? height_v : glm::vec3{});
+      glm::vec3 b = {min.x, bh, min.y};
+      glm::vec3 t = {min.x, th, max.y};
+      glm::vec3 nb = {min.x, nbh, min.y};
+      glm::vec3 nt = {min.x, nth, max.y};
       auto m = (b + t) / 2.f;
-      auto nb = kTileSize * glm::vec3{min.x, next_height, min.y} +
-          (next_r_ramp || next_b_ramp ? height_v : glm::vec3{});
-      auto nt = kTileSize * glm::vec3{min.x, next_height, max.y} +
-          (next_r_ramp || next_t_ramp ? height_v : glm::vec3{});
       auto nm = (nb + nt) / 2.f;
 
       if (is_visible(camera_matrix, {b, t, nb, nt})) {
         // TODO: handle special (degenerate) cases.
-        if (!b_zero && !t_zero) {
+        if (bh != nbh && th != nth) {
           add_point(nb, next_up, 1 - next_up, b_terrain || bl_terrain);
           add_point(nt, next_up, 1 - next_up, t_terrain || tl_terrain);
           add_point(nm, next_up, 1 - next_up, 0);
@@ -337,18 +333,18 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
           add_point(t + edge_v, 0, 0, t_terrain || tl_terrain);
           add_point(m + edge_v, 0, 0, 0);
 
-          add_tri(2, 0, 6);
-          add_tri(2, 6, 8);
-          add_tri(8, 6, 9);
-          add_tri(8, 9, 11);
-          add_tri(11, 9, 3);
-          add_tri(11, 3, 5);
-          add_tri(1, 2, 8);
-          add_tri(1, 8, 7);
-          add_tri(7, 8, 11);
-          add_tri(7, 11, 10);
-          add_tri(10, 11, 5);
-          add_tri(10, 5, 4);
+          add_tri(false, 2, 0, 6);
+          add_tri(false, 2, 6, 8);
+          add_tri(false, 8, 6, 9);
+          add_tri(false, 8, 9, 11);
+          add_tri(false, 11, 9, 3);
+          add_tri(false, 11, 3, 5);
+          add_tri(false, 1, 2, 8);
+          add_tri(false, 1, 8, 7);
+          add_tri(false, 7, 8, 11);
+          add_tri(false, 7, 11, 10);
+          add_tri(false, 10, 11, 5);
+          add_tri(false, 10, 5, 4);
           index += 12;
         }
       }

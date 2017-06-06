@@ -108,7 +108,8 @@ void WorldSpawner::sync() {
         auto cs2 = chunk_size_ / 2;
         auto ramp = (3 + x == cs2 || 2 + x == cs2) && (y == cs2 || 1 + y == cs2)
             ? schema::Tile::Ramp::RIGHT
-            : (x == cs2 || 1 + x == cs2) && y - 1 == cs2
+            : ((x == cs2 || 1 + x == cs2) && y - 1 == cs2) ||
+                    (1 + x == chunk_size_ && 1 + y == chunk_size_)
                 ? schema::Tile::Ramp::DOWN
                 : (x - 2 == cs2 || x - 1 == cs2) && (y == cs2 || 1 + y == cs2)
                     ? schema::Tile::Ramp::LEFT
