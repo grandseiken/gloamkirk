@@ -346,8 +346,50 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
           index += 6;
         }
         if (lh == nlh && ((rh > lh && nrh < lh) || (rh < lh && nrh > lh))) {
+          add_point(ml, n, 1, 1, nl_terrain);
+          add_point((ml + dm) / 2.f, n, 0, 1, nl_terrain ? .5f : 0.f);
+          add_point((ml + um) / 2.f, n, 1, 0, nl_terrain ? .5f : 0.f);
+          add_point(dm, n, 0, 1, 0);
+          add_point(um, n, 1, 0, 0);
+          add_point(dr, n, 0, 1, nr_terrain);
+          add_point(ur, n, 1, 0, nr_terrain);
+          add_point((dr + mr) / 2.f, n, 0, 0, nr_terrain);
+          add_point((ur + mr) / 2.f, n, 0, 0, nr_terrain);
+          add_point((ml + mr) / 2.f, n, 0, 0, 0);
+
+          add_tri(front, 0, 9, 1);
+          add_tri(front, 1, 9, 3);
+          add_tri(front, 3, 9, 7);
+          add_tri(front, 3, 7, 5);
+          add_tri(front, 7, 9, 8);
+          add_tri(front, 8, 4, 6);
+          add_tri(front, 4, 8, 9);
+          add_tri(front, 4, 9, 2);
+          add_tri(front, 2, 9, 0);
+          index += 10;
         }
         if (rh == nrh && ((lh > rh && nlh < rh) || (lh < rh && nlh > rh))) {
+          add_point(mr, n, 1, 1, nr_terrain);
+          add_point((mr + dm) / 2.f, n, 0, 1, nr_terrain ? .5f : 0.f);
+          add_point((mr + um) / 2.f, n, 1, 0, nr_terrain ? .5f : 0.f);
+          add_point(dm, n, 0, 1, 0);
+          add_point(um, n, 1, 0, 0);
+          add_point(dl, n, 0, 1, nl_terrain);
+          add_point(ul, n, 1, 0, nl_terrain);
+          add_point((dl + ml) / 2.f, n, 0, 0, nl_terrain);
+          add_point((ul + ml) / 2.f, n, 0, 0, nl_terrain);
+          add_point((mr + ml) / 2.f, n, 0, 0, 0);
+
+          add_tri(front, 0, 1, 9);
+          add_tri(front, 1, 3, 9);
+          add_tri(front, 3, 7, 9);
+          add_tri(front, 3, 5, 7);
+          add_tri(front, 7, 8, 9);
+          add_tri(front, 8, 6, 4);
+          add_tri(front, 4, 9, 8);
+          add_tri(front, 4, 2, 9);
+          add_tri(front, 2, 0, 9);
+          index += 10;
         }
         if (lh != nlh && rh != nrh && (lh > nlh) != (rh > nrh)) {
         }
@@ -479,8 +521,50 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
           index += 6;
         }
         if (th == nth && ((bh > th && nbh < th) || (bh < th && nbh > th))) {
+          add_point(mt, n, 1, 1, nt_terrain);
+          add_point((mt + dm) / 2.f, n, 0, 1, nt_terrain ? .5f : 0.f);
+          add_point((mt + um) / 2.f, n, 1, 0, nt_terrain ? .5f : 0.f);
+          add_point(dm, n, 0, 1, 0);
+          add_point(um, n, 1, 0, 0);
+          add_point(db, n, 0, 1, nb_terrain);
+          add_point(ub, n, 1, 0, nb_terrain);
+          add_point((db + mb) / 2.f, n, 0, 0, nb_terrain);
+          add_point((ub + mb) / 2.f, n, 0, 0, nb_terrain);
+          add_point((mt + mb) / 2.f, n, 0, 0, 0);
+
+          add_tri(front, 0, 9, 1);
+          add_tri(front, 1, 9, 3);
+          add_tri(front, 3, 9, 7);
+          add_tri(front, 3, 7, 5);
+          add_tri(front, 7, 9, 8);
+          add_tri(front, 8, 4, 6);
+          add_tri(front, 4, 8, 9);
+          add_tri(front, 4, 9, 2);
+          add_tri(front, 2, 9, 0);
+          index += 10;
         }
         if (bh == nbh && ((th > bh && nth < bh) || (th < bh && nth > bh))) {
+          add_point(mb, n, 1, 1, nb_terrain);
+          add_point((mb + dm) / 2.f, n, 0, 1, nb_terrain ? .5f : 0.f);
+          add_point((mb + um) / 2.f, n, 1, 0, nb_terrain ? .5f : 0.f);
+          add_point(dm, n, 0, 1, 0);
+          add_point(um, n, 1, 0, 0);
+          add_point(dt, n, 0, 1, nt_terrain);
+          add_point(ut, n, 1, 0, nt_terrain);
+          add_point((dt + mt) / 2.f, n, 0, 0, nt_terrain);
+          add_point((ut + mt) / 2.f, n, 0, 0, nt_terrain);
+          add_point((mb + mt) / 2.f, n, 0, 0, 0);
+
+          add_tri(front, 0, 1, 9);
+          add_tri(front, 1, 3, 9);
+          add_tri(front, 3, 7, 9);
+          add_tri(front, 3, 5, 7);
+          add_tri(front, 7, 8, 9);
+          add_tri(front, 8, 6, 4);
+          add_tri(front, 4, 9, 8);
+          add_tri(front, 4, 2, 9);
+          add_tri(front, 2, 0, 9);
+          index += 10;
         }
         if (th != nth && bh != nbh && (th > nth) != (bh > nbh)) {
         }
