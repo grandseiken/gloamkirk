@@ -392,6 +392,32 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
           index += 10;
         }
         if (lh != nlh && rh != nrh && (lh > nlh) != (rh > nrh)) {
+          glm::vec3 nn = {0., 0., lh < nlh ? -1.f : 1.f};
+          auto mm = (dm + um) / 2.f;
+
+          add_point(mm, -nn, 1, 1, 0);
+          add_point(ml, -nn, 0, 0, nl_terrain);
+          add_point(dl, -nn, 0, 1, nl_terrain);
+          add_point(ul, -nn, 1, 0, nl_terrain);
+          add_point((dl + mm) / 2.f, -nn, 0, 1, nl_terrain ? .5f : 0.f);
+          add_point((ul + mm) / 2.f, -nn, 1, 0, nl_terrain ? .5f : 0.f);
+
+          add_point(mm, nn, 1, 1, 0);
+          add_point(mr, nn, 0, 0, nr_terrain);
+          add_point(dr, nn, 0, 1, nr_terrain);
+          add_point(ur, nn, 1, 0, nr_terrain);
+          add_point((dr + mm) / 2.f, nn, 0, 1, nr_terrain ? .5f : 0.f);
+          add_point((ur + mm) / 2.f, nn, 1, 0, nr_terrain ? .5f : 0.f);
+
+          add_tri(lh > nlh, 0, 1, 5);
+          add_tri(lh > nlh, 5, 1, 3);
+          add_tri(lh > nlh, 1, 4, 2);
+          add_tri(lh > nlh, 4, 1, 0);
+          add_tri(lh < nlh, 6, 11, 7);
+          add_tri(lh < nlh, 7, 11, 9);
+          add_tri(lh < nlh, 7, 8, 10);
+          add_tri(lh < nlh, 7, 10, 6);
+          index += 12;
         }
       }
     }
@@ -567,6 +593,32 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
           index += 10;
         }
         if (th != nth && bh != nbh && (th > nth) != (bh > nbh)) {
+          glm::vec3 nn = {0., 0., th < nth ? -1.f : 1.f};
+          auto mm = (dm + um) / 2.f;
+
+          add_point(mm, -nn, 1, 1, 0);
+          add_point(mt, -nn, 0, 0, nt_terrain);
+          add_point(dt, -nn, 0, 1, nt_terrain);
+          add_point(ut, -nn, 1, 0, nt_terrain);
+          add_point((dt + mm) / 2.f, -nn, 0, 1, nt_terrain ? .5f : 0.f);
+          add_point((ut + mm) / 2.f, -nn, 1, 0, nt_terrain ? .5f : 0.f);
+
+          add_point(mm, nn, 1, 1, 0);
+          add_point(mb, nn, 0, 0, nb_terrain);
+          add_point(db, nn, 0, 1, nb_terrain);
+          add_point(ub, nn, 1, 0, nb_terrain);
+          add_point((db + mm) / 2.f, nn, 0, 1, nb_terrain ? .5f : 0.f);
+          add_point((ub + mm) / 2.f, nn, 1, 0, nb_terrain ? .5f : 0.f);
+
+          add_tri(th > nth, 0, 1, 5);
+          add_tri(th > nth, 5, 1, 3);
+          add_tri(th > nth, 1, 4, 2);
+          add_tri(th > nth, 4, 1, 0);
+          add_tri(th < nth, 6, 11, 7);
+          add_tri(th < nth, 7, 11, 9);
+          add_tri(th < nth, 7, 8, 10);
+          add_tri(th < nth, 7, 10, 6);
+          index += 12;
         }
       }
     }
