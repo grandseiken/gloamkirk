@@ -110,10 +110,10 @@ void WorldSpawner::sync() {
             ? schema::Tile::Ramp::RIGHT
             : ((x == cs2 || 1 + x == cs2) && y - 1 == cs2) ||
                     (1 + x == chunk_size_ && 1 + y == chunk_size_)
-                ? schema::Tile::Ramp::DOWN
+                ? schema::Tile::Ramp::RIGHT
                 : (x - 2 == cs2 || x - 1 == cs2) && (y == cs2 || 1 + y == cs2)
                     ? schema::Tile::Ramp::LEFT
-                    : (x == cs2 || 1 + x == cs2) && 2 + y == cs2 ? schema::Tile::Ramp::UP
+                    : (x == cs2 || 1 + x == cs2) && 2 + y == cs2 ? schema::Tile::Ramp::LEFT
                                                                  : schema::Tile::Ramp::NONE;
         chunk_data.tiles().emplace_back(
             schema::Tile::Terrain::GRASS,

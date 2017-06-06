@@ -250,13 +250,15 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
       glm::vec3 ur = {max.x, std::max(rh, nrh), min.y};
       auto dm = (dl + dr) / 2.f;
       auto um = (ul + ur) / 2.f;
+      auto ml = (dl + ul) / 2.f;
+      auto mr = (dr + ur) / 2.f;
 
       if (is_visible(camera_matrix,
                      {kTileSize * dl, kTileSize * dr, kTileSize * ul, kTileSize * ur})) {
-        if (lh != nlh && rh != nrh && (lh > nlh) == (rh > nrh)) {
-          auto front = lh > nlh;
-          glm::vec3 n = {0., 0., front ? -1. : 1.};
+        auto front = lh > nlh || rh > nrh;
+        glm::vec3 n = {0., 0., front ? -1. : 1.};
 
+        if (lh != nlh && rh != nrh && (lh > nlh) == (rh > nrh)) {
           add_point(dl, n, 0, 1, l_terrain || bl_terrain);
           add_point(dr, n, 0, 1, r_terrain || br_terrain);
           add_point(dm, n, 0, 1, 0);
@@ -286,12 +288,60 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
         }
         // Degenerate cases.
         if (lh == nlh && ((rh > lh && nrh == lh) || (rh == lh && nrh > lh))) {
+          add_point(dl, n, 1, 1, l_terrain || bl_terrain);
+          add_point(dm, n, 0, 1, 0);
+          add_point(dr, n, 0, 1, r_terrain || br_terrain);
+          add_point(mr, n, 0, 0, r_terrain || br_terrain);
+          add_point(ur, n, 1, 0, r_terrain || br_terrain);
+          add_point((dl + ur) / 2.f, n, 1, 0, 0);
+
+          add_tri(front, 0, 5, 1);
+          add_tri(front, 1, 5, 3);
+          add_tri(front, 1, 3, 2);
+          add_tri(front, 3, 5, 4);
+          index += 6;
         }
         if (lh == nlh && ((rh < lh && nrh == lh) || (rh == lh && nrh < lh))) {
+          add_point(ul, n, 1, 1, l_terrain || bl_terrain);
+          add_point(um, n, 1, 0, 0);
+          add_point(ur, n, 1, 0, r_terrain || br_terrain);
+          add_point(mr, n, 0, 0, r_terrain || br_terrain);
+          add_point(dr, n, 0, 1, r_terrain || br_terrain);
+          add_point((ul + dr) / 2.f, n, 0, 1, 0);
+
+          add_tri(front, 0, 1, 5);
+          add_tri(front, 1, 3, 5);
+          add_tri(front, 1, 2, 3);
+          add_tri(front, 3, 4, 5);
+          index += 6;
         }
         if (rh == nrh && ((lh > rh && nlh == rh) || (lh == rh && nlh > rh))) {
+          add_point(dr, n, 1, 1, r_terrain || br_terrain);
+          add_point(dm, n, 0, 1, 0);
+          add_point(dl, n, 0, 1, l_terrain || bl_terrain);
+          add_point(ml, n, 0, 0, l_terrain || bl_terrain);
+          add_point(ul, n, 1, 0, l_terrain || bl_terrain);
+          add_point((dr + ul) / 2.f, n, 1, 0, 0);
+
+          add_tri(front, 0, 1, 5);
+          add_tri(front, 1, 3, 5);
+          add_tri(front, 1, 2, 3);
+          add_tri(front, 3, 4, 5);
+          index += 6;
         }
         if (rh == nrh && ((lh < rh && nlh == rh) || (lh == rh && nlh < rh))) {
+          add_point(ur, n, 1, 1, r_terrain || br_terrain);
+          add_point(um, n, 1, 0, 0);
+          add_point(ul, n, 1, 0, l_terrain || bl_terrain);
+          add_point(ml, n, 0, 0, l_terrain || bl_terrain);
+          add_point(dl, n, 0, 1, l_terrain || bl_terrain);
+          add_point((ur + dl) / 2.f, n, 0, 1, 0);
+
+          add_tri(front, 0, 5, 1);
+          add_tri(front, 1, 5, 3);
+          add_tri(front, 1, 3, 2);
+          add_tri(front, 3, 5, 4);
+          index += 6;
         }
         if (lh == nlh && ((rh > lh && nrh < lh) || (rh < lh && nrh > lh))) {
         }
@@ -331,13 +381,15 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
       glm::vec3 ub = {min.x, std::max(bh, nbh), min.y};
       auto dm = (db + dt) / 2.f;
       auto um = (ub + ut) / 2.f;
+      auto mt = (dt + ut) / 2.f;
+      auto mb = (db + ub) / 2.f;
 
       if (is_visible(camera_matrix,
                      {kTileSize * dt, kTileSize * db, kTileSize * ut, kTileSize * ub})) {
-        if (th != nth && bh != nbh && (th > nth) == (bh > nbh)) {
-          auto front = th > nth;
-          glm::vec3 n = {front ? -1. : 1., 0., 0.};
+        auto front = th > nth || bh > nbh;
+        glm::vec3 n = {front ? -1. : 1., 0., 0.};
 
+        if (th != nth && bh != nbh && (th > nth) == (bh > nbh)) {
           add_point(dt, n, 0, 1, t_terrain || tl_terrain);
           add_point(db, n, 0, 1, b_terrain || bl_terrain);
           add_point(dm, n, 0, 1, 0);
@@ -367,12 +419,60 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
         }
         // Degenerate cases.
         if (th == nth && ((bh > th && nbh == th) || (bh == th && nbh > th))) {
+          add_point(dt, n, 1, 1, t_terrain || tl_terrain);
+          add_point(dm, n, 0, 1, 0);
+          add_point(db, n, 0, 1, b_terrain || bl_terrain);
+          add_point(mb, n, 0, 0, b_terrain || bl_terrain);
+          add_point(ub, n, 1, 0, b_terrain || bl_terrain);
+          add_point((dt + ub) / 2.f, n, 1, 0, 0);
+
+          add_tri(front, 0, 5, 1);
+          add_tri(front, 1, 5, 3);
+          add_tri(front, 1, 3, 2);
+          add_tri(front, 3, 5, 4);
+          index += 6;
         }
         if (th == nth && ((bh < th && nbh == th) || (bh == th && nbh < th))) {
+          add_point(ut, n, 1, 1, t_terrain || tl_terrain);
+          add_point(um, n, 1, 0, 0);
+          add_point(ub, n, 1, 0, b_terrain || bl_terrain);
+          add_point(mb, n, 0, 0, b_terrain || bl_terrain);
+          add_point(db, n, 0, 1, b_terrain || bl_terrain);
+          add_point((ut + db) / 2.f, n, 0, 1, 0);
+
+          add_tri(front, 0, 1, 5);
+          add_tri(front, 1, 3, 5);
+          add_tri(front, 1, 2, 3);
+          add_tri(front, 3, 4, 5);
+          index += 6;
         }
         if (bh == nbh && ((th > bh && nth == bh) || (th == bh && nth > bh))) {
+          add_point(db, n, 1, 1, b_terrain || bl_terrain);
+          add_point(dm, n, 0, 1, 0);
+          add_point(dt, n, 0, 1, t_terrain || tl_terrain);
+          add_point(mt, n, 0, 0, t_terrain || tl_terrain);
+          add_point(ut, n, 1, 0, t_terrain || tl_terrain);
+          add_point((db + ut) / 2.f, n, 1, 0, 0);
+
+          add_tri(front, 0, 1, 5);
+          add_tri(front, 1, 3, 5);
+          add_tri(front, 1, 2, 3);
+          add_tri(front, 3, 4, 5);
+          index += 6;
         }
         if (bh == nbh && ((th < bh && nth == bh) || (th == bh && nth < bh))) {
+          add_point(ub, n, 1, 1, b_terrain || bl_terrain);
+          add_point(um, n, 1, 0, 0);
+          add_point(ut, n, 1, 0, t_terrain || tl_terrain);
+          add_point(mt, n, 0, 0, t_terrain || tl_terrain);
+          add_point(dt, n, 0, 1, t_terrain || tl_terrain);
+          add_point((ub + dt) / 2.f, n, 0, 1, 0);
+
+          add_tri(front, 0, 5, 1);
+          add_tri(front, 1, 5, 3);
+          add_tri(front, 1, 3, 2);
+          add_tri(front, 3, 5, 4);
+          index += 6;
         }
         if (th == nth && ((bh > th && nbh < th) || (bh < th && nbh > th))) {
         }
