@@ -74,8 +74,20 @@ void Collision::update(const TileMap& tile_map) {
   auto has_edge = [&](std::int32_t height, const glm::ivec2& from, const glm::ivec2& to) {
     auto from_it = tile_map.get().find(from);
     auto to_it = tile_map.get().find(to);
+    std::int32_t to_height = 0;
+    if (to_it != tile_map.get().end()) {
+      to_height = to_it->second.height();
+      auto ramp = to_it->second.ramp();
+      if ((from.x < to.x && ramp != schema::Tile::Ramp::NONE &&
+           ramp != schema::Tile::Ramp::RIGHT) ||
+          (from.x > to.x && ramp != schema::Tile::Ramp::NONE && ramp != schema::Tile::Ramp::LEFT) ||
+          (from.y < to.y && ramp != schema::Tile::Ramp::NONE && ramp != schema::Tile::Ramp::UP) ||
+          (from.y > to.y && ramp != schema::Tile::Ramp::NONE && ramp != schema::Tile::Ramp::DOWN)) {
+        ++to_height;
+      }
+    }
     return from_it != tile_map.get().end() && height >= from_it->second.height() &&
-        (to_it == tile_map.get().end() || height < to_it->second.height());
+        (to_it == tile_map.get().end() || height < to_height);
   };
 
   for (auto height = min.z; height < max.z; ++height) {
