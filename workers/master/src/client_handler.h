@@ -34,7 +34,8 @@ private:
     worker::RequestId<worker::DeleteEntityRequest> delete_request_id;
   };
 
-  void update_client(const Client& client);
+  void update_client(const Client& client,
+                     const worker::Option<worker::EntityId>& player_entity_id);
 
   const schema::MasterData& master_data_;
   std::unique_ptr<managed::ManagedConnection> c_;

@@ -13,7 +13,7 @@ std::unordered_map<worker::EntityId, worker::SnapshotEntity> generate() {
       {gloam::schema::Master::ComponentId, gloam::common::kMasterOnlySet}};
   improbable::EntityAclData entity_acl{gloam::common::kMasterOnlySet, {acl_map}};
 
-  auto& master_seed_entity = snapshot[0];
+  auto& master_seed_entity = snapshot[gloam::common::kMasterSeedEntityId];
   master_seed_entity.Prefab = gloam::common::kMasterSeedPrefab;
   master_seed_entity.Add<gloam::schema::CanonicalPosition>({{0., 0., 0.}});
   master_seed_entity.Add<gloam::schema::Master>({false, {}});

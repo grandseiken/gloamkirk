@@ -1,11 +1,11 @@
 {
   "name": "alpha_zebra_pizza_956",
   "project_version": "0.0.1",
-  "sdk_version": "10.3.3",
+  "sdk_version": "10.4.0",
   "dependencies": [
     {
       "name": "WorkerSdkSchema",
-      "version": "10.3.3"
+      "version": "10.4.0"
     }
   ]
 }

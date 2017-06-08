@@ -1,4 +1,5 @@
 #include "workers/client/src/connect_mode.h"
+#include "common/src/common/definitions.h"
 #include "workers/client/src/input.h"
 #include "workers/client/src/renderer.h"
 #include "workers/client/src/shaders/common.h"
@@ -51,13 +52,20 @@ ConnectMode::ConnectMode(ModeState& mode_state, worker::Connection&& connection)
   dispatcher_.OnCommandResponse<schema::Master::Commands::ClientHeartbeat>(
       [&](const worker::CommandResponseOp<schema::Master::Commands::ClientHeartbeat>& op) {
         if (op.StatusCode != worker::StatusCode::kSuccess) {
-          std::cerr << "[warning] Heartbeat failed: " << op.Message << std::endl;
+          std::cerr << "[warning] Heartbeat failed with code "
+                    << static_cast<std::uint32_t>(op.StatusCode) << ": " << op.Message << std::endl;
         }
       });
 
   // Wait until we're getting updates from the ambient worker.
-  dispatcher_.OnAuthorityChange<schema::PlayerClient>(
-      [&](const worker::AuthorityChangeOp& op) { have_stream_ &= op.HasAuthority; });
+  dispatcher_.OnAuthorityChange<schema::PlayerClient>([&](const worker::AuthorityChangeOp& op) {
+    have_stream_ &= op.HasAuthority;
+    if (op.HasAuthority) {
+      player_entity_id_ = op.EntityId;
+    } else {
+      player_entity_id_.clear();
+    }
+  });
   dispatcher_.OnComponentUpdate<schema::PlayerServer>(
       [&](const worker::ComponentUpdateOp<schema::PlayerServer>&) { have_stream_ = true; });
 
@@ -78,7 +86,7 @@ void ConnectMode::tick(const Input& input) {
     // Send heartbeat periodically to master.
     if (frame_++ % 256 == 0) {
       connection_->SendCommandRequest<schema::Master::Commands::ClientHeartbeat>(
-          /* master entity */ 0, {}, {});
+          /* master entity */ common::kMasterSeedEntityId, {player_entity_id_}, {});
     }
     if (have_stream_ && frame_ % 64 == 0 && !logged_in_) {
       logged_in_ = true;

@@ -60,8 +60,8 @@ void WorldSpawner::init(managed::ManagedConnection& c) {
     auto& info = chunks_[coords];
     info.reserve_request_id.Id = 0;
     if (op.StatusCode != worker::StatusCode::kSuccess) {
-      c.logger.warn("Reserve entity ID failed for chunk " + coords_string(coords) + ": " +
-                    op.Message);
+      c.logger.warn("Reserve entity ID failed for chunk " + coords_string(coords) + " with code " +
+                    std::to_string(static_cast<std::uint32_t>(op.StatusCode)) + ": " + op.Message);
       return;
     }
     info.entity_id = op.EntityId.value_or(-1);
@@ -83,7 +83,12 @@ void WorldSpawner::init(managed::ManagedConnection& c) {
     auto& info = chunks_[coords];
     info.create_request_id.Id = 0;
     if (op.StatusCode != worker::StatusCode::kSuccess) {
-      c.logger.warn("Create entity failed for chunk " + coords_string(coords) + ": " + op.Message);
+      c.logger.warn("Create entity failed for chunk " + coords_string(coords) + " with code " +
+                    std::to_string(static_cast<std::uint32_t>(op.StatusCode)) + ": " + op.Message);
+      if (op.StatusCode == worker::StatusCode::kApplicationError) {
+        // Reservation expired.
+        info.entity_id = -1;
+      }
       return;
     }
     info.entity_created = true;
@@ -106,8 +111,7 @@ void WorldSpawner::sync() {
     for (std::int32_t y = 0; y < chunk_size_; ++y) {
       for (std::int32_t x = 0; x < chunk_size_; ++x) {
         auto cs2 = chunk_size_ / 2;
-        auto ramp = (3 + x == cs2 || 2 + x == cs2 || 1 + x == cs2) &&
-                (y == cs2 || 1 + y == cs2)
+        auto ramp = (3 + x == cs2 || 2 + x == cs2 || 1 + x == cs2) && (y == cs2 || 1 + y == cs2)
             ? schema::Tile::Ramp::RIGHT
             : ((x == cs2 || 1 + x == cs2) && y - 1 == cs2) ||
                     (1 + x == chunk_size_ && 1 + y == chunk_size_)
@@ -117,11 +121,10 @@ void WorldSpawner::sync() {
                     : (x == cs2 || 1 + x == cs2) && 2 + y == cs2 ? schema::Tile::Ramp::LEFT
                                                                  : schema::Tile::Ramp::NONE;
         chunk_data.tiles().emplace_back(
-            schema::Tile::Terrain::GRASS,
-            (!x && !y) || (x == cs2 && (y == cs2 || 1 + y == cs2))
+            schema::Tile::Terrain::GRASS, (!x && !y) || (x == cs2 && (y == cs2 || 1 + y == cs2))
                 ? 2
-                : (x - 1 == cs2 || 2 + x == cs2 || 1 + x == cs2) &&
-                    (y == cs2 || 1 + y == cs2) ? 1 : 0,
+                : (x - 1 == cs2 || 2 + x == cs2 || 1 + x == cs2) && (y == cs2 || 1 + y == cs2) ? 1
+                                                                                               : 0,
             ramp);
       }
     }

@@ -7,6 +7,10 @@ type ChunkInfo {
   int32 y = 3;
 }
 
+type Heartbeat {
+  option<EntityId> player_entity_id = 1;
+}
+
 // Component exclusive to the master entity with ID 0, authoritative on the master worker.
 component Master {
   id = 100;
@@ -15,6 +19,6 @@ component Master {
   list<ChunkInfo> chunks = 2;
 
   // Heartbeat sent by clients to the master.
-  command Unit client_heartbeat(Unit);
+  command Unit client_heartbeat(Heartbeat);
 }
 

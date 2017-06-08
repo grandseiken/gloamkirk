@@ -29,9 +29,10 @@ private:
   std::unique_ptr<worker::Connection> connection_;
   worker::Dispatcher dispatcher_;
 
+  worker::Option<worker::EntityId> player_entity_id_;
+  std::unique_ptr<world::PlayerController> world_;
   bool have_stream_ = false;
   bool logged_in_ = false;
-  std::unique_ptr<world::PlayerController> world_;
 
   std::uint64_t frame_ = 0;
   std::uint64_t enter_frame_ = 0;

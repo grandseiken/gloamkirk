@@ -66,7 +66,7 @@ void ClientHandler::init(managed::ManagedConnection& c) {
           return;
         }
 
-        update_client(client);
+        update_client(client, op.Request.player_entity_id());
         c.connection.SendCommandResponse<ClientHeartbeat>(op.RequestId, {});
       });
 
@@ -84,8 +84,9 @@ void ClientHandler::init(managed::ManagedConnection& c) {
     auto& info = clients_[client];
     info.reserve_request_id.Id = 0;
     if (op.StatusCode != worker::StatusCode::kSuccess) {
-      c.logger.warn("Reserve entity ID failed for client " + attribute_string(client) + ": " +
-                    op.Message);
+      c.logger.warn("Reserve entity ID failed for client " + attribute_string(client) +
+                    " with code " + std::to_string(static_cast<std::uint32_t>(op.StatusCode)) +
+                    ": " + op.Message);
       return;
     }
     info.entity_id = op.EntityId.value_or(-1);
@@ -105,10 +106,15 @@ void ClientHandler::init(managed::ManagedConnection& c) {
     auto& info = clients_[client];
     info.create_request_id.Id = 0;
     if (op.StatusCode != worker::StatusCode::kSuccess) {
-      c.logger.warn("Create entity failed for client " + attribute_string(client) + ": " +
-                    op.Message);
-      // Next heartbeat will retry.
-      clients_.erase(client);
+      c.logger.warn("Create entity failed for client " + attribute_string(client) + " with code " +
+                    std::to_string(static_cast<std::uint32_t>(op.StatusCode)) + ": " + op.Message);
+      if (op.StatusCode == worker::StatusCode::kApplicationError) {
+        // Reservation expired.
+        info.entity_id = -1;
+      } else {
+        // Next heartbeat will retry.
+        clients_.erase(client);
+      }
       return;
     }
     c.logger.info("Created entity " + std::to_string(info.entity_id) + " for " +
@@ -130,8 +136,8 @@ void ClientHandler::init(managed::ManagedConnection& c) {
     auto& info = clients_[client];
     info.delete_request_id.Id = 0;
     if (op.StatusCode != worker::StatusCode::kSuccess) {
-      c.logger.warn("Delete entity failed for client " + attribute_string(client) + ": " +
-                    op.Message);
+      c.logger.warn("Delete entity failed for client " + attribute_string(client) + " with code " +
+                    std::to_string(static_cast<std::uint32_t>(op.StatusCode)) + ": " + op.Message);
       // Wait before retrying.
       clients_[client].timestamp_millis = timestamp_millis();
       return;
@@ -193,8 +199,14 @@ void ClientHandler::sync() {
   }
 }
 
-void ClientHandler::update_client(const Client& client) {
-  clients_[client].timestamp_millis = timestamp_millis();
+void ClientHandler::update_client(const Client& client,
+                                  const worker::Option<worker::EntityId>& player_entity_id) {
+  auto& info = clients_[client];
+  info.timestamp_millis = timestamp_millis();
+  if (player_entity_id) {
+    info.entity_id = *player_entity_id;
+    info.entity_created = true;
+  }
 }
 
 }  // ::master

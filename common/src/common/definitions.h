@@ -19,6 +19,7 @@ const improbable::WorkerRequirementSet kMasterOnlySet = {{{{kMasterAttribute}}}}
 const improbable::WorkerRequirementSet kAllWorkersSet = {
     {{{kAmbientAttribute}}, {{kClientAttribute}}}};
 
+const worker::EntityId kMasterSeedEntityId = 1;
 const std::string kMasterSeedPrefab = "MasterSeed";
 const std::string kChunkPrefab = "Chunk";
 const std::string kPlayerPrefab = "Player";
