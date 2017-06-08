@@ -9,6 +9,7 @@
 #include <improbable/worker.h>
 #include <schema/common.h>
 #include <schema/player.h>
+#include <algorithm>
 #include <cstdint>
 #include <unordered_map>
 
@@ -19,6 +20,8 @@ const std::string kWorkerType = "ambient";
 
 class PositionLogic : public managed::WorkerLogic {
 public:
+  PositionLogic() : collision_{tile_map_} {}
+
   void init(managed::ManagedConnection& c) override {
     c_ = &c;
 
@@ -77,9 +80,7 @@ public:
   }
 
   void tick() override {
-    if (tile_map_.has_changed()) {
-      collision_.update(tile_map_);
-    }
+    collision_.update();
   }
 
   void sync() override {
@@ -95,6 +96,7 @@ public:
         auto projection_xz =
             collision_.project_xz(box, current, common::kPlayerSpeed * position.xz_dv);
         current += glm::vec3{projection_xz.x, 0.f, projection_xz.y};
+        current.y = std::max(collision_.terrain_height(current), current.y - common::kGravity);
       }
 
       // Bounce back to client (and cosimulators) for this player.

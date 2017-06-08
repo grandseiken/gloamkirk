@@ -26,13 +26,17 @@ struct Edge {
 
 class Collision {
 public:
+  Collision(const TileMap& tile_map);
   // Recalculate terrain geometry from the tile map.
-  void update(const TileMap& tile_map);
+  void update();
 
   // Project a collision box at position along the given XZ projection vector, and return the
   // modified, unimpeded projection.
   glm::vec2 project_xz(const Box& box, const glm::vec3& position,
                        const glm::vec2& projection) const;
+
+  // Get the terrain height at a particular point.
+  float terrain_height(const glm::vec3& position);
 
 private:
   // Layers of world geometry.
@@ -44,8 +48,8 @@ private:
     std::unordered_map<glm::ivec2, std::vector<std::size_t>> tile_lookup;
   };
 
+  const TileMap& tile_map_;
   std::unordered_map<std::uint32_t, LayerData> layers_;
-  std::unordered_map<glm::ivec2, float> height_map_;
 };
 
 }  // ::core

@@ -4,6 +4,8 @@
 #include <glm/geometric.hpp>
 #include <improbable/worker.h>
 #include <algorithm>
+#include <cmath>
+#include <limits>
 
 namespace gloam {
 namespace core {
@@ -54,28 +56,32 @@ float project(const Edge& edge, const glm::vec2& origin, const glm::vec2& projec
 
 }  // anonymous
 
-void Collision::update(const TileMap& tile_map) {
+Collision::Collision(const TileMap& tile_map) : tile_map_{tile_map} {}
+
+void Collision::update() {
+  if (!tile_map_.has_changed()) {
+    return;
+  }
   layers_.clear();
   glm::ivec3 min;
   glm::ivec3 max;
 
   bool first = true;
-  for (const auto& pair : tile_map.get()) {
+  for (const auto& pair : tile_map_.get()) {
     glm::ivec3 coords = {pair.first.x, pair.first.y, pair.second.height()};
     if (first) {
       min = max = coords;
     }
     min = glm::min(min, coords);
     max = glm::max(max, coords);
-    height_map_[pair.first] = static_cast<float>(coords.z);
     first = false;
   }
 
   auto has_edge = [&](std::int32_t height, const glm::ivec2& from, const glm::ivec2& to) {
-    auto from_it = tile_map.get().find(from);
-    auto to_it = tile_map.get().find(to);
+    auto from_it = tile_map_.get().find(from);
+    auto to_it = tile_map_.get().find(to);
     std::int32_t to_height = 0;
-    if (to_it != tile_map.get().end()) {
+    if (to_it != tile_map_.get().end()) {
       to_height = to_it->second.height();
       auto ramp = to_it->second.ramp();
       if ((from.x < to.x && ramp != schema::Tile::Ramp::NONE &&
@@ -86,8 +92,8 @@ void Collision::update(const TileMap& tile_map) {
         ++to_height;
       }
     }
-    return from_it != tile_map.get().end() && height >= from_it->second.height() &&
-        (to_it == tile_map.get().end() || height < to_height);
+    return from_it != tile_map_.get().end() && height >= from_it->second.height() &&
+        (to_it == tile_map_.get().end() || height < to_height);
   };
 
   for (auto height = min.z; height < max.z; ++height) {
@@ -166,7 +172,7 @@ glm::vec2 Collision::project_xz(const Box& box, const glm::vec3& position,
 
   auto layer_it = layers_.find(coords(position.y));
   if (layer_it == layers_.end()) {
-    return projection_xz;
+    return glm::vec3{projection_xz.x, 0., projection_xz.y};
   }
   const auto& layer = layer_it->second;
 
@@ -247,6 +253,31 @@ glm::vec2 Collision::project_xz(const Box& box, const glm::vec3& position,
     current_projection = new_projection;
   }
   return result_vector;
+}
+
+float Collision::terrain_height(const glm::vec3& position) {
+  auto it = tile_map_.get().find(coords({position.x, position.z}));
+  if (it == tile_map_.get().end()) {
+    return std::numeric_limits<float>::max();
+  }
+  auto height = it->second.height();
+  float ignored;
+  auto fx = std::modf(position.x, &ignored);
+  auto fz = std::modf(position.z, &ignored);
+  if (it->second.ramp() == schema::Tile::Ramp::RIGHT) {
+    height += fx;
+  }
+  if (it->second.ramp() == schema::Tile::Ramp::LEFT) {
+    height += 1.f - fx;
+  }
+  if (it->second.ramp() == schema::Tile::Ramp::UP) {
+    height += fz;
+  }
+  if (it->second.ramp() == schema::Tile::Ramp::DOWN) {
+    height += 1.f - fz;
+  }
+  // Make sure we're just above the ground. TODO: not sure if necessary.
+  return height + 1.f / 32;
 }
 
 }  // ::core

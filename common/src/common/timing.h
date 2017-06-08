@@ -14,6 +14,7 @@ constexpr const std::uint32_t kTicksPerSync = 3;
 
 // Speeds are measured in tiles per sync tick.
 const float kPlayerSpeed = 4.5f / 32.f;
+const float kGravity = 1.5f / 8.f;
 }  // anonymous
 }  // ::common
 }  // ::gloam

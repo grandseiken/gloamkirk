@@ -12,7 +12,10 @@ namespace world {
 
 PlayerController::PlayerController(worker::Connection& connection, worker::Dispatcher& dispatcher,
                                    const ModeState& mode_state)
-: connection_{connection}, dispatcher_{dispatcher}, world_renderer_{mode_state} {
+: connection_{connection}
+, dispatcher_{dispatcher}
+, collision_{tile_map_}
+, world_renderer_{mode_state} {
   dispatcher_.OnAddEntity([&](const worker::AddEntityOp& op) {
     connection_.SendComponentInterest(op.EntityId,
                                       {
@@ -85,10 +88,7 @@ void PlayerController::tick(const Input& input) {
   static const float kInterpolateMaxDistance = 1.f;
   static const float kMovingInterpolateMinDistance = 1.f / 8;
 
-  if (tile_map_.has_changed()) {
-    collision_.update(tile_map_);
-  }
-
+  collision_.update();
   glm::vec2 direction;
   if (input.held(Button::kLeft)) {
     direction += glm::vec2{-1.f, -1.f};
@@ -130,9 +130,16 @@ void PlayerController::tick(const Input& input) {
     core::Box box{1.f / 8};
 
     auto speed_per_tick = common::kPlayerSpeed / common::kTicksPerSync;
+    auto gravity = common::kGravity / common::kTicksPerSync;
     auto projection_xz = collision_.project_xz(box, local_position_, speed_per_tick * direction);
+
     local_position_ += glm::vec3{projection_xz.x, 0.f, projection_xz.y};
     canonical_position_ += glm::vec3{projection_xz.x, 0.f, projection_xz.y};
+
+    local_position_.y =
+        std::max(collision_.terrain_height(local_position_), local_position_.y - gravity);
+    canonical_position_.y = std::max(collision_.terrain_height(canonical_position_), gravity);
+
     player_tick_dv_ += projection_xz / common::kPlayerSpeed;
   }
 
