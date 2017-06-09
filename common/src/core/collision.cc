@@ -171,6 +171,7 @@ glm::vec2 Collision::project_xz(const Box& box, const glm::vec3& position,
                                 const glm::vec2& projection_xz) const {
   static const std::uint32_t kMaxIterations = 8;
 
+  // TODO: destination calculation is too generous; also, why can we only move on one axis now?
   glm::vec3 projection_xyz = {projection_xz.x, 0., projection_xz.y};
   auto current_height = std::max(position.y, terrain_height(box, position));
   auto destination_height = terrain_height(box, position + projection_xyz);

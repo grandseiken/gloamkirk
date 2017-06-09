@@ -136,25 +136,25 @@ void PlayerController::tick(const Input& input) {
   interpolate(local_position_.y, canonical_position_.y, false);
   interpolate(canonical_position_.y, local_position_.y, false);
 
+  auto speed_per_tick = common::kPlayerSpeed / common::kTicksPerSync;
+  auto gravity = common::kGravity / common::kTicksPerSync;
+
+  core::Box box{1.f / 8};
   if (is_moving) {
     direction = glm::normalize(direction);
-    core::Box box{1.f / 8};
 
-    auto speed_per_tick = common::kPlayerSpeed / common::kTicksPerSync;
-    auto gravity = common::kGravity / common::kTicksPerSync;
     auto projection_xz = collision_.project_xz(box, local_position_, speed_per_tick * direction);
 
     local_position_ += glm::vec3{projection_xz.x, 0.f, projection_xz.y};
     canonical_position_ += glm::vec3{projection_xz.x, 0.f, projection_xz.y};
 
-    auto terrain_height = collision_.terrain_height(box, local_position_);
-    local_position_.y = std::max(terrain_height, local_position_.y - gravity);
-
-    terrain_height = collision_.terrain_height(box, canonical_position_);
-    canonical_position_.y = std::max(terrain_height, canonical_position_.y - gravity);
-
     player_tick_dv_ += projection_xz / common::kPlayerSpeed;
   }
+  auto terrain_height = collision_.terrain_height(box, local_position_);
+  local_position_.y = std::max(terrain_height, local_position_.y - gravity);
+
+  terrain_height = collision_.terrain_height(box, canonical_position_);
+  canonical_position_.y = std::max(terrain_height, canonical_position_.y - gravity);
 
   for (auto& pair : interpolation_) {
     auto& interpolation = pair.second;
