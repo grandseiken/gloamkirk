@@ -260,10 +260,12 @@ float Collision::terrain_height(const glm::vec3& position) {
   if (it == tile_map_.get().end()) {
     return std::numeric_limits<float>::max();
   }
-  auto height = it->second.height();
+  float height = static_cast<float>(it->second.height());
   float ignored;
   auto fx = std::modf(position.x, &ignored);
   auto fz = std::modf(position.z, &ignored);
+  fx = fx < 0 ? 1 - fx : fx;
+  fz = fz < 0 ? 1 - fz : fz;
   if (it->second.ramp() == schema::Tile::Ramp::RIGHT) {
     height += fx;
   }
