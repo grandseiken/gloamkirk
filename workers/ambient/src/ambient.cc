@@ -91,12 +91,12 @@ public:
       }
 
       auto& current = position.current;
+      core::Box box{1.f / 8};
       if (position.xz_dv != glm::vec2{}) {
-        core::Box box{1.f / 8};
         auto projection_xz =
             collision_.project_xz(box, current, common::kPlayerSpeed * position.xz_dv);
         current += glm::vec3{projection_xz.x, 0.f, projection_xz.y};
-        current.y = std::max(collision_.terrain_height(current), current.y - common::kGravity);
+        current.y = std::max(collision_.terrain_height(box, current), current.y - common::kGravity);
       }
 
       // Bounce back to client (and cosimulators) for this player.

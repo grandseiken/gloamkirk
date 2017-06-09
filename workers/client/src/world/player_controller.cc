@@ -9,6 +9,31 @@
 
 namespace gloam {
 namespace world {
+namespace {
+// Interpolation parameters for remote entities.
+const std::size_t kInterpolationBufferSize = 2;
+// Interpolation parameters for local player against authoritative server.
+const float kSnapMaxDistance = 1.f / 64;
+const float kInterpolateMaxDistance = 1.f;
+const float kMovingInterpolateMinDistance = 1.f / 8;
+
+template <typename T>
+void interpolate(T& from, const T& to, bool is_moving) {
+  auto error = glm::length(to - from);
+  if (!error || error > kInterpolateMaxDistance || (!is_moving && error < kSnapMaxDistance)) {
+    from = to;
+  } else {
+    auto correction = 0.f;
+    if (!is_moving || error > kSnapMaxDistance) {
+      correction = kSnapMaxDistance;
+    }
+    if (!is_moving || error > kMovingInterpolateMinDistance) {
+      correction = std::max(correction, error / 16.f);
+    }
+    from += correction * (to - from) / error;
+  }
+}
+}  // anonymous namespace
 
 PlayerController::PlayerController(worker::Connection& connection, worker::Dispatcher& dispatcher,
                                    const ModeState& mode_state)
@@ -81,13 +106,6 @@ PlayerController::PlayerController(worker::Connection& connection, worker::Dispa
 }
 
 void PlayerController::tick(const Input& input) {
-  // Interpolation parameters for remote entities.
-  static const std::size_t kInterpolationBufferSize = 2;
-  // Interpolation parameters for local player against authoritative server.
-  static const float kSnapMaxDistance = 1.f / 64;
-  static const float kInterpolateMaxDistance = 1.f;
-  static const float kMovingInterpolateMinDistance = 1.f / 8;
-
   collision_.update();
   glm::vec2 direction;
   if (input.held(Button::kLeft)) {
@@ -104,26 +122,19 @@ void PlayerController::tick(const Input& input) {
   }
   bool is_moving = direction != glm::vec2{};
 
-  auto interpolate = [&](glm::vec3& from, const glm::vec3& to) {
-    auto error = glm::length(to - from);
-    if (!error || error > kInterpolateMaxDistance || (!is_moving && error < kSnapMaxDistance)) {
-      from = to;
-    } else {
-      auto correction = 0.f;
-      if (!is_moving || error > kSnapMaxDistance) {
-        correction = kSnapMaxDistance;
-      }
-      if (!is_moving || error > kMovingInterpolateMinDistance) {
-        correction = std::max(correction, error / 16.f);
-      }
-      from += correction * (to - from) / error;
-    }
-  };
-
   // Interpolate to canonical server position. We also interpolate the canonical position towards
   // our position to smooth out server hiccups.
-  interpolate(local_position_, canonical_position_);
-  interpolate(canonical_position_, local_position_);
+  glm::vec2 local_xz = {local_position_.x, local_position_.z};
+  glm::vec2 canonical_xz = {canonical_position_.x, canonical_position_.z};
+  interpolate(local_xz, canonical_xz, is_moving);
+  interpolate(canonical_xz, local_xz, is_moving);
+  local_position_.x = local_xz.x;
+  local_position_.z = local_xz.y;
+  canonical_position_.x = canonical_xz.x;
+  canonical_position_.z = canonical_xz.y;
+  // Also interpolate on the Y-axis, but do it separately.
+  interpolate(local_position_.y, canonical_position_.y, false);
+  interpolate(canonical_position_.y, local_position_.y, false);
 
   if (is_moving) {
     direction = glm::normalize(direction);
@@ -136,9 +147,11 @@ void PlayerController::tick(const Input& input) {
     local_position_ += glm::vec3{projection_xz.x, 0.f, projection_xz.y};
     canonical_position_ += glm::vec3{projection_xz.x, 0.f, projection_xz.y};
 
-    local_position_.y =
-        std::max(collision_.terrain_height(local_position_), local_position_.y - gravity);
-    canonical_position_.y = std::max(collision_.terrain_height(canonical_position_), gravity);
+    auto terrain_height = collision_.terrain_height(box, local_position_);
+    local_position_.y = std::max(terrain_height, local_position_.y - gravity);
+
+    terrain_height = collision_.terrain_height(box, canonical_position_);
+    canonical_position_.y = std::max(terrain_height, canonical_position_.y - gravity);
 
     player_tick_dv_ += projection_xz / common::kPlayerSpeed;
   }

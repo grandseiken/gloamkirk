@@ -10,6 +10,8 @@
 namespace gloam {
 namespace core {
 namespace {
+const std::size_t kCorners = 4;
+const float kMaxStepHeight = 1.f / 8;
 const float kTolerance = 1.f / 256;
 const float kToleranceSq = kTolerance * kTolerance;
 
@@ -167,12 +169,15 @@ void Collision::update() {
 
 glm::vec2 Collision::project_xz(const Box& box, const glm::vec3& position,
                                 const glm::vec2& projection_xz) const {
-  static const std::size_t kCorners = 4;
   static const std::uint32_t kMaxIterations = 8;
 
+  glm::vec3 projection_xyz = {projection_xz.x, 0., projection_xz.y};
+  auto current_height = std::max(position.y, terrain_height(box, position));
+  auto destination_height = terrain_height(box, position + projection_xyz);
+
   auto layer_it = layers_.find(coords(position.y));
-  if (layer_it == layers_.end()) {
-    return glm::vec3{projection_xz.x, 0., projection_xz.y};
+  if (layer_it == layers_.end() || destination_height < current_height + kMaxStepHeight) {
+    return projection_xyz;
   }
   const auto& layer = layer_it->second;
 
@@ -255,13 +260,25 @@ glm::vec2 Collision::project_xz(const Box& box, const glm::vec3& position,
   return result_vector;
 }
 
-float Collision::terrain_height(const glm::vec3& position) {
+float Collision::terrain_height(const Box& box, const glm::vec3& position) const {
+  glm::vec2 corners[kCorners] = {glm::vec2{-box.radius, 0.f}, glm::vec2{0.f, box.radius},
+                                 glm::vec2{box.radius, 0.f}, glm::vec2{0.f, -box.radius}};
+
+  float max = std::numeric_limits<float>::min();
+  for (std::size_t i = 0; i < kCorners; ++i) {
+    auto corner = position + glm::vec3{corners[i].x, 0.f, corners[i].y};
+    max = std::max(max, terrain_height(corner));
+  }
+  return max;
+}
+
+float Collision::terrain_height(const glm::vec3& position) const {
   auto it = tile_map_.get().find(coords({position.x, position.z}));
   if (it == tile_map_.get().end()) {
     return std::numeric_limits<float>::max();
   }
-  float height = static_cast<float>(it->second.height());
   float ignored;
+  auto height = static_cast<float>(it->second.height());
   auto fx = std::modf(position.x, &ignored);
   auto fz = std::modf(position.z, &ignored);
   fx = fx < 0 ? 1 - fx : fx;
@@ -278,8 +295,7 @@ float Collision::terrain_height(const glm::vec3& position) {
   if (it->second.ramp() == schema::Tile::Ramp::DOWN) {
     height += 1.f - fz;
   }
-  // Make sure we're just above the ground. TODO: not sure if necessary.
-  return height + 1.f / 32;
+  return height;
 }
 
 }  // ::core

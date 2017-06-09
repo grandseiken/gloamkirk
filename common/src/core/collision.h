@@ -35,10 +35,13 @@ public:
   glm::vec2 project_xz(const Box& box, const glm::vec3& position,
                        const glm::vec2& projection) const;
 
-  // Get the terrain height at a particular point.
-  float terrain_height(const glm::vec3& position);
+  // Get the maximum terrain height under a particular collision box.
+  float terrain_height(const Box& box, const glm::vec3& position) const;
 
 private:
+  // Get the terrain height at a particular point.
+  float terrain_height(const glm::vec3& position) const;
+
   // Layers of world geometry.
   struct LayerData {
     // All the edges in this layer.
