@@ -5,8 +5,8 @@ namespace master {
 namespace worldgen {
 
 schema::Tile::Terrain default_terrain(MapType map_type) {
-  return map_type == MapType::GRASSLAND ? schema::Tile::Terrain::GRASS
-                                        : schema::Tile::Terrain::GRASS;
+  return map_type == MapType::kGrassland ? schema::Tile::Terrain::kGrass
+                                         : schema::Tile::Terrain::kGrass;
 }
 
 MapBuilder::MapBuilder(MapType type, const glm::ivec2& dimensions, std::int32_t base_height)
@@ -14,7 +14,7 @@ MapBuilder::MapBuilder(MapType type, const glm::ivec2& dimensions, std::int32_t 
   auto tile_count = static_cast<std::size_t>(dimensions.x * dimensions.y);
   map_data_.tiles.reserve(tile_count);
   for (std::size_t i = 0; i < tile_count; ++i) {
-    map_data_.tiles.push_back({default_terrain(type), base_height, schema::Tile::Ramp::NONE});
+    map_data_.tiles.push_back({default_terrain(type), base_height, schema::Tile::Ramp::kNone});
   }
 }
 

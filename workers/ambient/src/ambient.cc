@@ -1,11 +1,10 @@
 #include "common/src/common/conversions.h"
+#include "common/src/common/math.h"
 #include "common/src/common/timing.h"
 #include "common/src/core/collision.h"
 #include "common/src/core/tile_map.h"
 #include "common/src/managed/managed.h"
 #include <glm/glm.hpp>
-#include <glm/vec2.hpp>
-#include <glm/vec3.hpp>
 #include <improbable/worker.h>
 #include <schema/common.h>
 #include <schema/player.h>
@@ -95,7 +94,7 @@ public:
       if (position.xz_dv != glm::vec2{}) {
         auto projection_xz =
             collision_.project_xz(box, current, common::kPlayerSpeed * position.xz_dv);
-        current += glm::vec3{projection_xz.x, 0.f, projection_xz.y};
+        current += common::from_xz(projection_xz, 0.f);
       }
       current.y = std::max(collision_.terrain_height(box, current), current.y - common::kGravity);
 

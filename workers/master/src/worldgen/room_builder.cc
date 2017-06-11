@@ -44,7 +44,7 @@ std::int32_t MapWriter::get_height(const glm::ivec2& position) const {
 }
 
 schema::Tile& MapWriter::find_tile(const glm::ivec2& position) const {
-  static schema::Tile default_tile = {schema::Tile::Terrain::GRASS, 0, schema::Tile::Ramp::NONE};
+  static schema::Tile default_tile = {schema::Tile::Terrain::kGrass, 0, schema::Tile::Ramp::kNone};
 
   auto v = position;
   if (xy_swapped(symmetry_)) {

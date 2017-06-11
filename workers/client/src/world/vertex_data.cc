@@ -28,7 +28,7 @@ bool is_visible(const glm::mat4& camera_matrix, const std::vector<glm::vec3>& ve
 }
 
 float tile_material(const schema::Tile& tile) {
-  if (tile.terrain() == schema::Tile::Terrain::GRASS) {
+  if (tile.terrain() == schema::Tile::Terrain::kGrass) {
     return 0.f;
   }
   return 1.f;
@@ -70,10 +70,10 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
     auto material = tile_material(pair.second);
 
     glm::vec3 top_normal = {0., 1., 0.};
-    bool t_ramp = pair.second.ramp() == schema::Tile::Ramp::UP;
-    bool b_ramp = pair.second.ramp() == schema::Tile::Ramp::DOWN;
-    bool l_ramp = pair.second.ramp() == schema::Tile::Ramp::LEFT;
-    bool r_ramp = pair.second.ramp() == schema::Tile::Ramp::RIGHT;
+    bool t_ramp = pair.second.ramp() == schema::Tile::Ramp::kUp;
+    bool b_ramp = pair.second.ramp() == schema::Tile::Ramp::kDown;
+    bool l_ramp = pair.second.ramp() == schema::Tile::Ramp::kLeft;
+    bool r_ramp = pair.second.ramp() == schema::Tile::Ramp::kRight;
 
     if (t_ramp) {
       top_normal = glm::normalize(glm::vec3{0., 1., -1.});
@@ -87,12 +87,12 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
 
     auto height_difference = [&](const glm::ivec2& v) {
       auto it = tile_map.find(coord + v);
-      auto ramp = it == tile_map.end() ? schema::Tile::Ramp::NONE : it->second.ramp();
+      auto ramp = it == tile_map.end() ? schema::Tile::Ramp::kNone : it->second.ramp();
       auto difference = it == tile_map.end() ? 0 : it->second.height() - height;
-      if ((v.x < 0 && ramp == schema::Tile::Ramp::RIGHT) ||
-          (v.x > 0 && ramp == schema::Tile::Ramp::LEFT) ||
-          (v.y < 0 && ramp == schema::Tile::Ramp::UP) ||
-          (v.y > 0 && ramp == schema::Tile::Ramp::DOWN)) {
+      if ((v.x < 0 && ramp == schema::Tile::Ramp::kRight) ||
+          (v.x > 0 && ramp == schema::Tile::Ramp::kLeft) ||
+          (v.y < 0 && ramp == schema::Tile::Ramp::kUp) ||
+          (v.y > 0 && ramp == schema::Tile::Ramp::kDown)) {
         return 1 + difference;
       }
       return difference;
@@ -215,9 +215,9 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
     auto jt = tile_map.find(coord - glm::ivec2{0, 1});
     if (jt != tile_map.end()) {
       auto next_height = jt->second.height();
-      bool next_t_ramp = jt->second.ramp() == schema::Tile::Ramp::UP;
-      bool next_l_ramp = jt->second.ramp() == schema::Tile::Ramp::LEFT;
-      bool next_r_ramp = jt->second.ramp() == schema::Tile::Ramp::RIGHT;
+      bool next_t_ramp = jt->second.ramp() == schema::Tile::Ramp::kUp;
+      bool next_l_ramp = jt->second.ramp() == schema::Tile::Ramp::kLeft;
+      bool next_r_ramp = jt->second.ramp() == schema::Tile::Ramp::kRight;
 
       auto add_point = [&](const glm::vec3& v, const glm::vec3& n, float up_edge, float down_edge,
                            float terrain_edge) {
@@ -416,9 +416,9 @@ glo::VertexData generate_world_data(const std::unordered_map<glm::ivec2, schema:
     jt = tile_map.find(coord - glm::ivec2{1, 0});
     if (jt != tile_map.end()) {
       auto next_height = jt->second.height();
-      bool next_t_ramp = jt->second.ramp() == schema::Tile::Ramp::UP;
-      bool next_b_ramp = jt->second.ramp() == schema::Tile::Ramp::DOWN;
-      bool next_r_ramp = jt->second.ramp() == schema::Tile::Ramp::RIGHT;
+      bool next_t_ramp = jt->second.ramp() == schema::Tile::Ramp::kUp;
+      bool next_b_ramp = jt->second.ramp() == schema::Tile::Ramp::kDown;
+      bool next_r_ramp = jt->second.ramp() == schema::Tile::Ramp::kRight;
 
       auto add_point = [&](const glm::vec3& v, const glm::vec3& n, float up_edge, float down_edge,
                            float terrain_edge) {

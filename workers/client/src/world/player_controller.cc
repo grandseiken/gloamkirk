@@ -1,5 +1,6 @@
 #include "workers/client/src/world/player_controller.h"
 #include "common/src/common/conversions.h"
+#include "common/src/common/math.h"
 #include "common/src/common/timing.h"
 #include "workers/client/src/input.h"
 #include <glm/glm.hpp>
@@ -124,14 +125,12 @@ void PlayerController::tick(const Input& input) {
 
   // Interpolate to canonical server position. We also interpolate the canonical position towards
   // our position to smooth out server hiccups.
-  glm::vec2 local_xz = {local_position_.x, local_position_.z};
-  glm::vec2 canonical_xz = {canonical_position_.x, canonical_position_.z};
+  auto local_xz = common::get_xz(local_position_);
+  auto canonical_xz = common::get_xz(canonical_position_);
   interpolate(local_xz, canonical_xz, is_moving);
   interpolate(canonical_xz, local_xz, is_moving);
-  local_position_.x = local_xz.x;
-  local_position_.z = local_xz.y;
-  canonical_position_.x = canonical_xz.x;
-  canonical_position_.z = canonical_xz.y;
+  local_position_ = common::from_xz(local_xz, local_position_.y);
+  canonical_position_ = common::from_xz(canonical_xz, canonical_position_.y);
   // Also interpolate on the Y-axis, but do it separately.
   interpolate(local_position_.y, canonical_position_.y, false);
   interpolate(canonical_position_.y, local_position_.y, false);
@@ -142,12 +141,10 @@ void PlayerController::tick(const Input& input) {
   core::Box box{1.f / 8};
   if (is_moving) {
     direction = glm::normalize(direction);
-
     auto projection_xz = collision_.project_xz(box, local_position_, speed_per_tick * direction);
 
-    local_position_ += glm::vec3{projection_xz.x, 0.f, projection_xz.y};
-    canonical_position_ += glm::vec3{projection_xz.x, 0.f, projection_xz.y};
-
+    local_position_ += common::from_xz(projection_xz, 0.f);
+    canonical_position_ += common::from_xz(projection_xz, 0.f);
     player_tick_dv_ += projection_xz / common::kPlayerSpeed;
   }
   auto terrain_height = collision_.terrain_height(box, local_position_);
@@ -240,7 +237,7 @@ void PlayerController::reconcile(std::uint32_t sync_tick, const glm::vec3& coord
     core::Box box{1.f / 8};
     auto projection_xz =
         collision_.project_xz(box, canonical_position_, common::kPlayerSpeed * input.xz_dv);
-    canonical_position_ += glm::vec3{projection_xz.x, 0.f, projection_xz.y};
+    canonical_position_ += common::from_xz(projection_xz, 0.f);
   }
 }
 

@@ -1,4 +1,5 @@
 #include "common/src/core/collision.h"
+#include "common/src/common/math.h"
 #include "common/src/core/tile_map.h"
 #include <glm/common.hpp>
 #include <glm/geometric.hpp>
@@ -11,7 +12,7 @@ namespace gloam {
 namespace core {
 namespace {
 const std::size_t kCorners = 4;
-const float kMaxStepHeight = 1.f / 8;
+const float kMaxStepHeight = 1.f / 16;
 const float kTolerance = 1.f / 256;
 const float kToleranceSq = kTolerance * kTolerance;
 
@@ -81,21 +82,32 @@ void Collision::update() {
 
   auto has_edge = [&](std::int32_t height, const glm::ivec2& from, const glm::ivec2& to) {
     auto from_it = tile_map_.get().find(from);
-    auto to_it = tile_map_.get().find(to);
-    std::int32_t to_height = 0;
-    if (to_it != tile_map_.get().end()) {
-      to_height = to_it->second.height();
-      auto ramp = to_it->second.ramp();
-      if ((from.x < to.x && ramp != schema::Tile::Ramp::NONE &&
-           ramp != schema::Tile::Ramp::RIGHT) ||
-          (from.x > to.x && ramp != schema::Tile::Ramp::NONE && ramp != schema::Tile::Ramp::LEFT) ||
-          (from.y < to.y && ramp != schema::Tile::Ramp::NONE && ramp != schema::Tile::Ramp::UP) ||
-          (from.y > to.y && ramp != schema::Tile::Ramp::NONE && ramp != schema::Tile::Ramp::DOWN)) {
-        ++to_height;
-      }
+    if (from_it == tile_map_.get().end()) {
+      return false;
     }
-    return from_it != tile_map_.get().end() && height >= from_it->second.height() &&
-        (to_it == tile_map_.get().end() || height < to_height);
+
+    auto to_it = tile_map_.get().find(to);
+    if (to_it == tile_map_.get().end()) {
+      return height >= from_it->second.height();
+    }
+
+    auto from_height = from_it->second.height();
+    auto to_height = to_it->second.height();
+    auto from_dir = common::ramp_direction(from_it->second.ramp());
+    auto to_dir = common::ramp_direction(to_it->second.ramp());
+
+    if (to_height < from_height) {
+      return false;
+    }
+    if (to_height == from_height) {
+      auto dot = glm::any(glm::notEqual(to_dir * (to - from), glm::ivec2{}));
+      return from_dir != to - from &&
+          (to_dir == from - to || (!dot && from_dir != to_dir));
+    }
+    if (to_height == 1 + from_height) {
+      return from_dir != to - from || (to_dir != to - from && to_dir != glm::ivec2{});
+    }
+    return true;
   };
 
   for (auto height = min.z; height < max.z; ++height) {
@@ -171,13 +183,8 @@ glm::vec2 Collision::project_xz(const Box& box, const glm::vec3& position,
                                 const glm::vec2& projection_xz) const {
   static const std::uint32_t kMaxIterations = 8;
 
-  // TODO: destination calculation is too generous?
-  glm::vec3 projection_xyz = {projection_xz.x, 0., projection_xz.y};
-  auto current_height = std::max(position.y, terrain_height(box, position));
-  auto destination_height = terrain_height(box, position + projection_xyz);
-
-  auto layer_it = layers_.find(coords(position.y));
-  if (layer_it == layers_.end() || destination_height < current_height + kMaxStepHeight) {
+  auto layer_it = layers_.find(coords(position.y + kMaxStepHeight));
+  if (layer_it == layers_.end()) {
     return projection_xz;
   }
   const auto& layer = layer_it->second;
@@ -186,7 +193,7 @@ glm::vec2 Collision::project_xz(const Box& box, const glm::vec3& position,
                                  glm::vec2{box.radius, 0.f}, glm::vec2{0.f, -box.radius}};
 
   // Find bounding box of projection volume.
-  glm::vec2 xz = {position.x, position.z};
+  auto xz = common::get_xz(position);
   glm::ivec2 min;
   glm::ivec2 max;
   bool first = true;
@@ -267,36 +274,26 @@ float Collision::terrain_height(const Box& box, const glm::vec3& position) const
 
   float max = std::numeric_limits<float>::min();
   for (std::size_t i = 0; i < kCorners; ++i) {
-    auto corner = position + glm::vec3{corners[i].x, 0.f, corners[i].y};
+    auto corner = position + common::from_xz(corners[i], 0.f);
     max = std::max(max, terrain_height(corner));
   }
   return max;
 }
 
 float Collision::terrain_height(const glm::vec3& position) const {
-  auto it = tile_map_.get().find(coords({position.x, position.z}));
+  auto it = tile_map_.get().find(coords(common::get_xz(position)));
   if (it == tile_map_.get().end()) {
     return std::numeric_limits<float>::max();
   }
   float ignored;
-  auto height = static_cast<float>(it->second.height());
   auto fx = std::modf(position.x, &ignored);
   auto fz = std::modf(position.z, &ignored);
   fx = fx < 0 ? 1 + fx : fx;
   fz = fz < 0 ? 1 + fz : fz;
-  if (it->second.ramp() == schema::Tile::Ramp::RIGHT) {
-    height += fx;
-  }
-  if (it->second.ramp() == schema::Tile::Ramp::LEFT) {
-    height += 1.f - fx;
-  }
-  if (it->second.ramp() == schema::Tile::Ramp::UP) {
-    height += fz;
-  }
-  if (it->second.ramp() == schema::Tile::Ramp::DOWN) {
-    height += 1.f - fz;
-  }
-  return height;
+  return static_cast<float>(it->second.height()) +
+      (it->second.ramp() == schema::Tile::Ramp::kLeft ||
+       it->second.ramp() == schema::Tile::Ramp::kDown) +
+      glm::dot(glm::vec2{fx, fz}, glm::vec2{common::ramp_direction(it->second.ramp())});
 }
 
 }  // ::core

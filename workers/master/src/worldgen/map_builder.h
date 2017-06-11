@@ -17,7 +17,7 @@ struct RoomType {
 };
 
 enum class MapType {
-  GRASSLAND,
+  kGrassland,
 };
 
 struct MapData {
