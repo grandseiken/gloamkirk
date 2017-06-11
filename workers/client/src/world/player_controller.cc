@@ -147,11 +147,10 @@ void PlayerController::tick(const Input& input) {
     canonical_position_ += common::from_xz(projection_xz, 0.f);
     player_tick_dv_ += projection_xz / common::kPlayerSpeed;
   }
-  auto terrain_height = collision_.terrain_height(box, local_position_);
-  local_position_.y = std::max(terrain_height, local_position_.y - gravity);
-
-  terrain_height = collision_.terrain_height(box, canonical_position_);
-  canonical_position_.y = std::max(terrain_height, canonical_position_.y - gravity);
+  local_position_.y -= gravity;
+  local_position_.y = collision_.terrain_height(box, local_position_);
+  canonical_position_.y -= gravity;
+  canonical_position_.y = collision_.terrain_height(box, canonical_position_);
 
   for (auto& pair : interpolation_) {
     auto& interpolation = pair.second;

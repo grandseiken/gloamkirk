@@ -96,7 +96,8 @@ public:
             collision_.project_xz(box, current, common::kPlayerSpeed * position.xz_dv);
         current += common::from_xz(projection_xz, 0.f);
       }
-      current.y = std::max(collision_.terrain_height(box, current), current.y - common::kGravity);
+      current.y -= common::kGravity;
+      current.y = collision_.terrain_height(box, current);
 
       // Bounce back to client (and cosimulators) for this player.
       c_->connection.SendComponentUpdate<schema::PlayerServer>(

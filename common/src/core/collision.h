@@ -35,7 +35,7 @@ public:
   glm::vec2 project_xz(const Box& box, const glm::vec3& position,
                        const glm::vec2& projection) const;
 
-  // Get the maximum terrain height under a particular collision box.
+  // Get the correct height for a particular collision box.
   float terrain_height(const Box& box, const glm::vec3& position) const;
 
 private:

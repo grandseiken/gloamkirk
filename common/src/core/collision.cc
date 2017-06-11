@@ -12,7 +12,7 @@ namespace gloam {
 namespace core {
 namespace {
 const std::size_t kCorners = 4;
-const float kMaxStepHeight = 1.f / 16;
+const float kMaxStepHeight = 1.f / 4;
 const float kTolerance = 1.f / 256;
 const float kToleranceSq = kTolerance * kTolerance;
 
@@ -100,9 +100,8 @@ void Collision::update() {
       return false;
     }
     if (to_height == from_height) {
-      auto dot = glm::any(glm::notEqual(to_dir * (to - from), glm::ivec2{}));
-      return from_dir != to - from &&
-          (to_dir == from - to || (!dot && from_dir != to_dir));
+      bool to_perp = to_dir != glm::ivec2{} && std::abs((to - from).x) != std::abs(to_dir.x);
+      return from_dir != to - from && (to_dir == from - to || (to_perp && from_dir != to_dir));
     }
     if (to_height == 1 + from_height) {
       return from_dir != to - from || (to_dir != to - from && to_dir != glm::ivec2{});
@@ -183,6 +182,7 @@ glm::vec2 Collision::project_xz(const Box& box, const glm::vec3& position,
                                 const glm::vec2& projection_xz) const {
   static const std::uint32_t kMaxIterations = 8;
 
+  // TODO: probably need some way of jumping up ramps.
   auto layer_it = layers_.find(coords(position.y + kMaxStepHeight));
   if (layer_it == layers_.end()) {
     return projection_xz;
@@ -272,12 +272,19 @@ float Collision::terrain_height(const Box& box, const glm::vec3& position) const
   glm::vec2 corners[kCorners] = {glm::vec2{-box.radius, 0.f}, glm::vec2{0.f, box.radius},
                                  glm::vec2{box.radius, 0.f}, glm::vec2{0.f, -box.radius}};
 
+  float min = std::numeric_limits<float>::max();
   float max = std::numeric_limits<float>::min();
+  // TODO: this really needs to check across the whole box rather than just the corners. Also still
+  // needs tweaking to not jump up at edges...
   for (std::size_t i = 0; i < kCorners; ++i) {
-    auto corner = position + common::from_xz(corners[i], 0.f);
-    max = std::max(max, terrain_height(corner));
+    auto height = terrain_height(position + common::from_xz(corners[i], 0.f));
+    min = std::min(min, height);
+    max = std::max(max, height);
   }
-  return max;
+  if (max < position.y + kMaxStepHeight) {
+    return std::max(max, position.y);
+  }
+  return std::max(min, position.y);
 }
 
 float Collision::terrain_height(const glm::vec3& position) const {
