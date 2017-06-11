@@ -171,14 +171,14 @@ glm::vec2 Collision::project_xz(const Box& box, const glm::vec3& position,
                                 const glm::vec2& projection_xz) const {
   static const std::uint32_t kMaxIterations = 8;
 
-  // TODO: destination calculation is too generous; also, why can we only move on one axis now?
+  // TODO: destination calculation is too generous?
   glm::vec3 projection_xyz = {projection_xz.x, 0., projection_xz.y};
   auto current_height = std::max(position.y, terrain_height(box, position));
   auto destination_height = terrain_height(box, position + projection_xyz);
 
   auto layer_it = layers_.find(coords(position.y));
   if (layer_it == layers_.end() || destination_height < current_height + kMaxStepHeight) {
-    return projection_xyz;
+    return projection_xz;
   }
   const auto& layer = layer_it->second;
 
@@ -282,8 +282,8 @@ float Collision::terrain_height(const glm::vec3& position) const {
   auto height = static_cast<float>(it->second.height());
   auto fx = std::modf(position.x, &ignored);
   auto fz = std::modf(position.z, &ignored);
-  fx = fx < 0 ? 1 - fx : fx;
-  fz = fz < 0 ? 1 - fz : fz;
+  fx = fx < 0 ? 1 + fx : fx;
+  fz = fz < 0 ? 1 + fz : fz;
   if (it->second.ramp() == schema::Tile::Ramp::RIGHT) {
     height += fx;
   }
