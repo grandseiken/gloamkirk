@@ -13,23 +13,26 @@ const std::string fog_vertex = R"""(
 uniform mat4 camera_matrix;
 
 layout(location = 0) in vec4 world_position;
+layout(location = 1) in vec4 fog_colour;
 
 smooth out vec4 vertex_world;
+flat out vec4 vertex_fog_colour;
 
 void main()
 {
   vertex_world = world_position;
+  vertex_fog_colour = fog_colour;
   gl_Position = camera_matrix * world_position;
 }
 )""";
 
 const std::string fog_fragment = common + light + simplex3 + R"""(
-uniform vec4 fog_colour;
 uniform vec3 light_world;
 uniform float light_intensity;
 uniform float frame;
 
 smooth in vec4 vertex_world;
+flat in vec4 vertex_fog_colour;
 
 out vec4 output_colour;
 
@@ -60,10 +63,10 @@ void main() {
   vec3 output_rgb =
       clamp((1. + clamp(light_value, 0., 1.) * incidence) / 2., 0., 1.) *
       cutoff_factor(light_world, world, 8. * light_intensity) *
-      (fog_colour.rgb + vec3(n.w) / 2.);
+      (vertex_fog_colour.rgb + vec3(n.w) / 2.);
 
   output_colour = vec4(output_rgb.rgb,
-      fog_colour.a * incidence * clamp(1. - light_value / 4., 0., 1.));
+      vertex_fog_colour.a * incidence * clamp(1. - light_value / 4., 0., 1.));
 }
 )""";
 

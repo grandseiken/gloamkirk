@@ -189,6 +189,7 @@ void PlayerController::sync() {
 }
 
 void PlayerController::render(const Renderer& renderer, std::uint64_t frame) const {
+  // TODO: screen sometimes stops rendering for no reason.
   std::vector<Light> lights;
   std::vector<glm::vec3> positions;
 

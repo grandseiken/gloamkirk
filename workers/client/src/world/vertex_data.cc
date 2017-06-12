@@ -691,32 +691,54 @@ glo::VertexData generate_entity_data(const std::vector<glm::vec3>& positions) {
 }
 
 glo::VertexData generate_fog_data(const glm::vec3& camera, const glm::vec2& dimensions,
-                                  float height) {
+                                  const glm::vec4& colour) {
+  static const float kFogLayerHeight = 2.f * kTileSize.y;
   std::vector<float> data;
   std::vector<GLuint> indices;
 
-  auto add_vec3 = [&](const glm::vec3& v) {
+  auto add_vec4 = [&](const glm::vec4& v) {
     data.push_back(v.x);
     data.push_back(v.y);
     data.push_back(v.z);
-    data.push_back(1.f);
+    data.push_back(v.w);
   };
+  auto add_vec3 = [&](const glm::vec3& v) { add_vec4({v, 1.f}); };
 
+  GLuint index = 0;
   auto distance = std::max(dimensions.x, dimensions.y);
-  auto centre = camera + glm::vec3{0., height, 0.};
-  add_vec3(centre + glm::vec3{-distance, 0, -distance});
-  add_vec3(centre + glm::vec3{-distance, 0, distance});
-  add_vec3(centre + glm::vec3{distance, 0, -distance});
-  add_vec3(centre + glm::vec3{distance, 0, distance});
-  indices.push_back(0);
-  indices.push_back(2);
-  indices.push_back(1);
-  indices.push_back(1);
-  indices.push_back(2);
-  indices.push_back(3);
+  // TODO: don't align fog to tile boundaries...
+  auto camera_tile = camera.y / kFogLayerHeight;
+  auto min_height = static_cast<std::int32_t>(std::floor(camera_tile - .5f)) - 1;
+  for (auto height = min_height; height <= min_height + 4; ++height) {
+    glm::vec4 layer_colour = colour;
+    layer_colour.a *= 1.f - std::abs(camera_tile - height) / 2.f;
+    if (layer_colour.a <= 0.f) {
+      continue;
+    }
+    auto centre = camera;
+    centre.y = kFogLayerHeight * (static_cast<float>(height) + .5f);
+
+    add_vec3(centre + glm::vec3{-distance, 0, -distance});
+    add_vec4(layer_colour);
+    add_vec3(centre + glm::vec3{-distance, 0, distance});
+    add_vec4(layer_colour);
+    add_vec3(centre + glm::vec3{distance, 0, -distance});
+    add_vec4(layer_colour);
+    add_vec3(centre + glm::vec3{distance, 0, distance});
+    add_vec4(layer_colour);
+
+    indices.push_back(index + 0);
+    indices.push_back(index + 2);
+    indices.push_back(index + 1);
+    indices.push_back(index + 1);
+    indices.push_back(index + 2);
+    indices.push_back(index + 3);
+    index += 4;
+  }
 
   glo::VertexData result{data, indices, GL_DYNAMIC_DRAW};
-  result.enable_attribute(0, 4, 0, 0);
+  result.enable_attribute(0, 4, 8, 0);
+  result.enable_attribute(1, 4, 8, 4);
   return result;
 }
 

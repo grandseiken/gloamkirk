@@ -220,23 +220,15 @@ void WorldRenderer::render(const Renderer& renderer, std::uint64_t frame,
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-  // Fog must be rendered in separate draw calls for transparency.
-  auto render_fog = [&](float height, const glm::vec4 fog_colour) {
-    auto program = fog_program_.use();
-    glUniformMatrix4fv(program.uniform("camera_matrix"), 1, false,
-                       glm::value_ptr(camera_matrix(camera, dimensions)));
-    glUniform4fv(program.uniform("fog_colour"), 1, glm::value_ptr(fog_colour));
-    glUniform3fv(program.uniform("light_world"), 1, glm::value_ptr(lights.front().world));
-    glUniform1f(program.uniform("light_intensity"), lights.front().intensity);
-    glUniform1f(program.uniform("frame"), static_cast<float>(frame));
-    renderer.set_simplex3_uniforms(program);
-    generate_fog_data(camera, 2 * dimensions, height).draw();
-  };
-
-  render_fog(-1.5f * kTileSize.y, glm::vec4{.5, .5, .5, .125});
-  render_fog(-.5f * kTileSize.y, glm::vec4{.5, .5, .5, .25});
-  render_fog(.5f * kTileSize.y, glm::vec4{.5, .5, .5, .25});
-  render_fog(1.5f * kTileSize.y, glm::vec4{.5, .5, .5, .125});
+  // Fog must be rendered in a separate draw call for transparency.
+  auto program = fog_program_.use();
+  glUniformMatrix4fv(program.uniform("camera_matrix"), 1, false,
+                     glm::value_ptr(camera_matrix(camera, dimensions)));
+  glUniform3fv(program.uniform("light_world"), 1, glm::value_ptr(lights.front().world));
+  glUniform1f(program.uniform("light_intensity"), lights.front().intensity);
+  glUniform1f(program.uniform("frame"), static_cast<float>(frame));
+  renderer.set_simplex3_uniforms(program);
+  generate_fog_data(camera, 2 * dimensions, {.5, .5, .5, .5}).draw();
 }
 
 void WorldRenderer::create_framebuffers(const glm::ivec2& aa_dimensions,
