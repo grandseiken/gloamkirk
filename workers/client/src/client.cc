@@ -40,7 +40,6 @@ std::unique_ptr<sf::RenderWindow> create_window(const gloam::ModeState& mode_sta
 
 worker::ConnectionParameters connection_params(const gloam::ModeState& mode_state) {
   worker::ConnectionParameters params = {};
-  params.WorkerId = kWorkerType + "-" + std::to_string(mode_state.random_seed);
   params.WorkerType = kWorkerType;
   params.Network.UseExternalIp = !mode_state.connect_local;
   // TODO: use RakNet again when connection issue is fixed.
@@ -49,7 +48,7 @@ worker::ConnectionParameters connection_params(const gloam::ModeState& mode_stat
   params.Network.Tcp.NoDelay = true;
   params.ProtocolLogging.MaxLogFiles = 8;
   params.ProtocolLogging.MaxLogFileSizeBytes = 1 << 20;
-  params.ProtocolLogging.LogPrefix = params.WorkerId + "-";
+  params.ProtocolLogging.LogPrefix = mode_state.worker_id + "-";
   params.EnableProtocolLoggingAtStartup = mode_state.enable_protocol_logging;
   return params;
 }
@@ -189,6 +188,7 @@ int main(int argc, const char** argv) {
   std::uniform_int_distribution<std::int32_t> distribution{0, 1 << 16};
 
   mode_state.random_seed = distribution(generator);
+  mode_state.worker_id = kWorkerType + "-" + std::to_string(mode_state.random_seed);
   mode_state.frame = 0;
 
   bool fade_in = true;

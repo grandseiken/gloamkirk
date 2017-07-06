@@ -29,13 +29,10 @@ std::string attribute_string(const Client& client) {
   std::string result;
   bool first = true;
   for (const auto& attribute : client.attribute()) {
-    if (!attribute.name()) {
-      continue;
-    }
     if (!first) {
       result += ", ";
     }
-    result += *attribute.name();
+    result += attribute;
     first = false;
   }
   return "{" + result + "}";
@@ -47,7 +44,7 @@ improbable::WorkerRequirementSet client_acl(const Client& client) {
 
 bool check_client(const Client& client) {
   return std::find(client.attribute().begin(), client.attribute().end(),
-                   worker::Option<std::string>{common::kClientAtom}) != client.attribute().end();
+                   common::kClientAttribute) != client.attribute().end();
 }
 
 }  // anonymous
@@ -157,19 +154,20 @@ void ClientHandler::sync() {
 
   auto create_player_entity = [&](const Client& client, worker::EntityId entity_id) {
     worker::Map<worker::ComponentId, improbable::WorkerRequirementSet> acl_map = {
+        {improbable::Position::ComponentId, common::kAmbientOnlySet},
         {schema::PlayerClient::ComponentId, client_acl(client)},
         {schema::PlayerServer::ComponentId, common::kAmbientOnlySet},
-        {schema::CanonicalPosition::ComponentId, common::kAmbientOnlySet},
         {schema::InterpolatedPosition::ComponentId, common::kAmbientOnlySet}};
-    improbable::EntityAclData entity_acl{common::kAllWorkersSet, {acl_map}};
+    improbable::EntityAclData entity_acl{common::kAllWorkersSet, acl_map};
 
     worker::Entity entity;
+    entity.Add<improbable::EntityAcl>(entity_acl);
+    entity.Add<improbable::Metadata>({common::kPlayerEntityType});
+    entity.Add<improbable::Position>({{0., 0., 0.}});
+    entity.Add<schema::InterpolatedPosition>({});
     entity.Add<schema::PlayerClient>({});
     entity.Add<schema::PlayerServer>({});
-    entity.Add<schema::CanonicalPosition>({{0., 0., 0.}});
-    entity.Add<schema::InterpolatedPosition>({});
-    entity.Add<improbable::EntityAcl>(entity_acl);
-    return c_->connection.SendCreateEntityRequest(entity, {common::kPlayerPrefab}, {entity_id}, {});
+    return c_->connection.SendCreateEntityRequest(entity, {entity_id}, {});
   };
 
   std::vector<Client> expired_clients;

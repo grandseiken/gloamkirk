@@ -8,13 +8,6 @@ type Vec3 {
   float z = 3;
 }
 
-// Canonical position component. Required for all entities. Used for load-balancing, spatial finds,
-// the inspector, and so on.
-component CanonicalPosition {
-  id = 101;
-  EntityPosition coords = 1;
-}
-
 // Interpolated position updates for clients.
 component InterpolatedPosition {
   id = 102;

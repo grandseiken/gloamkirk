@@ -10,11 +10,11 @@
 namespace gloam {
 namespace common {
 
-inline glm::vec3 coords(const improbable::math::Coordinates& schema_coords) {
+inline glm::vec3 coords(const improbable::Coordinates& schema_coords) {
   return {schema_coords.x(), schema_coords.y(), schema_coords.z()};
 }
 
-inline improbable::math::Coordinates coords(const glm::vec3& coords) {
+inline improbable::Coordinates coords(const glm::vec3& coords) {
   return {coords.x, coords.y, coords.z};
 }
 

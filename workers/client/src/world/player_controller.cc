@@ -46,22 +46,21 @@ PlayerController::PlayerController(worker::Connection& connection, worker::Dispa
     connection_.SendComponentInterest(op.EntityId,
                                       {
                                           // Only for initial checkout.
-                                          {schema::CanonicalPosition::ComponentId, {true}},
+                                          {improbable::Position::ComponentId, {true}},
                                           {schema::InterpolatedPosition::ComponentId, {true}},
                                           // TODO: replace with common component.
                                           {schema::PlayerClient::ComponentId, {true}},
                                       });
   });
 
-  dispatcher.OnAddComponent<schema::CanonicalPosition>(
-      [&](const worker::AddComponentOp<schema::CanonicalPosition>& op) {
-        if (op.EntityId != player_id_) {
-          interpolation_[op.EntityId].positions.push_back(
-              {op.Data.coords().x(), op.Data.coords().y(), op.Data.coords().z()});
-        }
-        connection.SendComponentInterest(op.EntityId,
-                                         {{schema::CanonicalPosition::ComponentId, {false}}});
-      });
+  dispatcher.OnAddComponent<improbable::Position>([&](
+      const worker::AddComponentOp<improbable::Position>& op) {
+    if (op.EntityId != player_id_) {
+      interpolation_[op.EntityId].positions.push_back(
+          {op.Data.coords().x(), op.Data.coords().y(), op.Data.coords().z()});
+    }
+    connection.SendComponentInterest(op.EntityId, {{improbable::Position::ComponentId, {false}}});
+  });
 
   dispatcher.OnRemoveEntity(
       [&](const worker::RemoveEntityOp& op) { interpolation_.erase(op.EntityId); });

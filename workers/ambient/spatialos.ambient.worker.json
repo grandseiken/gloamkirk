@@ -23,7 +23,7 @@
       "command": "ambient",
       "arguments": [
         "${IMPROBABLE_WORKER_ID}",
-        "${IMPROBABLE_RECEPTIONIST_IP}",
+        "${IMPROBABLE_RECEPTIONIST_HOST}",
         "${IMPROBABLE_RECEPTIONIST_PORT}"
       ]
     },
@@ -32,7 +32,7 @@
       "command": "ambient.exe",
       "arguments": [
         "${IMPROBABLE_WORKER_ID}",
-        "${IMPROBABLE_RECEPTIONIST_IP}",
+        "${IMPROBABLE_RECEPTIONIST_HOST}",
         "${IMPROBABLE_RECEPTIONIST_PORT}"
       ]
     }

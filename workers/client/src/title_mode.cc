@@ -106,8 +106,8 @@ void TitleMode::tick(const Input& input) {
     }
     if (input.pressed(Button::kConfirm)) {
       if (mode_state_.menu_item == MenuItem::kConnect && mode_state_.connect_local) {
-        connection_future_.reset(new ConnectionFutureWrapper{
-            worker::Connection::ConnectAsync(kLocalhost, kLocalPort, connection_params_)});
+        connection_future_.reset(new ConnectionFutureWrapper{worker::Connection::ConnectAsync(
+            kLocalhost, kLocalPort, mode_state_.worker_id, connection_params_)});
         connect_frame_ = mode_state_.frame;
       } else if (mode_state_.menu_item == MenuItem::kConnect && !mode_state_.connect_local) {
         locator_future_.reset(new LocatorFutureWrapper{locator_.GetDeploymentListAsync()});

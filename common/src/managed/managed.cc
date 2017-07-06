@@ -17,7 +17,6 @@ worker::Connection connect(const std::string& worker_type, const std::string& wo
   prefix << worker_type << "-" << std::this_thread::get_id() << "-";
 
   worker::ConnectionParameters params = {};
-  params.WorkerId = worker_id;
   params.WorkerType = worker_type;
   params.Network.UseExternalIp = false;
   params.Network.ConnectionType = worker::NetworkConnectionType::kTcp;
@@ -28,7 +27,7 @@ worker::Connection connect(const std::string& worker_type, const std::string& wo
   params.ProtocolLogging.LogPrefix = prefix.str();
   params.EnableProtocolLoggingAtStartup = enable_protocol_logging;
 
-  return worker::Connection::ConnectAsync(hostname, port, params).Get();
+  return worker::Connection::ConnectAsync(hostname, port, worker_id, params).Get();
 }
 
 class ManagedLoggerImpl : public ManagedLogger {

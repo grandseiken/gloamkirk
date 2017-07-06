@@ -35,13 +35,12 @@ public:
     c.dispatcher.OnRemoveEntity(
         [&](const worker::RemoveEntityOp& op) { entity_positions_.erase(op.EntityId); });
 
-    c.dispatcher.OnAuthorityChange<schema::CanonicalPosition>(
-        [&](const worker::AuthorityChangeOp& op) {
-          entity_positions_[op.EntityId].has_authority = op.HasAuthority;
-        });
+    c.dispatcher.OnAuthorityChange<improbable::Position>([&](const worker::AuthorityChangeOp& op) {
+      entity_positions_[op.EntityId].has_authority = op.HasAuthority;
+    });
 
-    c.dispatcher.OnAddComponent<schema::CanonicalPosition>(
-        [&](const worker::AddComponentOp<schema::CanonicalPosition>& op) {
+    c.dispatcher.OnAddComponent<improbable::Position>(
+        [&](const worker::AddComponentOp<improbable::Position>& op) {
           // We only get the position when we're authoritative.
           auto& position = entity_positions_[op.EntityId];
           position.last = position.current = common::coords(op.Data.coords());
@@ -113,8 +112,8 @@ public:
 
       position.moving = current != position.last;
       if (position.moving) {
-        c_->connection.SendComponentUpdate<schema::CanonicalPosition>(
-            pair.first, schema::CanonicalPosition::Update{}.set_coords(common::coords(current)));
+        c_->connection.SendComponentUpdate<improbable::Position>(
+            pair.first, improbable::Position::Update{}.set_coords(common::coords(current)));
       }
       position.last = current;
       ++position.player_tick;

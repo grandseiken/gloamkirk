@@ -131,11 +131,13 @@ void WorldSpawner::sync() {
 
     auto chunk_size = static_cast<double>(chunk_size_);
     worker::Entity entity;
-    entity.Add<schema::CanonicalPosition>(
-        {{chunk_size / 2 + coords.x * chunk_size, 0., chunk_size / 2 + coords.y * chunk_size}});
     entity.Add<schema::Chunk>(chunk_data);
     entity.Add<improbable::EntityAcl>(entity_acl);
-    return c_->connection.SendCreateEntityRequest(entity, {common::kChunkPrefab}, {entity_id}, {});
+    entity.Add<improbable::Metadata>({common::kChunkEntityType});
+    entity.Add<improbable::Persistence>({});
+    entity.Add<improbable::Position>(
+        {{chunk_size / 2 + coords.x * chunk_size, 0., chunk_size / 2 + coords.y * chunk_size}});
+    return c_->connection.SendCreateEntityRequest(entity, {entity_id}, {});
   };
 
   worker::List<schema::ChunkInfo> chunks_spawned;
