@@ -1,6 +1,7 @@
 #ifndef GLOAM_COMMON_SRC_CORE_COLLISION_H
 #define GLOAM_COMMON_SRC_CORE_COLLISION_H
 #include "common/src/common/hashes.h"
+#include "common/src/core/geometry.h"
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <schema/chunk.h>
@@ -11,12 +12,6 @@
 namespace gloam {
 namespace core {
 class TileMap;
-
-// Diagonal-axis-aligned collision box, with origin at centre-bottom.
-struct Box {
-  // Half-width on each diagonal axis.
-  float radius;
-};
 
 // 2D edges are in clockwise order (i.e. outward-facing normals on the left).
 struct Edge {

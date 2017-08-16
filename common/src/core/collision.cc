@@ -1,5 +1,6 @@
 #include "common/src/core/collision.h"
 #include "common/src/common/math.h"
+#include "common/src/core/geometry.h"
 #include "common/src/core/tile_map.h"
 #include <glm/common.hpp>
 #include <glm/geometric.hpp>
@@ -11,17 +12,46 @@
 namespace gloam {
 namespace core {
 namespace {
-const std::size_t kCorners = 4;
 const float kMaxStepHeight = 1.f / 4;
 const float kTolerance = 1.f / 256;
 const float kToleranceSq = kTolerance * kTolerance;
 
-std::uint32_t coords(float v) {
-  return static_cast<std::uint32_t>(glm::floor(v));
+std::int32_t coords(float v) {
+  return static_cast<std::int32_t>(glm::floor(v));
 }
 
 glm::ivec2 coords(const glm::vec2& v) {
   return glm::floor(v);
+}
+
+template <typename T>
+glm::ivec2 coords_min(const T& corners, const glm::vec2& offset) {
+  bool first = true;
+  glm::ivec2 min;
+  for (const auto& v : corners) {
+    if (first) {
+      min = coords(v + offset - kTolerance);
+      first = false;
+    } else {
+      min = glm::min(min, coords(v + offset - kTolerance));
+    }
+  }
+  return min;
+}
+
+template <typename T>
+glm::ivec2 coords_max(const T& corners, const glm::vec2& offset) {
+  bool first = true;
+  glm::ivec2 max;
+  for (const auto& v : corners) {
+    if (first) {
+      max = coords(v + offset + kTolerance);
+      first = false;
+    } else {
+      max = glm::max(max, coords(v + offset + kTolerance));
+    }
+  }
+  return max;
 }
 
 // Outward-facing normal of clockwise edge.
@@ -188,25 +218,12 @@ glm::vec2 Collision::project_xz(const Box& box, const glm::vec3& position,
     return projection_xz;
   }
   const auto& layer = layer_it->second;
-
-  glm::vec2 corners[kCorners] = {glm::vec2{-box.radius, 0.f}, glm::vec2{0.f, box.radius},
-                                 glm::vec2{box.radius, 0.f}, glm::vec2{0.f, -box.radius}};
+  auto corners = get_corners(box);
 
   // Find bounding box of projection volume.
   auto xz = common::get_xz(position);
-  glm::ivec2 min;
-  glm::ivec2 max;
-  bool first = true;
-  for (std::size_t i = 0; i < kCorners; ++i) {
-    if (first) {
-      min = max = glm::ivec2{corners[i]};
-    }
-    min = glm::min(min, coords(corners[i] + xz - kTolerance));
-    max = glm::max(max, coords(corners[i] + xz + kTolerance));
-    min = glm::min(min, coords(corners[i] + xz + projection_xz - kTolerance));
-    max = glm::max(max, coords(corners[i] + xz + projection_xz + kTolerance));
-    first = false;
-  }
+  auto min = glm::min(coords_min(corners, xz), coords_min(corners, xz + projection_xz));
+  auto max = glm::max(coords_max(corners, xz), coords_max(corners, xz + projection_xz));
 
   // Look up all edges we might intersect.
   std::unordered_set<std::size_t> edges;
@@ -240,10 +257,10 @@ glm::vec2 Collision::project_xz(const Box& box, const glm::vec3& position,
       if (!can_collide(edge, current_projection)) {
         continue;
       }
-      for (std::size_t i = 0; i < kCorners; ++i) {
+      for (std::size_t i = 0; i < corners.size(); ++i) {
         auto offset = xz + result_vector;
 
-        Edge box_edge{corners[i] + offset, corners[(1 + i) % kCorners] + offset};
+        Edge box_edge{corners[i] + offset, corners[(1 + i) % corners.size()] + offset};
         resolve_projection(edge, project(edge, corners[i] + offset, current_projection));
         resolve_projection(box_edge, project(box_edge, edge.a, -current_projection));
         resolve_projection(box_edge, project(box_edge, edge.b, -current_projection));
@@ -269,14 +286,13 @@ glm::vec2 Collision::project_xz(const Box& box, const glm::vec3& position,
 }
 
 float Collision::terrain_height(const Box& box, const glm::vec3& position) const {
-  glm::vec2 corners[kCorners] = {glm::vec2{-box.radius, 0.f}, glm::vec2{0.f, box.radius},
-                                 glm::vec2{box.radius, 0.f}, glm::vec2{0.f, -box.radius}};
+  auto corners = get_corners(box);
 
   float min = std::numeric_limits<float>::max();
   float max = std::numeric_limits<float>::min();
   // TODO: this really needs to check across the whole box rather than just the corners. Also still
   // needs tweaking to not jump up at edges...
-  for (std::size_t i = 0; i < kCorners; ++i) {
+  for (std::size_t i = 0; i < corners.size(); ++i) {
     auto height = terrain_height(position + common::from_xz(corners[i], 0.f));
     min = std::min(min, height);
     max = std::max(max, height);

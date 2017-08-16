@@ -4,6 +4,7 @@ project(common)
 set(CORE_SOURCE_FILES
   "src/core/collision.cc"
   "src/core/collision.h"
+  "src/core/geometry.h"
   "src/core/tile_map.cc"
   "src/core/tile_map.h")
 
