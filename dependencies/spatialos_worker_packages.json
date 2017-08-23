@@ -5,7 +5,7 @@
       "type": "worker_sdk",
       "packages": [
         {
-          "name": "cpp-static-x86_64-msvc_mt-win32",
+          "name": "cpp-static-x86_64-msvc_md-win32",
           "platform": "windows"
         },
         {
