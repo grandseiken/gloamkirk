@@ -17,6 +17,16 @@
           "platform": "darwin"
         }
       ]
+    },
+    {
+      "path": "../build/dependencies/worker_sdk_debug",
+      "type": "worker_sdk",
+      "packages": [
+        {
+          "name": "cpp-static-x86_64-msvc_mdd-win32",
+          "platform": "windows"
+        }
+      ]
     }
   ]
 }

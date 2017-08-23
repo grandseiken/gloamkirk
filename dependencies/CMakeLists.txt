@@ -32,21 +32,51 @@ target_link_libraries(sfml INTERFACE sfml-audio sfml-graphics sfml-window sfml-s
 include(OIS.cmake)
 
 # Find all the worker SDK libraries.
-set(WORKER_SDK_DIR "${PROJECT_DEPENDENCIES}/worker_sdk")
 find_package(Threads)
-find_library(LIB_CORE_SDK CoreSdk "${WORKER_SDK_DIR}/lib" DEFAULT_PATH)
-find_library(LIB_WORKER_SDK WorkerSdk "${WORKER_SDK_DIR}/lib" NO_DEFAULT_PATH)
-find_library(LIB_PROTOBUF NAMES protobuf libprotobuf PATHS "${WORKER_SDK_DIR}/lib" NO_DEFAULT_PATH)
-find_library(LIB_RAKNET RakNetLibStatic "${WORKER_SDK_DIR}/lib" NO_DEFAULT_PATH)
-find_library(LIB_SSL ssl "${WORKER_SDK_DIR}/lib" NO_DEFAULT_PATH)
-find_library(LIB_ZLIB NAMES z zlibstatic PATHS "${WORKER_SDK_DIR}/lib" NO_DEFAULT_PATH)
-find_library(LIB_GPR NAMES gpr PATHS "${WORKER_SDK_DIR}/lib" NO_DEFAULT_PATH)
-find_library(LIB_GRPC NAMES grpc PATHS "${WORKER_SDK_DIR}/lib" NO_DEFAULT_PATH)
-find_library(LIB_GRPCXX NAMES grpc++ PATHS "${WORKER_SDK_DIR}/lib" NO_DEFAULT_PATH)
+macro(find_worker_sdk DIR PREFIX)
+  find_library(${PREFIX}_CORE_SDK CoreSdk "${DIR}/lib" DEFAULT_PATH)
+  find_library(${PREFIX}_WORKER_SDK WorkerSdk "${DIR}/lib" NO_DEFAULT_PATH)
+  find_library(${PREFIX}_PROTOBUF NAMES protobuf libprotobuf PATHS "${DIR}/lib" NO_DEFAULT_PATH)
+  find_library(${PREFIX}_RAKNET RakNetLibStatic "${DIR}/lib" NO_DEFAULT_PATH)
+  find_library(${PREFIX}_SSL ssl "${DIR}/lib" NO_DEFAULT_PATH)
+  find_library(${PREFIX}_ZLIB NAMES z zlibstatic PATHS "${DIR}/lib" NO_DEFAULT_PATH)
+  find_library(${PREFIX}_GPR NAMES gpr PATHS "${DIR}/lib" NO_DEFAULT_PATH)
+  find_library(${PREFIX}_GRPC NAMES grpc PATHS "${DIR}/lib" NO_DEFAULT_PATH)
+  find_library(${PREFIX}_GRPCXX NAMES grpc++ PATHS "${DIR}/lib" NO_DEFAULT_PATH)
+endmacro()
+
+set(WORKER_SDK_DIR  "${PROJECT_DEPENDENCIES}/worker_sdk")
+find_worker_sdk("${WORKER_SDK_DIR}" "LIB")
+if(MSVC)
+  find_worker_sdk("${WORKER_SDK_DIR}_debug" "DEBUG_LIB")
+endif()
 
 # Worker SDK target.
 add_library(worker_sdk INTERFACE)
 target_include_directories(worker_sdk SYSTEM INTERFACE "${WORKER_SDK_DIR}/include")
-target_link_libraries(worker_sdk INTERFACE
-  ${LIB_WORKER_SDK} ${LIB_CORE_SDK} ${CMAKE_THREAD_LIBS_INIT} ${LIB_PROTOBUF}
-  ${LIB_RAKNET} ${LIB_ZLIB} ${LIB_GRPCXX} ${LIB_GRPC} ${LIB_GPR} ${LIB_SSL} ${CMAKE_DL_LIBS})
+if (MSVC)
+  target_link_libraries(worker_sdk INTERFACE
+    optimized ${LIB_WORKER_SDK}
+    optimized ${LIB_CORE_SDK}
+    optimized ${LIB_PROTOBUF}
+    optimized ${LIB_RAKNET}
+    optimized ${LIB_ZLIB}
+    optimized ${LIB_GRPCXX}
+    optimized ${LIB_GRPC}
+    optimized ${LIB_GPR}
+    optimized ${LIB_SSL}
+    debug ${DEBUG_LIB_WORKER_SDK}
+    debug ${DEBUG_LIB_CORE_SDK}
+    debug ${DEBUG_LIB_PROTOBUF}
+    debug ${DEBUG_LIB_RAKNET}
+    debug ${DEBUG_LIB_ZLIB}
+    debug ${DEBUG_LIB_GRPCXX}
+    debug ${DEBUG_LIB_GRPC}
+    debug ${DEBUG_LIB_GPR}
+    debug ${DEBUG_LIB_SSL})
+else()
+  target_link_libraries(worker_sdk INTERFACE
+    ${LIB_WORKER_SDK} ${LIB_CORE_SDK} ${LIB_PROTOBUF}
+    ${LIB_RAKNET} ${LIB_ZLIB} ${LIB_GRPCXX} ${LIB_GRPC} ${LIB_GPR} ${LIB_SSL})
+endif()
+target_link_libraries(worker_sdk INTERFACE ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS})
