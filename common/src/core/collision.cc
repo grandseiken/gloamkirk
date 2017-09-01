@@ -306,7 +306,7 @@ float Collision::terrain_height(const Box& box, const glm::vec3& position) const
 float Collision::terrain_height(const glm::vec3& position) const {
   auto it = tile_map_.get().find(coords(common::get_xz(position)));
   if (it == tile_map_.get().end()) {
-    return std::numeric_limits<float>::max();
+    return position.y;
   }
   float ignored;
   auto fx = std::modf(position.x, &ignored);
