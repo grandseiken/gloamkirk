@@ -6,6 +6,7 @@
 #include "common/src/managed/managed.h"
 #include <glm/glm.hpp>
 #include <improbable/worker.h>
+#include <schema/chunk.h>
 #include <schema/common.h>
 #include <schema/player.h>
 #include <algorithm>
@@ -36,7 +37,8 @@ public:
         [&](const worker::RemoveEntityOp& op) { entity_positions_.erase(op.EntityId); });
 
     c.dispatcher.OnAuthorityChange<improbable::Position>([&](const worker::AuthorityChangeOp& op) {
-      entity_positions_[op.EntityId].has_authority = op.HasAuthority;
+      entity_positions_[op.EntityId].has_authority =
+          op.Authority == worker::Authority::kAuthoritative;
     });
 
     c.dispatcher.OnAddComponent<improbable::Position>(
@@ -141,8 +143,12 @@ private:
 }  // ::gloam
 
 int main(int argc, char** argv) {
+  using Components = worker::Components<gloam::schema::Chunk, gloam::schema::PlayerClient,
+                                        gloam::schema::PlayerServer,
+                                        gloam::schema::InterpolatedPosition, improbable::Position>;
+
   gloam::ambient::PositionLogic position_logic;
   std::vector<gloam::managed::WorkerLogic*> worker_logic{&position_logic};
-  return gloam::managed::connect(gloam::ambient::kWorkerType, worker_logic,
+  return gloam::managed::connect(Components{}, gloam::ambient::kWorkerType, worker_logic,
                                  /* enable protocol logging */ false, argc, argv);
 }

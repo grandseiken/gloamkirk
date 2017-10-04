@@ -67,12 +67,13 @@ PlayerController::PlayerController(worker::Connection& connection, worker::Dispa
 
   dispatcher_.OnAuthorityChange<schema::PlayerClient>([&](const worker::AuthorityChangeOp& op) {
     player_id_ = op.EntityId;
+    bool has_authority = op.Authority == worker::Authority::kAuthoritative;
     have_player_position_ = false;
     interpolation_.erase(player_id_);
     connection.SendComponentInterest(
         op.EntityId, {
-                         {schema::PlayerServer::ComponentId, {op.HasAuthority}},
-                         {schema::InterpolatedPosition::ComponentId, {!op.HasAuthority}},
+                         {schema::PlayerServer::ComponentId, {has_authority}},
+                         {schema::InterpolatedPosition::ComponentId, {!has_authority}},
                      });
   });
 

@@ -6,22 +6,20 @@
 #include <string>
 
 namespace {
-std::unordered_map<worker::EntityId, worker::Entity> generate() {
-  std::unordered_map<worker::EntityId, worker::Entity> snapshot;
+worker::Option<std::string> generate(worker::SnapshotOutputStream& stream) {
   improbable::EntityAclData entity_acl{
       gloam::common::kMasterOnlySet,
       {{gloam::schema::Master::ComponentId, gloam::common::kMasterOnlySet}}};
 
-  auto& master_seed_entity = snapshot[gloam::common::kMasterSeedEntityId];
+  worker::Entity master_seed_entity;
   master_seed_entity.Add<gloam::schema::Master>({false, {}});
   master_seed_entity.Add<improbable::EntityAcl>(entity_acl);
   master_seed_entity.Add<improbable::Metadata>({gloam::common::kMasterSeedEntityType});
   master_seed_entity.Add<improbable::Persistence>({});
   master_seed_entity.Add<improbable::Position>({{0., 0., 0.}});
 
-  return snapshot;
+  return stream.WriteEntity(gloam::common::kMasterSeedEntityId, master_seed_entity);
 }
-
 }  // anonymous
 
 int main(int argc, char** argv) {
@@ -30,13 +28,17 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  auto snapshot = generate();
-  auto error = worker::SaveSnapshot(argv[1], snapshot);
-  if (error) {
-    std::cerr << "[error] " << *error << std::endl;
-    return 1;
+  using Components =
+      worker::Components<gloam::schema::Master, improbable::EntityAcl, improbable::Metadata,
+                         improbable::Persistence, improbable::Position>;
+  {
+    worker::SnapshotOutputStream stream{Components{}, argv[1]};
+    auto error = generate(stream);
+    if (error) {
+      std::cerr << "[error] " << *error << std::endl;
+      return 1;
+    }
+    std::cout << "[info] Wrote " << argv[1] << "." << std::endl;
   }
-  std::cout << "[info] Wrote " << argv[1] << " with " << snapshot.size() << " entities."
-            << std::endl;
   return 0;
 }

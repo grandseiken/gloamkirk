@@ -2,7 +2,10 @@
 #include "workers/master/src/client_handler.h"
 #include "workers/master/src/world_spawner.h"
 #include <improbable/worker.h>
+#include <schema/chunk.h>
+#include <schema/common.h>
 #include <schema/master.h>
+#include <schema/player.h>
 
 namespace gloam {
 namespace master {
@@ -37,11 +40,17 @@ private:
 }  // ::gloam
 
 int main(int argc, char** argv) {
+  using Components =
+      worker::Components<gloam::schema::Chunk, gloam::schema::InterpolatedPosition,
+                         gloam::schema::Master, gloam::schema::PlayerClient,
+                         gloam::schema::PlayerServer, improbable::EntityAcl,
+                         improbable::Persistence, improbable::Position, improbable::Metadata>;
+
   gloam::master::MasterData master_data;
   gloam::master::WorldSpawner world_spawner{master_data.data()};
   gloam::master::ClientHandler client_handler{master_data.data()};
   std::vector<gloam::managed::WorkerLogic*> worker_logic{&master_data, &world_spawner,
                                                          &client_handler};
-  return gloam::managed::connect(gloam::master::kWorkerType, worker_logic,
+  return gloam::managed::connect(Components{}, gloam::master::kWorkerType, worker_logic,
                                  /* enable protocol logging */ false, argc, argv);
 }

@@ -14,7 +14,7 @@
         },
         {
           "name": "cpp-static-x86_64-clang_libcpp-macos",
-          "platform": "darwin"
+          "platform": "macos"
         }
       ]
     },

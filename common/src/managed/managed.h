@@ -6,6 +6,7 @@
 namespace worker {
 class Connection;
 class Dispatcher;
+class ComponentRegistry;
 }  // ::worker
 
 namespace gloam {
@@ -37,8 +38,9 @@ public:
 };
 
 // Parse standard command-line and connect.
-int connect(const std::string& worker_type, const std::vector<WorkerLogic*>& logic,
-            bool enable_protocol_logging, int argc, char** argv);
+int connect(const worker::ComponentRegistry& registry, const std::string& worker_type,
+            const std::vector<WorkerLogic*>& logic, bool enable_protocol_logging, int argc,
+            char** argv);
 
 }  // ::managed
 }  // ::gloam

@@ -10,7 +10,8 @@ namespace gloam {
 namespace managed {
 namespace {
 
-worker::Connection connect(const std::string& worker_type, const std::string& worker_id,
+worker::Connection connect(const worker::ComponentRegistry& registry,
+                           const std::string& worker_type, const std::string& worker_id,
                            const std::string& hostname, std::uint16_t port,
                            bool enable_protocol_logging) {
   std::stringstream prefix;
@@ -27,7 +28,7 @@ worker::Connection connect(const std::string& worker_type, const std::string& wo
   params.ProtocolLogging.LogPrefix = prefix.str();
   params.EnableProtocolLoggingAtStartup = enable_protocol_logging;
 
-  return worker::Connection::ConnectAsync(hostname, port, worker_id, params).Get();
+  return worker::Connection::ConnectAsync(registry, hostname, port, worker_id, params).Get();
 }
 
 class ManagedLoggerImpl : public ManagedLogger {
@@ -61,8 +62,9 @@ private:
 
 }  // anonymous
 
-int connect(const std::string& worker_type, const std::vector<WorkerLogic*>& logic,
-            bool enable_protocol_logging, int argc, char** argv) {
+int connect(const worker::ComponentRegistry& registry, const std::string& worker_type,
+            const std::vector<WorkerLogic*>& logic, bool enable_protocol_logging, int argc,
+            char** argv) {
   if (argc != 4) {
     std::cerr << "[error] Usage: " << argv[0] << " worker_id hostname port" << std::endl;
     return 1;
@@ -72,9 +74,10 @@ int connect(const std::string& worker_type, const std::vector<WorkerLogic*>& log
   std::string hostname = argv[2];
   auto port = static_cast<std::uint16_t>(std::stoul(argv[3]));
 
-  auto connection = connect(worker_type, worker_id, hostname, port, enable_protocol_logging);
+  auto connection =
+      connect(registry, worker_type, worker_id, hostname, port, enable_protocol_logging);
   bool connected = true;
-  worker::Dispatcher dispatcher;
+  worker::Dispatcher dispatcher{registry};
 
   ManagedLoggerImpl managed_logger{connection, connected, worker_type};
   ManagedConnection managed_connection{managed_logger, connection, dispatcher};

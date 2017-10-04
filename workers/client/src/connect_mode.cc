@@ -1,5 +1,6 @@
 #include "workers/client/src/connect_mode.h"
 #include "common/src/common/definitions.h"
+#include "workers/client/src/components.h"
 #include "workers/client/src/input.h"
 #include "workers/client/src/renderer.h"
 #include "workers/client/src/shaders/common.h"
@@ -12,10 +13,15 @@
 namespace gloam {
 
 ConnectMode::ConnectMode(ModeState& mode_state, const std::string& disconnect_reason)
-: mode_state_{mode_state}, connected_{false}, disconnect_reason_{disconnect_reason} {}
+: mode_state_{mode_state}
+, connected_{false}
+, disconnect_reason_{disconnect_reason}
+, dispatcher_{ClientComponents()} {}
 
 ConnectMode::ConnectMode(ModeState& mode_state, worker::Connection&& connection)
-: mode_state_{mode_state}, connection_{new worker::Connection{std::move(connection)}} {
+: mode_state_{mode_state}
+, connection_{new worker::Connection{std::move(connection)}}
+, dispatcher_{ClientComponents()} {
   dispatcher_.OnDisconnect([this](const worker::DisconnectOp& op) {
     std::cerr << "[disconnected] " << op.Reason << std::endl;
     connected_ = false;
@@ -59,8 +65,9 @@ ConnectMode::ConnectMode(ModeState& mode_state, worker::Connection&& connection)
 
   // Wait until we're getting updates from the ambient worker.
   dispatcher_.OnAuthorityChange<schema::PlayerClient>([&](const worker::AuthorityChangeOp& op) {
-    have_stream_ &= op.HasAuthority;
-    if (op.HasAuthority) {
+    bool has_authority = op.Authority == worker::Authority::kAuthoritative;
+    have_stream_ &= has_authority;
+    if (has_authority) {
       player_entity_id_ = op.EntityId;
     } else {
       player_entity_id_.clear();

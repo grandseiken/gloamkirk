@@ -1,4 +1,5 @@
 #include "workers/client/src/title_mode.h"
+#include "workers/client/src/components.h"
 #include "workers/client/src/connect_mode.h"
 #include "workers/client/src/input.h"
 #include "workers/client/src/shaders/common.h"
@@ -63,8 +64,8 @@ void TitleMode::tick(const Input& input) {
     }
     if (input.pressed(Button::kConfirm)) {
       connection_future_.reset(new ConnectionFutureWrapper{locator_.ConnectAsync(
-          deployment_list_->Deployments[deployment_choice_].DeploymentName, connection_params_,
-          [&](const worker::QueueStatus& status) {
+          ClientComponents(), deployment_list_->Deployments[deployment_choice_].DeploymentName,
+          connection_params_, [&](const worker::QueueStatus& status) {
             if (status.Error) {
               finish_connect_frame_ = mode_state_.frame;
               queue_status_error_ = *status.Error;
@@ -106,8 +107,9 @@ void TitleMode::tick(const Input& input) {
     }
     if (input.pressed(Button::kConfirm)) {
       if (mode_state_.menu_item == MenuItem::kConnect && mode_state_.connect_local) {
-        connection_future_.reset(new ConnectionFutureWrapper{worker::Connection::ConnectAsync(
-            kLocalhost, kLocalPort, mode_state_.worker_id, connection_params_)});
+        connection_future_.reset(new ConnectionFutureWrapper{
+            worker::Connection::ConnectAsync(ClientComponents(), kLocalhost, kLocalPort,
+                                             mode_state_.worker_id, connection_params_)});
         connect_frame_ = mode_state_.frame;
       } else if (mode_state_.menu_item == MenuItem::kConnect && !mode_state_.connect_local) {
         locator_future_.reset(new LocatorFutureWrapper{locator_.GetDeploymentListAsync()});

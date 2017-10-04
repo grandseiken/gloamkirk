@@ -31,7 +31,7 @@ void WorldSpawner::init(managed::ManagedConnection& c) {
   }
 
   c.dispatcher.OnAuthorityChange<schema::Master>([&](const worker::AuthorityChangeOp& op) {
-    if (op.HasAuthority && !master_data_.world_spawned()) {
+    if (op.Authority == worker::Authority::kAuthoritative && !master_data_.world_spawned()) {
       // Plan for chunk spawning.
       for (std::int32_t x = 0; x < kWorldSize; ++x) {
         for (std::int32_t y = 0; y < kWorldSize; ++y) {

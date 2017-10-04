@@ -3,6 +3,8 @@ project(client)
 
 set(CLIENT_SOURCE_FILES
   "src/client.cc"
+  "src/components.cc"
+  "src/components.h"
   "src/connect_mode.cc"
   "src/connect_mode.h"
   "src/input.cc"

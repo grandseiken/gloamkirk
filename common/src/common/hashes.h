@@ -57,17 +57,6 @@ struct hash<glm::tvec4<T, P>> {
   }
 };
 
-template <>
-struct hash<improbable::WorkerAttributeSet> {
-  std::size_t operator()(const improbable::WorkerAttributeSet& attribute_set) const {
-    std::size_t seed = 0;
-    for (const auto& attribute : attribute_set.attribute()) {
-      gloam::common::hash_combine(seed, attribute);
-    }
-    return seed;
-  }
-};
-
 }  // ::std
 
 #endif
